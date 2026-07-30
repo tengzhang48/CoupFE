@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coupfe"
+version = "0.0.1"
+description = "A small, validated finite-element scaffold — one element definition, Abaqus and standalone."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "CoupMech Lab" }]
+license = "Apache-2.0 AND CC-BY-4.0 AND MIT"
+license-files = [
+    "LICENSE",
+    "LICENSE-DOCS.md",
+    "LICENSE-ABAQUS-UFL-EXAMPLES",
+    "NOTICE",
+]
+keywords = ["finite-element-method", "multiphysics", "abaqus", "petsc", "mpi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+]
+
+# The compiled-element runtime (coupfe.runtime) compiles a Fortran element kernel
+# once via numpy.f2py.  That needs, AT BUILD TIME ONLY: numpy (ships f2py), a Fortran
+# compiler (gfortran), and — on Python >= 3.12, where f2py uses the meson backend —
+# `meson` + `ninja` on PATH.  These are toolchain binaries, not pip packages; the
+# pure-Python operator contract (coupfe.operators / coupfe.assembly) needs none of them.
+[project.optional-dependencies]
+petsc = ["petsc4py", "mpi4py"]
+# charset-normalizer lets numpy.f2py detect UTF-8 comments in generated
+# fixed-format Fortran instead of silently skipping compiled UEL gates.
+runtime = ["meson", "ninja", "charset-normalizer"]
+# The build-time codegen (coupfe.codegen) turns a Python form into a Fortran UEL/UMAT; it
+# needs sympy. This is NOT a runtime dependency — the runtime never imports coupfe.codegen
+# (gated by tests/test_codegen_import_hygiene.py).
+codegen = ["sympy"]
+# Optional numba acceleration for the 3D contact broad/narrow phase. CoupFE
+# keeps a NumPy fallback, so this is not required for the base install.
+performance = ["numba>=0.57"]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/tengzhang48/CoupFE"
+Repository = "https://github.com/tengzhang48/CoupFE.git"
+Documentation = "https://github.com/tengzhang48/CoupFE/tree/main/docs"
+Issues = "https://github.com/tengzhang48/CoupFE/issues"
+
+[tool.setuptools.packages.find]
+include = ["coupfe*"]
+
+[tool.setuptools.package-data]
+# Ship the vendored Fortran sources (element kernels + the drive_uel wrapper) so the
+# runtime can compile them from an installed package.
+"coupfe.runtime" = ["*.f90", "elements/*.for"]
+# Ship the codegen Fortran templates (tensor_ops.for, etc.) so the generator works installed.
+"coupfe.codegen.generators" = ["templates/*.for"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: opt-in long-running benchmark or external-reproduction gate",
+]
+# A sign error in a generated operator must FAIL, not warn (the phase_flux sign trap).
+filterwarnings = [
+    "error::coupfe.codegen.core.verify.OperatorSignWarning",
+]

@@ -1,0 +1,37 @@
+{
+  "record_kind": "historical_abaqus_published_comparison_metadata",
+  "current_coupfe_solver_reproduction": false,
+  "source": {
+    "repository": "https://github.com/tengzhang48/abaqus_ufl",
+    "commit": "0f525339db1aad70e9f8f4825a02c1164f0da7a0",
+    "path": "paper_examples/stabilized_tet4/abaqus/scovazzi_block_fig14_n16_results.json"
+  },
+  "current_coupfe_validation": {
+    "date": "2026-07-30",
+    "focused_suite": "tests/test_stabilized_tet4.py: 5 passed",
+    "generated_source_sha256": "3ddd104ee3cd351d0a7de4545c5e352dae174670b7bc7493e3732e800f08ff65",
+    "toolchain": "Python 3.12.13, NumPy 2.4.6, SymPy 1.14.0, gfortran 13.3.0"
+  },
+  "benchmark": {
+    "reference": "Scovazzi, Zorrilla, and Rossi (2023), Section 6.3, Figure 14",
+    "doi": "10.1016/j.cma.2023.116076",
+    "mesh": {
+      "mixed_tet4_elements": 21361,
+      "nodes": 4631,
+      "n_divisions_equivalent": 16,
+      "mesher": "Gmsh 4.15.1 optimized Delaunay Tet4"
+    },
+    "pressure_N_per_mm2": 320.0
+  },
+  "historical_abaqus_result": {
+    "frames": 6,
+    "final_center_u3_mm": -0.6962435841560364,
+    "final_center_thetat": -0.0007274257950484753,
+    "published_center_abs_u3_mm_approx": 0.7
+  },
+  "evidence_limits": [
+    "The Abaqus deck, ODB, mesh, and figure assets are not included in this CoupFE example.",
+    "The values above were not produced by the current CoupFE solver or current generated Fortran.",
+    "Current evidence stops at independent Python oracles, framework verification, generation, and compiler coverage."
+  ]
+}

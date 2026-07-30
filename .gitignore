@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+*.so
+*.o
+*.mod
+.DS_Store
+
+# Abaqus example decks (SIMULIA-copyrighted, user-fetched, never commit)
+xpl_2dgencont_compression.inp.txt
+*.inp
+*.inp.txt
+*.vtk

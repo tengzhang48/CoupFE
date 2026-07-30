@@ -1,0 +1,73 @@
+include LICENSE
+include LICENSE-DOCS.md
+include LICENSE-ABAQUS-UFL-EXAMPLES
+include NOTICE
+include README.md
+include .github/scripts/check_release_artifacts.py
+recursive-include coupfe *.py *.for *.f90
+# Core ships only mesh-agnostic affine constraint algebra. Periodic box,
+# matching, and mesh-adapter policy live in consuming application packages.
+recursive-include docs *.md
+recursive-include examples *.py *.md *.csv *.json *.for
+# Redistribution authority for this external-solver-derived table is
+# unresolved. Comparisons must use COUPFE_RING_REFERENCE_CSV instead.
+exclude examples/ring_compress/abaqus_ring_compress_reactions.csv
+recursive-include skills *.md
+include validation/README.md
+
+# Preserve source- or release-gate-blocked examples in private development
+# history, but do not put them in the first public source archive.
+prune examples/Fbar_uel
+prune examples/cattaneo_3d
+prune examples/gel_axisymmetric_quad8
+prune examples/gel_chester_anand_local_pressure_quad4
+prune examples/gel_three_field_hex20
+prune examples/hussein_2026_ductile_pff
+prune examples/hussein_2026_mediavilla_pff
+prune examples/j2_fefp_uel
+prune examples/lce_quad4
+prune examples/li_2026_battery
+prune examples/strain_gradient_plasticity_msg
+prune examples/self_contact_friction
+prune tests
+
+# Restore only the passing, explicitly reviewed public test partition.
+include tests/_fd_tangent.py
+include tests/test_affine_constraints.py
+include tests/test_abaqus_ufl_hyperelastic_umats.py
+include tests/test_abaqus_ufl_inelastic_umats.py
+include tests/test_abaqus_ufl_paper_examples.py
+include tests/test_all_primitive_barrier_2d.py
+include tests/test_chester_anand_upmu_quad8.py
+include tests/test_contact_3d_persistent_friction.py
+include tests/test_contact_finite_sliding_repairing.py
+include tests/test_contact_persistent_friction.py
+include tests/test_contact_return_map_friction.py
+include tests/test_contact_search.py
+include tests/test_distribute.py
+include tests/test_dynamics.py
+include tests/test_mesh.py
+include tests/test_multibody_contact.py
+include tests/test_operator_contract.py
+include tests/test_tire_mesh.py
+include tests/test_contact_semismooth_friction.py
+include tests/test_contact_vs_ppf.py
+include tests/test_curved_convergence.py
+include tests/test_exact_stick_friction.py
+include tests/test_examples_contact_3d.py
+include tests/test_friction_relay_finite_sliding.py
+include tests/test_hertz_contact.py
+include tests/test_model.py
+include tests/test_pipeline.py
+include tests/test_phasefield_corrosion_cui.py
+include tests/test_morphing_hex8.py
+include tests/test_morphing_hex8_inp.py
+include tests/test_stabilized_tet4.py
+
+prune validation/models
+exclude validation/__init__.py validation/registry.py
+
+global-exclude RELEASE_READINESS.md HANDOFF*.md NOTE_TO_*.md PORT_PROMPT*.md
+global-exclude codegen_*_start.md codegen_*_next.md agent_working_agreement.md
+global-exclude *_for_gpt*.md *_for_claude*.md
+global-exclude __pycache__ *.py[cod] *.so *.o *.mod *.nbc *.nbi .DS_Store

@@ -1,0 +1,25 @@
+name: opt-in slow diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y gfortran ninja-build
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev,runtime,codegen,performance]"
+      # The self-contact E2E case is an explicit strict xfail until its
+      # >600-second performance regression is resolved. A future pass will
+      # therefore fail this workflow and force removal of the stale xfail.
+      - run: python -m pytest -q -ra -m slow

@@ -1,0 +1,50 @@
+CoupFE
+Copyright 2026 Teng Zhang and contributors.
+
+This product includes modified Python/NumPy/numba adaptations of portions of
+ppf-contact-solver, including closest-feature distance, additive continuous
+collision detection, and LBVH structure/query concepts. ppf-contact-solver is
+available at https://github.com/st-tech/ppf-contact-solver and is licensed
+under the Apache License, Version 2.0.
+
+For a reproducible upstream source snapshot corresponding to these adaptations,
+see ppf-contact-solver commit
+8b7740b032131aeeb46f51d882c96e09b171acc8. Retained records do not establish
+that this was the exact historical checkout, so CoupFE does not make that
+stronger claim.
+
+    Copyright 2025 Ryoichi Ando (ZOZO, Inc.)
+
+CoupFE's adaptations are identified in coupfe/operators/contact.py,
+coupfe/operators/contact3d.py, coupfe/operators/contact3d_numba.py, and
+coupfe/operators/bvh_numba.py.
+
+The research examples `phasefield_corrosion_cui`, `gel_chester_anand`,
+`stabilized_tet4`, and `morphing_hex8`, together with the code-generation
+proofs `neo_hookean_umat`, `ogden_umat`, `small_strain_j2_umat`, and
+`small_strain_viscoelastic_umat`, contain project-authored source ported from
+abaqus_ufl commit
+0f525339db1aad70e9f8f4825a02c1164f0da7a0. Those example sources were
+published under the MIT License, Copyright 2026 Teng Zhang; see
+LICENSE-ABAQUS-UFL-EXAMPLES. The pinned source and its CREDITS record
+distinguish project source from formulation, benchmark, mesh, and solver-data
+lineage:
+https://github.com/tengzhang48/abaqus_ufl/tree/0f525339db1aad70e9f8f4825a02c1164f0da7a0
+
+The cited Chester-Di Leo-Anand, Cui-Ma-Martinez-Paneda,
+Scovazzi-Zorrilla-Rossi, and Tao et al. publications and reference
+implementations are credited for their specific scientific or comparison
+roles in examples/REFERENCES.md. CoupFE does not redistribute the original
+Chester supplemental files, the original Cui UEL/deck, the Cui-derived
+comparison mesh, Abaqus output databases, or paper figure assets.
+
+The repository contains scripts and independently generated numerical results
+used to compare with Abaqus examples. It does not redistribute the
+SIMULIA-copyrighted Abaqus input decks; those are intentionally ignored and
+must be obtained by users entitled to access them.
+
+Abaqus and SIMULIA are trademarks or registered trademarks of Dassault
+Systèmes or its subsidiaries. Other project and product names are the property
+of their respective owners. References are for identification and
+interoperability only and do not imply affiliation, sponsorship, or
+endorsement.

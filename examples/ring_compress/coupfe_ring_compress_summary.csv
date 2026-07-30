@@ -1,0 +1,12 @@
+case,final_U,RF2,release_evidence,note
+quasistatic penalty (reproduce.py),4.0,0.1308,no,historical summary without retained raw run or qualified external provenance
+quasistatic penalty (reproduce.py),2.0,0.0722,no,historical interpolated development value
+staged dynamic relaxation (reproduce_dynamics.py),1.0,0.0379,no,historical settled-state development value
+staged dynamic relaxation (reproduce_dynamics.py),2.0,0.0722,no,historical settled-state development value
+staged dynamic relaxation (reproduce_dynamics.py),3.0,0.1025,no,historical settled-state development value
+staged dynamic relaxation (reproduce_dynamics.py),4.0,0.1303,no,historical settled-state development value
+staged dynamic relaxation barrier (reproduce_dynamics.py),4.0,0.1296,no,historical finite-gap research value
+staged dynamic relaxation barrier (reproduce_dynamics.py),2.0,0.0709,no,historical finite-gap research value
+fixed-dt penalty dynamics (slow ramp; superseded),4.0,0.1158,no,historical transient value; superseded by staged protocol
+adaptive penalty dynamics (slow ramp; superseded),4.0,0.1248,no,historical transient value; superseded by staged protocol
+adaptive barrier dynamics (slow ramp; superseded),4.0,0.1318,no,historical transient value; superseded by staged protocol

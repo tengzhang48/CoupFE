@@ -1,0 +1,74 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # gfortran (+ ninja on PATH) so the compiled-element kernel actually compiles
+      # and the neo-Hookean ElementGroup tests run rather than skip.
+      - run: sudo apt-get update && sudo apt-get install -y gfortran ninja-build
+      # Install the `codegen` extra (sympy) too — without it every codegen/UEL test
+      # `importorskip`s and silently skips, so the generator (and Phases 8-9) would go
+      # untested in CI. The f2py build is forced onto the meson backend in
+      # build_element_kernel, so this works identically on 3.9 (legacy numpy.distutils
+      # is broken against modern setuptools) through 3.12.
+      # Include numba so CI exercises the accelerated 3D-contact path as well
+      # as the always-available NumPy fallback.
+      - run: pip install -e ".[dev,runtime,codegen,performance]"
+      # Long-running reproductions have their own opt-in workflow. Keep this
+      # required matrix focused on deterministic unit/integration gates.
+      - run: python -m pytest -q -m "not slow"
+
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m build --sdist
+      # Build the wheel from the sdist, not directly from the checkout. This
+      # proves the source archive is a sufficient release input.
+      - run: python -m pip wheel --no-deps --wheel-dir dist dist/*.tar.gz
+      - run: python -m twine check --strict dist/*
+      - run: python .github/scripts/check_release_artifacts.py dist
+      - name: Smoke-test the installed wheel outside the checkout
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          cd "$RUNNER_TEMP"
+          env -u PYTHONPATH python - <<'PY'
+          from importlib.resources import files
+          from importlib.metadata import version
+
+          import coupfe
+
+          assert coupfe.__version__ == version("coupfe")
+          runtime = files("coupfe.runtime")
+          assert runtime.joinpath("drive_uel.f90").is_file()
+          assert runtime.joinpath("elements", "neo_hookean_q4.for").is_file()
+          assert (
+              files("coupfe.codegen.generators.templates")
+              .joinpath("tensor_ops.for")
+              .is_file()
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coupfe-distributions
+          path: dist/*
+          if-no-files-found: error

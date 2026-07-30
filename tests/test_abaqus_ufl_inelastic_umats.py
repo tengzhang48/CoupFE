@@ -1,0 +1,189 @@
+"""Focused gates for the public J2 and SLS small-strain UMAT examples."""
+
+from __future__ import annotations
+
+import importlib.util
+import math
+import shutil
+import subprocess
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+
+_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load(name, relative_path):
+    path = _ROOT / relative_path
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_j2_closed_form_covers_elastic_plastic_and_broken_control():
+    example = _load(
+        "coupfe_small_strain_j2",
+        "examples/small_strain_j2_umat/build.py",
+    )
+    model = example.SmallStrainJ2()
+    assert model.verify(verbose=False)
+
+    errors = example.reference_errors(model)
+    assert errors["elastic_tau_abs"] < 1.0e-12
+    assert errors["elastic_ep_abs"] < 1.0e-14
+    assert errors["plastic_tau_abs"] < 1.0e-10
+    assert errors["plastic_ep_abs"] < 1.0e-10
+    assert errors["plastic_ep"] > 0.0
+
+    # Broken control: dropping H from the return denominator must disagree
+    # materially with the exact consistency solution.
+    numerator = (
+        2.0
+        * math.sqrt(3.0)
+        * model.G
+        * example.FINAL_TENSOR_SHEAR
+        - model.sigma_y
+    )
+    ep_without_hardening_in_denominator = numerator / (3.0 * model.G)
+    _, ep_reference = example.closed_form_monotonic_shear(
+        example.FINAL_TENSOR_SHEAR, model
+    )
+    assert abs(ep_without_hardening_in_denominator - ep_reference) > 1.0e-3
+
+
+def test_sls_discrete_relaxation_limits_and_broken_control():
+    example = _load(
+        "coupfe_small_strain_sls",
+        "examples/small_strain_viscoelastic_umat/build.py",
+    )
+    model = example.SmallStrainViscoelastic()
+    assert model.verify(verbose=False)
+
+    errors = example.reference_errors(model)
+    assert errors["max_stress_abs"] < 1.0e-13
+    assert errors["max_viscous_strain_abs"] < 1.0e-13
+
+    instantaneous = (
+        2.0
+        * example.STEP_TENSOR_SHEAR
+        * (model.G_inf + model.G_v)
+    )
+    equilibrium = 2.0 * example.STEP_TENSOR_SHEAR * model.G_inf
+    assert equilibrium < errors["final_stress"] < errors["first_stress"]
+    assert errors["first_stress"] < instantaneous
+
+    coarse_error, fine_error = example.continuous_limit_errors()
+    assert fine_error < 0.6 * coarse_error
+
+    # Broken control: an explicit dashpot recursion must not match the
+    # backward-Euler discrete oracle.
+    ratio = example.TIME_INCREMENT / model.tau
+    eps_v_explicit = 0.0
+    for _ in range(example.N_INCREMENTS):
+        eps_v_explicit += ratio * (
+            example.STEP_TENSOR_SHEAR - eps_v_explicit
+        )
+    explicit_stress = (
+        2.0 * example.STEP_TENSOR_SHEAR * model.G_inf
+        + 2.0
+        * model.G_v
+        * (example.STEP_TENSOR_SHEAR - eps_v_explicit)
+    )
+    exact_stress = example.discrete_shear_stress(
+        example.N_INCREMENTS, model
+    )
+    assert abs(explicit_stress - exact_stress) > 1.0e-4
+
+
+@pytest.mark.parametrize(
+    (
+        "name",
+        "relative_build",
+        "committed_name",
+        "origin_example",
+        "source_needles",
+    ),
+    [
+        (
+            "j2_regeneration",
+            "examples/small_strain_j2_umat/build.py",
+            "small_strain_j2.for",
+            "small_strain_j2_umat",
+            (
+                "NSTATV = 1",
+                "SUBROUTINE smallstrainj2_stress_update",
+                "ep_old = STATEV(1)",
+                "STATEV(1) = DBLE(ep_new_z)",
+            ),
+        ),
+        (
+            "sls_regeneration",
+            "examples/small_strain_viscoelastic_umat/build.py",
+            "small_strain_viscoelastic.for",
+            "small_strain_viscoelastic_umat",
+            (
+                "NSTATV = 9",
+                "SUBROUTINE smallstrainviscoelastic_stress_update",
+                "eps_v_old(1,1) = STATEV(1)",
+                "STATEV(9) = DBLE(eps_v_new_z(3,3))",
+            ),
+        ),
+    ],
+)
+def test_generated_umats_are_current_and_compile(
+    tmp_path,
+    name,
+    relative_build,
+    committed_name,
+    origin_example,
+    source_needles,
+):
+    example = _load(name, relative_build)
+    regenerated = example.generate(tmp_path / committed_name)
+    committed = _ROOT / Path(relative_build).parent / committed_name
+
+    assert regenerated.read_bytes() == committed.read_bytes()
+    source = regenerated.read_text()
+    assert "SUBROUTINE UMAT" in source
+    assert "compression-positive user API" in source
+    assert (
+        "Declaration origin: tengzhang48/abaqus_ufl {}".format(
+            origin_example
+        )
+        in source
+    )
+    assert "Commit: 0f525339db1aad70e9f8f4825a02c1164f0da7a0" in source
+    assert (
+        "Original declaration Copyright (c) 2026 Teng Zhang, MIT."
+        in source
+    )
+    assert (
+        "Regenerated by CoupFE; see README.md for scope and license link."
+        in source
+    )
+    for needle in source_needles:
+        assert needle in source
+
+    compiler = shutil.which("gfortran")
+    if compiler is None:
+        pytest.skip("gfortran not available")
+    result = subprocess.run(
+        [
+            compiler,
+            "-c",
+            "-ffixed-form",
+            "-ffixed-line-length-none",
+            str(regenerated),
+            "-o",
+            str(tmp_path / "{}.o".format(name)),
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

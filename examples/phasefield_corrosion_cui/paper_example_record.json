@@ -1,0 +1,27 @@
+{
+  "classification": "RESEARCH",
+  "companion_commit": "0f525339db1aad70e9f8f4825a02c1164f0da7a0",
+  "companion_path": "paper_examples/phasefield_corrosion",
+  "companion_url": "https://github.com/tengzhang48/abaqus_ufl/tree/0f525339db1aad70e9f8f4825a02c1164f0da7a0/paper_examples/phasefield_corrosion",
+  "coupfe_scope": "project-authored u-phi-c Quad8R declaration, generated UEL, and focused implementation gates",
+  "current_coupfe_validation": {
+    "date": "2026-07-30",
+    "focused_suite": "tests/test_phasefield_corrosion_cui.py: 9 passed",
+    "generated_source_sha256": "00e2803359726bcd7f2ad30f98047984e6cd15cec25c471c870a3a8277625556",
+    "toolchain": "Python 3.12.13, NumPy 2.4.6, SymPy 1.14.0, gfortran 13.3.0"
+  },
+  "external_artifacts_included": false,
+  "figure": 3,
+  "full_figure_reproduction_in_core": false,
+  "paper_section": "3.1",
+  "reference": {
+    "doi": "10.1016/j.jmps.2020.104254",
+    "original_deck_sha256": "d51a1008f5297558550008a490f003131dcd6189a0f39f36d51bb8b0bfc7a56e",
+    "original_uel_sha256": "555f4434272534ef1aaf96e0eea3cd669ace4d68dd67c39f0be31866c47d0e57"
+  },
+  "withheld_from_core": [
+    "Cui-derived mesh and comparison deck pending artifact-level BSD notice and redistribution review",
+    "Abaqus outputs and figure assets",
+    "archived paper-run source"
+  ]
+}
