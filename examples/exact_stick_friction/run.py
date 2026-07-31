@@ -17,7 +17,7 @@ Setup: a unit ``G=1`` linear-elastic block (CoupFE ``NeoHookean`` tangent at ``u
 rigid floor (bottom ``y`` fixed) and sheared quasi-statically by a prescribed top displacement ``δ`` (ramped).
 The interface obeys the **global** Coulomb criterion ``Σ|p_t| ≤ μ ΣN`` (the interface sticks/slides as a unit
 — well-posed and mesh-robust; per-node *partial* slip needs the full semismooth Newton on a smooth contact
-geometry, since a bonded sharp corner is a stress singularity — see docs/dev/contact.md).
+geometry; see `docs/api.md` and `docs/capabilities.md`).
 
 Self-check (prints ``OK`` / ``FAIL``):
   * EXACT stick: interface slip ``v_t = 0`` to machine precision for every ``δ < δ*``;

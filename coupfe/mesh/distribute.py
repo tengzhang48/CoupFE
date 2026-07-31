@@ -1,4 +1,4 @@
-"""Mesh distribution (M3) — partition into owned/ghost local views.
+"""Mesh distribution — partition into owned/ghost local views.
 
 Splits a :class:`KernelMeshView` into ``nparts`` element partitions, each with a
 **memory-local** view: only its owned cells and the nodes they touch (owned + a
@@ -7,9 +7,9 @@ other parts see it as a **ghost**.
 
 The correctness invariant (gated in ``tests/test_distribute.py``): summing every part's
 owned-cell contributions reproduces the serial assembly exactly — which is precisely
-what a real-MPI ghost→owner reduction must do. This module is the *decomposition*
-(verified in-process); real multi-process execution (M3b) runs this same per-part logic
-on ranks with petsc4py ghosted vectors, reusing the lab's proven ``solve_steps_mpi_local``.
+what a real-MPI ghost→owner reduction must do. This module is the in-process
+decomposition; ``coupfe.assembly.distributed`` supplies the petsc4py execution
+path.
 """
 
 from __future__ import annotations

@@ -15,20 +15,6 @@ exclude examples/ring_compress/abaqus_ring_compress_reactions.csv
 recursive-include skills *.md
 include validation/README.md
 
-# Preserve source- or release-gate-blocked examples in private development
-# history, but do not put them in the first public source archive.
-prune examples/Fbar_uel
-prune examples/cattaneo_3d
-prune examples/gel_axisymmetric_quad8
-prune examples/gel_chester_anand_local_pressure_quad4
-prune examples/gel_three_field_hex20
-prune examples/hussein_2026_ductile_pff
-prune examples/hussein_2026_mediavilla_pff
-prune examples/j2_fefp_uel
-prune examples/lce_quad4
-prune examples/li_2026_battery
-prune examples/strain_gradient_plasticity_msg
-prune examples/self_contact_friction
 prune tests
 
 # Restore only the passing, explicitly reviewed public test partition.
@@ -65,10 +51,8 @@ include tests/test_morphing_hex8.py
 include tests/test_morphing_hex8_inp.py
 include tests/test_stabilized_tet4.py
 
-prune validation/models
-exclude validation/__init__.py validation/registry.py
-
-global-exclude RELEASE_READINESS.md HANDOFF*.md NOTE_TO_*.md PORT_PROMPT*.md
-global-exclude codegen_*_start.md codegen_*_next.md agent_working_agreement.md
-global-exclude *_for_gpt*.md *_for_claude*.md
+global-exclude RELEASE_READINESS*.md REVIEW_NOTES*.md SUMMARY_for_*.md
+global-exclude EXTERNAL_OBSERVER_FINDINGS*.md HISTORY_*benchmark*.md
+global-exclude HANDOFF*.md NOTE_*.md PORT_PROMPT*.md
+global-exclude codegen_*_*.md agent_*agreement*.md *_for_*.md
 global-exclude __pycache__ *.py[cod] *.so *.o *.mod *.nbc *.nbi .DS_Store

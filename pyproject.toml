@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "coupfe"
 version = "0.0.1"
-description = "A small, validated finite-element scaffold — one element definition, Abaqus and standalone."
+description = "A compact finite-element scaffold for custom Abaqus and standalone elements."
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "CoupMech Lab" }]
@@ -32,19 +32,16 @@ dependencies = [
     "scipy>=1.7",
 ]
 
-# The compiled-element runtime (coupfe.runtime) compiles a Fortran element kernel
-# once via numpy.f2py.  That needs, AT BUILD TIME ONLY: numpy (ships f2py), a Fortran
-# compiler (gfortran), and — on Python >= 3.12, where f2py uses the meson backend —
-# `meson` + `ninja` on PATH.  These are toolchain binaries, not pip packages; the
+# The compiled-element runtime (coupfe.runtime) builds a Fortran element kernel
+# on demand via numpy.f2py's meson backend. Element compilation needs NumPy >= 1.26,
+# a compatible Fortran compiler, and the `meson` and `ninja` commands. The
 # pure-Python operator contract (coupfe.operators / coupfe.assembly) needs none of them.
 [project.optional-dependencies]
-petsc = ["petsc4py", "mpi4py"]
-# charset-normalizer lets numpy.f2py detect UTF-8 comments in generated
-# fixed-format Fortran instead of silently skipping compiled UEL gates.
-runtime = ["meson", "ninja", "charset-normalizer"]
+petsc = ["petsc", "petsc4py"]
+runtime = ["numpy>=1.26", "meson", "ninja"]
 # The build-time codegen (coupfe.codegen) turns a Python form into a Fortran UEL/UMAT; it
-# needs sympy. This is NOT a runtime dependency — the runtime never imports coupfe.codegen
-# (gated by tests/test_codegen_import_hygiene.py).
+# needs sympy. This is not a runtime dependency: coupfe.runtime does not import
+# coupfe.codegen.
 codegen = ["sympy"]
 # Optional numba acceleration for the 3D contact broad/narrow phase. CoupFE
 # keeps a NumPy fallback, so this is not required for the base install.

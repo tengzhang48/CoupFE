@@ -2,9 +2,9 @@
 coupfe.codegen — Python-to-Fortran code generator for Abaqus UMAT/UEL.
 
 Users write constitutive models and weak forms in Python. The package:
-  1. Verifies all tangent blocks automatically (complex-step vs FD).
+  1. Provides tangent-consistency checks for supported declarations.
   2. Generates a self-contained Fortran ``.for`` file that runs in
-     Abaqus or in the embedded ``feacheap`` solver.
+     Abaqus or, for supported elements, the native CoupFE runtime.
 
 Capability summary
 ------------------
@@ -25,9 +25,10 @@ What you get when you ``import coupfe.codegen as au``:
 
     UEL generators
         au.generate_uel(problem, path, element=..., formulation=...)
-            element ∈ {'quad4', 'quad8', 'quad8r', 'hex8', 'hex20'}
+            built-in element configurations include Quad4, Quad8/Quad8R,
+            Tet4/Tet4R, Hex8, and Hex20
             formulation ∈ {'standard', 'fbar_mechanics',
-                           'local_pressure', 'fbar_coupled'}
+                           'local_pressure'}
         au.generate_uel_local_pressure(weakform, output_path, ...)
 
     UMAT generators
@@ -37,7 +38,7 @@ What you get when you ``import coupfe.codegen as au``:
         au.generate_small_strain_umat(material, path)
             # small-strain materials may define self._helper(...) methods;
             # the generator emits each helper as a Fortran subroutine.
-            # See docs/quickstart.md for the constraint list.
+            # See docs/api.md and the public code-generation examples.
 
     Hand-written Fortran sidecars (small-strain UMAT)
         @au.fortran_helper(inputs=[...], outputs=[...], subroutine="...")
@@ -46,10 +47,6 @@ What you get when you ``import coupfe.codegen as au``:
         au.generate_small_strain_umat(..., extra_fortran_files=["helper.for"])
             # Python body runs in verify(); generator emits a CALL to the
             # named Fortran subroutine and appends the sidecar verbatim.
-
-    UINTER (surface interaction) generators
-        au.SurfaceInteraction
-        au.generate_uinter(interaction, path)
 
     Element / mesh metadata
         au.ElementConfig, au.ELEMENT_CONFIGS
@@ -83,10 +80,10 @@ Minimal example
     model.verify()                                    # raises if any block fails
     au.generate_umat(model, "neo_hookean_umat.for")
 
-For the current API guide see ``docs/API_USAGE.md``. For longer examples see
-``docs/quickstart.md``. To run a generated UEL
-in feacheap end-to-end (build + UMAT/UEL swap + run + restore) use
-``feacheap/scripts/run_uel.sh``; see ``feacheap/QUICK_START.md``.
+For the current public API and support boundary, see ``docs/api.md`` and
+``docs/capabilities.md``. Runnable generator examples are indexed in
+``examples/README.md`` and their evidence is recorded in
+``examples/REFERENCES.md``.
 """
 
 from .core.material import Material, SmallStrainMaterial
@@ -114,9 +111,10 @@ def generate_uel(*args, **kwargs):
 
 
 def generate_uel_local_pressure(*args, **kwargs):
-    """Generate a local-pressure (Quad4 ``u,mu``) UEL with internal
-    pressure condensation. Prototype path; for the standard mixed
-    ``u,p,mu`` formulation use ``generate_uel(..., formulation='standard')``.
+    """Generate a Quad4/Hex8 UEL with element-local pressure condensation.
+
+    This is a scoped research path. For a standard mixed ``u,p,mu``
+    formulation, use ``generate_uel(..., formulation='standard')``.
     """
     from .generators.uel_local_pressure import (
         generate_uel_local_pressure as _f,

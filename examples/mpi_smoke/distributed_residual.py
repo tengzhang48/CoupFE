@@ -1,8 +1,9 @@
-"""Real-MPI distributed-residual smoke (M3): serial == N-rank.
+"""Real-MPI distributed-residual smoke with a serial reference.
 
 Each rank assembles ONLY its owned elements (from the same deterministic partition)
 into a distributed PETSc vector; PETSc sums the off-process contributions on assembly.
-Gathered to rank 0 it must equal the serial assembly — the 1-vs-N invariant.
+At the invoked rank count, rank 0 compares the gathered vector with the serial
+assembly. No retained multi-rank qualification record ships with the release.
 
     mpirun -n 4 python examples/mpi_smoke/distributed_residual.py
 

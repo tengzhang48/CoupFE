@@ -1,21 +1,17 @@
-"""Phase 3 — DIAGNOSTIC: why a naive static adjoint fails to differentiate the barrier-DYNAMICS tire.
+"""Diagnose a static-adjoint assumption after a barrier-dynamics tire solve.
 
-We tried the cheap route to `d(compliance)/dG`: a **static adjoint at the resting state** — assemble the
-bulk+contact tangent `K=∂R_static/∂U` (no inertia), solve `Kᵀλ=f_ext`, `dC/dG=−λᵀ∂R/∂G` — and validate
-against a full re-solve FD. QOI = compliance `C=f_ext·U` (gravity work; cleanly G-sensitive, `∂C/∂U=f_ext`).
+The script forms a static bulk/contact tangent at the final dynamic state,
+computes a compliance derivative, and compares it with finite differences of
+the complete re-solve. A static adjoint assumes that the sampled state satisfies
+the static residual equation. The reported ``|R_static(U*)|`` checks that
+precondition before the gradient is interpreted.
 
-**Finding (the point of this script): it does NOT validate, and `|R_static(U*)| ≈ 0.2` is why.** The
-forward needs *dynamics* (the barrier tangent is indefinite → static Newton stalls); but then the
-**resting state is not a static equilibrium** — even after hard settling (`DAMP=2`, 110 steps),
-`R_static ≉ 0`. The static adjoint *assumes* `R_static=0`, so its gradient (−0.52) is far from the true
-FD gradient (−0.05).
-
-**The correct paths (the lesson):** differentiating a barrier-*dynamics* solve needs the **dynamic
-adjoint** (through the time-stepping, carrying the inertia/damping), OR a contact formulation that
-converges to a **clean static KKT** — the **dual-multiplier**, whose frozen-active-set adjoint *is*
-validated (`examples/friction_identifiability`, grad-vs-FD ~1e-10). So differentiability and the
-smoothed-barrier's forward robustness are in tension: the robust forward path has no cheap static
-adjoint. This is a real, reusable result (`docs/dev/tire_buildlog.md`), not a tuning failure.
+When that residual remains nonzero, disagreement is the expected diagnostic:
+the static adjoint is not a derivative of the time-stepping problem. A dynamic
+adjoint would need to differentiate the complete trajectory. The separate
+``friction_identifiability`` example studies a small frozen-active-set static
+system. Neither study is a validated tire sensitivity prediction; see
+``examples/REFERENCES.md``.
 """
 from __future__ import annotations
 
@@ -29,8 +25,8 @@ from coupfe.runtime.compiled_element import CompiledElement, build_element_kerne
 
 from examples.tire_contact.run import solve_tire, K_BULK, _UP_HEX8_FOR
 
-# Coarse mesh + hard settling: the adjoint-vs-FD check is a METHODOLOGY proof (mesh-independent), so a
-# small fast mesh keeps the 3 re-solves tractable while DAMP/STEPS drive R_static(U*) -> 0.
+# A small mesh keeps the three solves tractable. These settings define the
+# diagnostic; they are not a mesh-convergence or quasistatic certificate.
 DAMP_SETTLE, STEPS_SETTLE = 2.0, 110
 N_PHI_S, N_THETA_S, N_RHO_S = 24, 10, 2
 
@@ -87,8 +83,7 @@ def fd_dC_dG(G, dG_rel=0.05):
 
 
 def main():
-    """Demonstrate the dynamics-vs-static gap: the static adjoint is INVALID here, and |R_static| shows
-    why. The diagnostic 'passes' by correctly exhibiting the gap (R_static ≉ 0 ⇒ adjoint ≠ FD)."""
+    """Return whether the run exhibits the intended dynamics/static mismatch."""
     import examples.tire_contact.run as run
     G = run.G
     base = _solve_settled()
@@ -98,10 +93,9 @@ def main():
     print(f"  |R_static(U*)| = {r_static:.3e}   (a true static equilibrium would be ~0)")
     print(f"  dC/dG  static-adjoint = {dadj:+.5f}   re-solve FD = {dfd:+.5f}   rel.diff = {rel:.1%}")
     gap_exhibited = r_static > 1e-2 and rel > 0.10
-    print("FINDING: the dynamics resting state is NOT a static equilibrium "
-          f"(|R_static|={r_static:.2f}); the naive static adjoint is INVALID for this barrier-DYNAMICS "
-          "solve. Use the DYNAMIC adjoint, or the dual-multiplier (clean static KKT, differentiable — "
-          "examples/friction_identifiability). See docs/dev/tire_buildlog.md.")
+    print("DIAGNOSTIC: the sampled dynamic state does not satisfy the static equilibrium "
+          f"criterion (|R_static|={r_static:.2f}), so this static-adjoint result should not "
+          "be interpreted as a derivative of the dynamic solve. See examples/REFERENCES.md.")
     return gap_exhibited
 
 

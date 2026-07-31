@@ -9,10 +9,11 @@ sliding.  Run from the repo root::
 
 This is a **qualitative** cross-check (see `README.md`): ppf is single-precision
 GPU with a stiffer `snhk` box and g=9.8; CoupFE here is a soft G=1 box with
-g=0.4 (`εg=ρgL/G≲0.5` or there is no converged equilibrium), so slide *distances*
-are not comparable — only the **behaviour** is.  What both must agree on:
+g=0.4 selected for this scoped setup, so slide *distances* are not comparable.
+This script checks only the following behaviors in its stated configurations:
 
-  1. **non-penetration** in every config (the core contact guarantee);
+  1. a positive reported gap, conditional on the configured CCD, solver, and
+     time-step assumptions;
   2. friction **holds** a box below the slip threshold (interface slip ≪ the
      frictionless slip);
   3. **frictionless slides**.

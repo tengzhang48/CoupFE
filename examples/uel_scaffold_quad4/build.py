@@ -1,8 +1,8 @@
 """Minimal Quad4 UEL scaffold example.
 
 A single-field compressible neo-Hookean mechanical element on a Quad4 patch,
-generated with the F-bar formulation.  This mirrors the lab's ``uel_scaffold_quad4``
-example but keeps only the codegen/build glue.
+generated with the F-bar formulation. It keeps only the codegen/build glue
+needed to demonstrate the scaffold.
 """
 from __future__ import annotations
 

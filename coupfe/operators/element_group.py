@@ -8,7 +8,7 @@ kernel's residual; the group only gathers element DOFs and scatters the result. 
 multi-material meshes compose by listing several groups (each writing its own
 components) into the same ``newton_solve`` call.
 
-Global DOF layout (the multi-material pattern, mirroring the lab's ``assemble_groups``):
+Global DOF layout for multi-material groups:
 the global system keeps a **uniform** ``dof_per_node`` (e.g. 3 = u_x, u_y, mu).  Each
 group declares which per-node **components** its element touches via ``comps`` — a
 u-only rubber element uses ``comps=(0, 1)`` and never writes the mu rows/cols; a u-mu
@@ -19,9 +19,10 @@ pinned (Dirichlet) by the caller, exactly as Abaqus treats an inert temperature 
 State protocol (see ``docs/DESIGN.md`` / ``skills/pitfalls.md``): every residual/
 tangent evaluation starts from the **committed** state — here the step-start
 displacement ``U_prev`` (so the kernel forms ``DU = U - U_prev`` for rate/history
-terms) and the kernel's committed ``svars``.  Producing a residual/tangent never
-mutates committed state; the candidate is returned in ``state_trial`` and the internal
-``svars`` are written **only** by :meth:`commit`, after the global solve accepts ``U``.
+terms) and the kernel's committed ``svars``. Producing a residual/tangent never
+mutates committed state; the internal ``svars`` are written only by
+:meth:`commit`. The caller is responsible for invoking commit only after
+accepting ``U``.
 """
 
 from __future__ import annotations
@@ -129,9 +130,8 @@ class ElementGroup:
         tangent in one call.  Forming K entails repeated residual evaluations,
         so R is inexpensive alongside K; the converse is not true, and a true
         residual-only entry can be much cheaper.  Newton assembles the residual
-        then the tangent at the SAME ``U`` — so without fusion the joint kernel
-        runs TWICE per iteration and half the returned work is discarded
-        (measured ~40% of a compiled-element solve's runtime).
+        then the tangent at the same ``U``. Without fusion the joint kernel
+        runs twice per iteration and half the returned work is discarded.
 
         When ``fuse_rk`` is on, cache the pair so the paired residual/tangent
         share one evaluation.  The key is ``(U_g, DU_g, props)`` — it must
@@ -176,9 +176,10 @@ class ElementGroup:
         )
 
     def commit(self, U, state, t, dt) -> GroupState:
-        """After the solve accepts ``U``: commit the kernel's trial state and
-        return the new committed state (the just-accepted ``U`` becomes the next
-        step's ``U_prev``)."""
+        """Commit the kernel trial state after the caller accepts ``U``.
+
+        The accepted ``U`` becomes the next step's ``U_prev``.
+        """
         self.element.commit()
         self._rk_cache = None          # committed state changed -> invalidate
         return GroupState(U_prev=np.asarray(U, dtype=float).copy())

@@ -2,8 +2,9 @@
 # Copyright (c) 2026 Teng Zhang
 """Cui-style uniform-Q8R phase-field corrosion UEL.
 
-This reproduces the physics of the Abaqus-UFL lab example but without the
-Abaqus-only visualization bridge (UEXTERNALDB/UVARM/Mutex).  It is the
+This implements the project-authored CoupFE version without the Abaqus-only
+visualization bridge (UEXTERNALDB/UVARM/Mutex). Provenance and formulation
+references are recorded in ``NOTICE`` and ``examples/REFERENCES.md``. It is the
 u-phi-c corrosion element with small-strain J2 plasticity and the
 fatigue/repassivation state variables used in Cui's PhaseFieldSCC benchmark.
 

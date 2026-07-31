@@ -1,260 +1,246 @@
-# CoupFE — public API reference
+# CoupFE public API
 
-The call surface. Everything is built on the operator contract (`docs/DESIGN.md`); this lists what
-you actually import and call. Capability/maturity per item: `docs/capabilities.md`.
+CoupFE is alpha software. This page describes the calls available in the
+current public source; maturity and unsupported combinations are tracked in
+[`capabilities.md`](capabilities.md).
 
-> Exact timings, crossover sizes, and speedups below are historical local
-> measurements, not retained release benchmarks. Re-profile on the final
-> revision and archive the environment/output before citation.
+The base installation requires NumPy and SciPy. Compiled elements require a
+Fortran toolchain, code generation requires the `codegen` extra, PETSc/MPI
+paths require a consistent PETSc, `petsc4py`, and MPI environment, and
+accelerated 3-D contact can use the `performance` extra.
 
-## Top-level (`import coupfe`)
-- `Operator`, `Residual`, `Tangent`, `complex_step_tangent` — the operator contract.
-- `ElementGroup`, `GroupState` — a batched element contribution. Fuses the residual/tangent
-  kernel evaluation by default (`ElementGroup(..., fuse_rk=True)`; env `COUPFE_FUSE_RK=0` to
-  disable): the compiled kernel returns R and K together (like the Abaqus `UEL`'s `RHS`+`AMATRX`),
-  so caching the pair runs it once per Newton iterate instead of twice — bit-identical, ~1.5-1.8×.
-  Turn OFF for schemes that mutate props/state between a residual and its paired tangent, or
-  residual-only/matrix-free loops.
-- `CompiledElement`, `build_element_kernel` — drive an f2py-compiled `.for` kernel (auto-detects the
-  `native` / `abaqus_uel` backend; forces the f2py **meson** backend on all Python versions).
-- `InertiaOperator` — lumped-mass backward-Euler inertia (the dynamics substrate).
-- Drivers: `assemble_residual`, `assemble_tangent`, `newton_solve`, `solve_increments`,
-  `solve_dynamics`, `solve_dynamics_adaptive`.
-- Exact affine constraints: `ConstraintRelation`, `ConstraintTransform`,
-  `compile_affine_constraints`.
-- Mesh/geom: `KernelMeshView`, `Circle`, `Sphere`, `Plane`, `uniform_refine_quad`,
-  `check_positive_jacobian`.
-- Front door: `Model`, `Result`. Materials: `NeoHookean`.
+## Top-level imports
 
-## Drivers
-| Call | Use |
+The following names are exported by `import coupfe`:
+
+| Area | Names |
 |---|---|
-| `newton_solve(operators, U, state, ndof, dirichlet, *, t, dt, constraints=None, …)` | one Newton solve (line search; consumes each operator's `max_step` CCD bound); optional exact affine relations are solved in reduced coordinates while operators receive full vectors |
-| `solve_increments(operators, U0, ndof, dirichlet, *, n_steps, constraints=None, …)` | quasistatic load-stepped Newton; a static relation set ramps its affine offsets, while a callable owns a non-proportional relation schedule (for contact problems you often need to wrap fixed increments in adaptive stepping — see `examples/ring_compress/reproduce.py`) |
-| `solve_dynamics(operators, U0, ndof, dirichlet, *, dt, n_steps, …)` | implicit backward-Euler; **CCD-bounds the inertial predictor** too. **Serial.** |
-| `solve_dynamics_adaptive(operators, U0, ndof, dirichlet, *, t_end, dt_init, dt_min=None, dt_max=None, growth=1.2, cut=0.5, maxit=None, **newton_kw)` | adaptive backward-Euler: grows `dt` when Newton converges, cuts it when Newton exceeds `maxit` or produces a non-finite update. **Serial.** |
-| `solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_fn, n_steps, *, contact=None, deformable_contact=None, solver="superlu_dist", pc="gamg", ksp_type="gmres", …)` | **MPI** load-stepped Newton (petsc4py). Bulk = `batch_fn`; `contact=` wires **rigid penalty + Coulomb friction** node-local; `deformable_contact=` wires **cross-rank deformable** node-to-segment penalty/barrier (surface replication + off-process `ADD_VALUES` + global-CCD `Vec.min`). History-free, single-field, quasistatic. |
-| `solve_dynamics_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet, mass, *, dt, n_steps, damping=0.0, force=None, deformable_contact=None, solver="superlu_dist", …)` | **MPI** implicit backward-Euler **dynamics** (petsc4py). Node-local inertia `M/dt²` + Rayleigh damping + `force` (gravity); ghosted bulk; cross-rank deformable barrier + **smoothed friction** (`deformable_contact={"kind":"barrier","mu":…, "mass":<per-node>, "freeze_pairing":True}` — `mass` enables the adaptive `s=κ+M/d²` capacity, `freeze_pairing` fixes the per-step closest-edge; both needed for fine-mesh convergence); **CCD-bounded predictor** + global-CCD step. The path for the penetration-free deformable barrier (which does not converge quasistatically). **2D** (node-to-segment) or **3D** (the spec carries `"vertices"/"faces"/"edges"` → vertex-face + edge-edge cross-rank, `_DistDeformableContact3D`). 1-vs-N to machine precision. |
+| Operator contract | `Operator`, `Residual`, `Tangent`, `complex_step_tangent` |
+| Element runtime | `ElementGroup`, `GroupState`, `CompiledElement`, `build_element_kernel` |
+| Assembly and drivers | `assemble_residual`, `assemble_tangent`, `newton_solve`, `solve_increments`, `solve_dynamics`, `solve_dynamics_adaptive`, `InertiaOperator` |
+| Constraints | `ConstraintRelation`, `ConstraintTransform`, `compile_affine_constraints` |
+| Mesh and geometry | `KernelMeshView`, `Circle`, `Sphere`, `Plane`, `uniform_refine_quad`, `check_positive_jacobian` |
+| Declarative setup | `Model`, `Result`, `NeoHookean` |
 
-## Generic affine constraints (`coupfe.constraints`)
+`CompiledElement` and `build_element_kernel` are set to `None` if their optional
+runtime import cannot be loaded. Check them before using the compiled path in a
+base-only environment.
 
-`ConstraintRelation`, `ConstraintTransform`, and
-`compile_affine_constraints(ndof, relations, *, dirichlet=None)` compile scalar
-relations into `U = Pq + U0`. The transform exposes `lift`,
+## Operator contract
+
+An `Operator` contributes a residual, tangent, and optional committed state.
+Assembly collects local values into the global system:
+
+```python
+R, trial = assemble_residual(operators, U, state, t, dt, ndof)
+K = assemble_tangent(operators, U, state, t, dt, ndof)
+```
+
+`complex_step_tangent(residual_fn, ue, h=1e-30)` differentiates a smooth local
+residual. Discrete search, active-set, or branch decisions must be treated
+separately rather than differentiated as though they were smooth.
+
+`ElementGroup(element, nodes, elems, dof_per_node, comps=None, *, fuse_rk=None)`
+wraps a batched compiled element as an operator. Its residual/tangent fusion is
+enabled by default because the native element call returns both quantities;
+disable it for a custom algorithm that intentionally changes properties or
+state between the paired evaluations.
+
+## Serial drivers
+
+| Call | Purpose |
+|---|---|
+| `newton_solve(operators, U0, state, ndof, dirichlet, *, t=1, dt=1, rtol=..., maxit=..., constraints=None)` | One Newton solve with line search and operator step bounds. |
+| `solve_increments(operators, U0, ndof, dirichlet, *, n_steps=4, constraints=None, **newton_kw)` | Quasistatic load increments. Constraint offsets are ramped for a fixed relation set; a callable may provide a non-proportional schedule. |
+| `solve_dynamics(operators, U0, ndof, dirichlet, *, dt, n_steps, constraints=None, **newton_kw)` | Fixed-step implicit backward-Euler dynamics. |
+| `solve_dynamics_adaptive(operators, U0, ndof, dirichlet, *, t_end, dt_init, dt_min=None, dt_max=None, growth=1.2, cut=0.5, maxit=None, constraints=None, **newton_kw)` | Adaptive backward-Euler dynamics with step growth and retry. |
+| `InertiaOperator(mass, ndof, *, u0=None, v0=None, damping=0)` | Lumped-mass inertia and optional mass-proportional damping. |
+
+`newton_solve` returns an iteration count rather than a convergence flag and
+calls each operator's `commit` method after the Newton loop. Callers using
+path-dependent state must independently establish convergence before treating
+that state as accepted. `solve_increments` passes `state=None` at every
+increment and is intended for history-free operators.
+
+Dynamic relaxation can be used to approach a quasistatic equilibrium when the
+loading protocol includes a hold/settle stage and the final state satisfies
+appropriate residual, kinetic-energy, and time-step checks. It does not by
+itself guarantee that a desired equilibrium branch was reached.
+
+The serial dynamics functions currently reject nonempty affine constraints.
+
+## Exact affine constraints
+
+One scalar relation has the form
+
+```text
+U[slave] = sum(coefficients[j] * U[masters[j]]) + offset
+```
+
+Construct it with:
+
+```python
+relation = ConstraintRelation(
+    slave,
+    masters=(master_a, master_b),
+    coefficients=(1.0, -1.0),
+    offset=0.0,
+    label="optional description",
+)
+transform = compile_affine_constraints(ndof, [relation], dirichlet=dirichlet)
+```
+
+`ConstraintTransform` represents `U = P @ q + offset` and provides `lift`,
 `project_increment`, `reduce_guess`, `restrict_residual`, `reduce_tangent`,
-`reduce_linear_system`, and `constraint_error`. It rejects duplicate slaves,
-cycles, invalid indices, and Dirichlet/MPC conflicts.
+`reduce_linear_system`, `relation_matrix`, and `constraint_error`. Compilation
+rejects duplicate slaves, cycles, invalid indices, and Dirichlet/relation
+conflicts.
 
 `newton_solve(..., constraints=relations)` and
-`solve_increments(..., constraints=relations_or_schedule)` provide the
-qualified serial quasistatic path. Assembly and state commit remain in full
-space; reduced linear systems route through the same `linear_solve` policy as
-the unconstrained driver, and contact operators receive the lifted full-space
-increment through the existing time-aware `max_step` path. Fixed and adaptive
-dynamics reject affine constraints explicitly because projected predictors,
-velocity/history, and time-varying offsets have not been qualified.
+`solve_increments(..., constraints=relations_or_schedule)` are the qualified
+driver integrations. Applications construct mesh matching, periodic graphs,
+and domain-specific relations; current MPI drivers do not apply this transform.
 
-The Core API is deliberately mesh-agnostic. Periodic boxes, mesh-node matching,
-corner-equivalence graph construction, Gmsh/CAD semantics, and application
-boundary policies belong in EDA, cardiac, or another consumer. Current MPI
-drivers do not consume the transform.
+## Declarative `Model`
 
-### Dynamic relaxation — quasistatic states via `solve_dynamics`
-
-`solve_dynamics` + `InertiaOperator(..., damping=alpha)` IS a correct quasistatic solver
-when driven with the staged **ramp-hold-settle** protocol (`skills/preflight.md` has the
-full pre-flight; `docs/lessons_learned.md` 2026-07-02 has the cautionary tale):
-
-1. **Compute the structural timescale first** — `omega_1` from `eigsh(K, M)`; "slow"
-   and "low damping" are meaningless without it.
-2. **Ramp** the load/obstacle in stages (rate uncritical), **hold**, and relax under
-   near-critical mass-proportional damping `alpha = 2*omega_1`.
-3. **Sample only settled states**: `KE = 0.5*sum(M*v**2) < ~1e-8` against the
-   strain-energy scale. At `v -> 0` the damping and inertia forces vanish identically,
-   so the settled state solves `F_int + F_contact = 0` exactly and is dt-independent.
-
-The release source contains a **RESEARCH** ring-compression workflow and
-historical Abaqus comparison. Its proprietary deck is not redistributed, and
-its solver-version, extraction, and retained-result provenance are incomplete.
-Do not cite its recorded percent differences as release validation; see
-`examples/REFERENCES.md`.
-
-### Distributed rigid-penalty contact dict
-
-`solve_distributed(..., contact=...)` accepts the node-local rigid `RigidContact`-style contact spec:
+`Model` is a convenience layer over the operator contract for regular 2-D
+examples:
 
 ```python
-contact = {
-    "nodes": top_node_ids,
-    "coords": nodes[top_node_ids],
-    "obstacle": Sphere(...),      # or HalfSpace / Moving*
-    "k": penalty,
-    "mu": mu,
-    "k_t": tangential_penalty,
-    "comps": (0, 1, 2),
-    # optional friction-state controls:
-    "x_prev": step_start_contact_positions,
-    "ft": step_start_tangential_forces,
-    "return_state": True,
-}
+from coupfe import Model, NeoHookean
+
+model = Model.structured(8, 4, Lx=2.0, Ly=1.0)
+model.material("block", NeoHookean(G=1.0, K=10.0))
+model.fix("left", x=0.0, y=0.0)
+model.prescribe("right", x=0.1)
+result = model.solve(steps=4)
 ```
 
-When `return_state=True`, `info["contact"]` contains global contact QoIs and the gathered
-per-contact-node tangential state:
+Construction and setup calls are:
+
+- `Model.structured(nx, ny, Lx=1, Ly=1)`;
+- `Model.from_view(view)`;
+- `refine(levels=1)`;
+- `material(name, material, elements="all", comps=(0, 1))`;
+- `fix(selector, **components)` and `prescribe(selector, **components)`;
+- `contact(selector, obstacle, k=..., comps=(0, 1), mu=0, k_t=None)`; and
+- `solve(steps=1, *, rtol=..., **newton_kw)`.
+
+Selectors may be named node sets, bounding-box names such as `left` and `top`,
+callables, or explicit node arrays. `Result` exposes `U`, `converged`, `iters`,
+`displacement()`, and `position(selector=None)`. This convenience layer does not
+replace application-specific model review.
+
+## Mesh contracts
+
+`KernelMeshView(nodes, elems, dof_per_node=2, node_sets=..., elem_sets=...,
+node_geometry=..., geometries=...)` is the neutral in-memory bridge.
+
+- `uniform_refine_quad(view, reembed=True)` uniformly refines a Quad4 view and
+  optionally projects new boundary nodes through registered geometry objects.
+- `check_positive_jacobian(view)` checks the currently supported 2-D element
+  geometry.
+- `Circle`, `Sphere`, and `Plane` provide analytic projection backends.
+
+General file import, CAD association, mixed-cell topology, and application
+labels are outside this API.
+
+## Compiled-element runtime
 
 ```python
-{
-    "P": ..., "Q_signed": ..., "Q": ..., "active_contact_nodes": ...,
-    "ft": np.ndarray[(n_contact, cdim)],
-}
+module = build_element_kernel(for_path, module_name, workdir=None, backend=None)
+element = CompiledElement(
+    module,
+    props,
+    dof_per_node,
+    n_svars=0,
+    mcrd=2,
+    n_elem=None,
+    dt=1.0,
+    backend=None,
+    state_schema=None,
+)
 ```
 
-This is for nodal penalty/return-map contact only. It is useful for two-phase Cattaneo-style
-loading: run the normal phase frictionless, initialize `x_prev` from the accepted normal-state
-positions and `ft=0`, then run the shear phase with `mu>0`.
+The runtime recognizes native and Abaqus-UEL-style generated element entry
+points. It compiles a supplied Fortran source once through f2py; a compatible
+Fortran compiler, Meson, and Ninja must be available for that build step.
 
-## Linear solvers (`coupfe.assembly.factored`) — the ONE policy module
+## Linear solvers
 
-Doc contract (Teng, 2026-07-02): keep this SIMPLE, INFORMATIVE, and CORRECT — every claim
-carries its measured bound, and that is enough for an agent to choose right. Full ladder +
-traps: `skills/performance.md`, "The solver ladder".
+The following calls live in `coupfe.assembly.factored`:
 
-| Call | Use |
+| Call | Purpose |
 |---|---|
-| `linear_solve(K, b, *, prefer="auto")` | one-shot solve; scipy `spsolve` small systems, PETSc **MUMPS** above ~20k DOFs (SuperLU's 3D fill-in wall: 400 s → ~45 s at 96k). `newton_solve`/`solve_dynamics` route through it automatically |
-| `factored_lu(K, *, prefer="auto")` | factor ONCE, solve many (vectors + dense RHS blocks; PETSc reuses the factorization per column); used by the condensed contact solvers. `prefer="scipy"` for 2D meshes at MEASURED sizes (≲130k DOFs; contact needs exact solves anyway), `"auto"` for 3D, `"petsc"` to force |
-| `iterative_solve(K, b, *, ksp_type="gmres", pc_type=None, rtol=1e-8)` | **opt-in** Krylov+AMG for large WELL-CONDITIONED bulk. Default PC = **hypre, gamg fallback** (measured 2-4× gamg; beats direct on 2D SPD already at ~90k DOFs). NOT for contact-stiffened systems or validation work (those need exact solves); raises on non-convergence |
-| `make_fieldsplit_solver(field_components, dof_per_node, *, split_type="additive", sub_pc="gamg")` | **coupled multifield** block preconditioning (ported from `abaqus_ufl.fe`, validated on u-c-phi; EDA runs the same on phi-T): FieldSplit by field, AMG per block. `field_components=[("u",[0,1]),("c",[2])]` node-major layout. Returns a pluggable `linear_solve(K,b)`; scale each equation to O(1) first |
+| `linear_solve(K, b, *, prefer="auto")` | One sparse linear solve with the available backend policy. |
+| `factored_lu(K, *, prefer="auto")` | Factor once and solve one or more right-hand sides. |
+| `iterative_solve(K, b, *, ksp_type="gmres", pc_type=None, rtol=..., max_it=...)` | Opt-in PETSc Krylov solve; raises on non-convergence. |
+| `make_fieldsplit_solver(field_components, dof_per_node, *, ksp_type="gmres", split_type="additive", sub_pc="gamg", ...)` | Build a callable PETSc FieldSplit solver for node-major coupled fields. |
 
-Env: `COUPFE_LINEAR_SOLVER=scipy` forces scipy everywhere; `COUPFE_FACTORED_PETSC_MIN_N` moves the
-threshold. PETSc failures fall back to scipy with a `RuntimeWarning` (a zero pivot at contact
-engagement is usually a MODEL problem — degenerate/no-bulk config, see the module docstring). MPI is
-separate (`solve_distributed(..., solver=, pc=)`; **parallel MUMPS is non-reproducible** → the
-distributed default is `superlu_dist`, `skills/distributed.md`). Do not hand-roll PETSc KSP setups
-in examples — extend this module instead (`skills/performance.md`, "Linear solvers").
+Backend availability depends on the PETSc installation. Profile and verify a
+representative problem before overriding the default policy; no universal size
+crossover is claimed.
 
-## Contact operators (`coupfe.operators.contact`)
-All implement `(residual, tangent, commit)`; `max_step(U, dU)` (optionally `max_step(U, dU, t, dt=None)` for time-aware CCD with moving obstacles) where penetration-free.
+## Distributed drivers
 
-| Operator | What | Friction | Notes |
-|---|---|---|---|
-| `RigidContact(nodes_ref, contact_nodes, obstacle, *, dof_per_node, comps, k, mu, k_t)` | rigid penalty | return-map Coulomb (`mu>0`) | the only contact wired into `solve_distributed` (node-local); quasistatic compression problems need adaptive load stepping to avoid collapse, see `examples/ring_compress/reproduce.py` |
-| `RigidBarrierContact(…, dhat, kappa, eta, mass, mu, friction_eps, ppf_norm=False, elastic_op=None, ndof=None)` | rigid cubic barrier + CCD | **ppf smoothed** (`mu>0`) | `mass` → adaptive `s=κ+M/d²` (dynamics); `ppf_norm=True` uses the geometry-normalized cubic shape `2/dhat`; `elastic_op` injects `nᵀK_elastn` into `s`; `mu=0` byte-identical |
-| `DeformableContact2D(nodes_ref, secondary_nodes, primary_edges, *, dof_per_node, comps, k)` | node-to-segment penalty | — | |
-| `DeformableBarrierContact2D(…, dhat, kappa, eta, mass, mu, friction_eps, friction_kt, friction_persistent, body_id, freeze_pairing)` | node-to-segment barrier + CCD | **smoothed** \| **return-map** (`friction_kt`) \| **persistent** (`friction_persistent`) | both bodies deform; broad-phase accelerated; `mu=0` byte-identical. **N-body use:** orient every body's edge loop consistently (outside-on-left, see skills/contact.md) + pass `body_id=` (per-node body id). **`mass=`** → adaptive `s=κ+M/d²` (capacity; cures the CCD-lock stall). **`freeze_pairing=True`** (opt-in) fixes each node's closest-edge per step (re-search at `commit`) → cures fine-mesh active-set chatter; the standard node-to-segment approach; default off = byte-identical |
-| `DeformableBarrierContact3D(nodes_ref, vertices, faces, edges, *, …, mu, friction_eps, self_contact, friction_kt, friction_persistent)` | vertex-face + edge-edge barrier + ACCD (numba) | **smoothed** (numba) \| **return-map**/**persistent** (vertex-face, numpy) | `self_contact=True` → incident-exclusion (numba); distributed via dynamics |
-| `SurfaceContact2D(nodes_ref, vertices, edges, *, dof_per_node, comps, k)` | vertex vs non-adjacent edge | — | multi-body + self-contact (penalty) |
+The optional PETSc/MPI calls live in `coupfe.assembly.distributed`:
 
-Obstacles: `HalfSpace(point, normal, *, kinematic=False, thickness=None, constraint_tol=0.01)`, `Sphere(center, R, inside=False, *, …)`, `MovingHalfSpace(position, normal, *, …)`, `MovingSphere(center, R, inside=False, *, …)`. The `Moving*` variants accept a callable `position(t)` / `center(t)` so the CCD bound can sample the obstacle trajectory at intermediate times. `kinematic=True` floors the barrier gap at `constraint_tol*dhat` (ppf-style, prevents sticking); `thickness` makes the obstacle a pass-through shell.
+- `element_partition(view, rank, size, comps=None)`;
+- `solve_distributed(...)` for history-free, single-field quasistatic Newton;
+  and
+- `solve_dynamics_distributed(...)` for implicit dynamics with node-local
+  inertia and optional deformable contact.
 
-### Friction modes (deformable barrier operators)
-- **smoothed** (`friction_kt=None`, default) — ppf/IPC rate-form, distributed, the production path.
-- **return-map** (`friction_kt=k_t`) — exact Coulomb cone, near-exact stick (micro-slip `~F/k_t`), 2D + 3D
-  vertex-face (numpy).
-- **persistent** (`+ friction_persistent=True`) — carries the committed tangential force per secondary/vertex
-  (the εₚ analog) across steps, re-framed onto the current tangent plane at re-pairing ⇒ finite-sliding
-  exact-stick. Strictly opt-in; default behaviour unchanged.
+`solve_distributed` accepts optional node-local rigid penalty contact and
+cross-rank deformable-contact specifications. `solve_dynamics_distributed`
+accepts optional force, Robin, pressure, and deformable-contact specifications.
+See the function signatures and `examples/mpi_smoke/` for the complete argument
+shape.
 
-### Exact-stick / dual-multiplier (research-grade, `docs/dev/dual_multiplier_strategy.md`)
-`coupfe.operators.contact_semismooth.SemismoothFrictionSolver(K, *, fixed_dofs, contact_tan_dofs,
-  normal_dofs, mu, r=None)` + `.solve(f_ext, fixed_vals, p0=None)` — **Alart-Curnier semismooth Newton**:
-  exact-stick friction (per-node partial slip, Schur-condensed; factor-once, amortized across a load path).
-  Small-strain/small-sliding. The **relay** (frozen-active-set adjoint → differentiable friction-field ID) is
-  demonstrated in `examples/friction_identifiability`; the distributed bulk-solve in
-  `examples/mpi_smoke/distributed_dual_multiplier.py`.
+These implementations ship, but the current public release does not include a
+retained final-revision multi-rank qualification record. Distributed stateful
+element commit, generic affine constraints, and every serial contact mode are
+not supported.
 
-**Friction params** (barrier operators): `mu` = Coulomb coefficient (0 ⇒ frictionless, stateless,
-byte-identical); `friction_eps` = smoothed-friction slip tolerance `ε`. It's rate-form (bounded
-sub-creep, not exact static stick). Theory: `docs/theory/contact_dynamics.md` §3b. **Tune `ε` to the
-interface SLIP scale, NOT as small as possible** — smaller is *nearer* exact Coulomb but the ppf
-Gauss-Newton tangent drops `dλ`, so in the slip plateau (`slip ≫ ε`) Newton only converges linearly
-and floors at a moderate `|R|`. Pick `ε ≳ expected slip` (near-stick, near-exact tangent → tight
-convergence) and set holding strength with `μ` (which has its own ceiling — too-stiff `μλ_n/ε`
-re-stalls). See **Convergence notes** below + `docs/dev/contact_experiments.md` (2026-06-24).
+## Contact APIs
 
-### Convergence notes (contact / dynamics) — read before debugging a stall
-- **Use `solve_dynamics*` for the barrier, not the quasistatic drivers.** The penetration-free
-  deformable barrier does **not** converge quasistatically (a residual-norm line search stalls at the
-  active-set/projection flip); inertia `M/dt²` (dynamics) or a true energy-Armijo line search is
-  required. `solve_increments`/`solve_distributed` are for bulk + *penalty* contact, not the barrier.
-- **Smoothed friction reproduces `f = μN` at all slip** (large *steady* slip is its *easy* regime —
-  the tangent `~μλ_n/ut → 0`, friction → a near-constant force). Its narrow costs are **not** large slip:
-  a convergence-sensitivity band at **moderate slip-per-step** (`ut` a few × `friction_eps`, tunable via
-  `friction_eps`/sub-step/damping), a **regularized stick** (creep `~ε`, not exact lock), and an `O(dt)`
-  direction lag for *turning* slip. Prefer the return-map friction (`RigidContact`, exact stick,
-  non-symmetric) when you need **exact static stick / sharp stick-slip transitions** — not for large slip.
-- **Solver is direct (`superlu_dist`).** The barrier tangent is *indefinite* (a consistent energy
-  Hessian) and the rigid friction tangent *non-symmetric*; under dynamics `M/dt²` regularizes the
-  barrier so direct LU works. No iterative preconditioner yet → large 3D contact is direct-bound.
-  Use `superlu_dist`, **not MUMPS** (MUMPS is run-to-run non-reproducible on the near-null slip modes).
-- **The active set is re-detected every Newton iteration** (brute-force closest feature) — robust to
-  big predictor steps but can *chatter* when a feature switches (face↔edge↔vertex) mid-slide; if a
-  solve oscillates without descending, suspect feature switching, not the linear solver.
-- **`κ`, `ppf_norm`, `elastic_op`, and adaptive `s`.** `ppf_norm=True` matches the
-  ppf-contact-solver geometry-normalized cubic (`force ∝ (2/dhat)·s·(dhat−d)²`), so `κ`
-  is a true stiffness (force/length). `elastic_op` estimates `nᵀK_elastn` from the bulk
-  tangent and adds it to `s`, completing the ppf `wᵀ(K+M/g²)w` recipe. Match `κ ~ K_bulk`
-  (a 100×+ ratio ill-conditions); the adaptive `s=κ+M/gap²` *over-repels* at a small gap
-  (use a fixed `κ` for a gentle rest, adaptive only for hard impact). A non-physical *load*
-  (`εg=ρgL/G ≳ 0.5`) has no converged equilibrium — check it first.
+Rigid obstacles and 2-D contact live in `coupfe.operators.contact`:
 
-## Contact broad-phase (`coupfe.operators.contact_search`)
-- `candidate_pairs(positions, vertices, edges, dhat, *, exclude_incident=True, cell=None) -> {vertex_id: edge_indices}`
-  — uniform spatial-hash; a **superset** of the true within-`dhat` set (no contact missed). O(N) for
-  roughly-uniform features. Used inside `DeformableBarrierContact2D`; reusable standalone.
+- `HalfSpace`, `Sphere`, `MovingHalfSpace`, `MovingSphere`;
+- `RigidContact` for penalty contact with optional return-map friction;
+- `RigidBarrierContact` for cubic-barrier contact and collision step bounds;
+- `SurfaceContact2D` and `DeformableContact2D` for penalty contact; and
+- `DeformableBarrierContact2D` for deformable barrier contact with optional
+  smoothed, return-map, or persistent friction modes.
 
-## Performance — which paths are accelerated, and why (match the tool to the structure)
+`DeformableBarrierContact3D` lives in `coupfe.operators.contact3d` and supports
+vertex-face and edge-edge contact. Optional numba acceleration has a NumPy
+fallback. `candidate_pairs(...)` in `coupfe.operators.contact_search` provides
+the 2-D broad-phase candidate map.
 
-The contact paths are accelerated with **different tools, by computational structure** — not numba
-everywhere. The rule: **numba pays off only where numpy is forced into a Python per-element loop;
-where numpy *vectorizes*, it is already near-optimal and numba adds nothing.**
+Small-scale exact-stick research calls live in
+`coupfe.operators.contact_semismooth`:
 
-| Path | Structure | Tool | Why |
-|---|---|---|---|
-| Return-map (rigid penalty) friction | node-local vs **one** obstacle; same ops for every node; non-smoothness = global **masks** | **vectorized numpy** | a few dense array ops, no per-node loop → numpy is near-optimal; numba would remove nothing |
-| 2D smoothed / barrier narrow-phase | per-pair but expressible as masked array ops over active pairs | **vectorized numpy** | already loop-free |
-| **3D** barrier narrow-phase (vertex-face + edge-edge) + ACCD | **per-pair, data-dependent branching** (closest-feature classification face/edge/vertex, degenerate fallbacks, edge-edge alternating projection) — each pair takes a different branch | **numba** `@njit` | numpy can't branch per element → the natural code is a Python per-pair loop (~80 µs/pair, ~99% overhead) → numba compiles loop+branches → **284×, bit-exact** |
-| Broad-phase LBVH | tree build + stack query, branchy | **numba** | irregular control flow |
-| Element kernels (`.for`) | hot dense array math + **must also run inside Abaqus** | **Fortran (f2py)** | dual-home; the in-Abaqus requirement is unique to *element* kernels (not contact) |
+- `solve_friction_semismooth(...)`; and
+- `SemismoothFrictionSolver(...)`.
 
-Discipline: **profile first; don't accelerate a non-bottleneck**; keep the **numpy version as the
-bit-for-bit oracle** so the accelerated path is gated (numba ⇄ numpy must match to machine precision).
-Rationale + the language decision: `docs/dev/contact.md`; capability/verification matrix:
-`docs/capabilities.md`.
+They use a linear bulk matrix and lagged normal data; they are not the general
+nonlinear or distributed contact driver.
 
-## Codegen (`coupfe.codegen`, build-time only — needs the `codegen` extra / sympy)
-- `Material`, `WeakForm`, `VectorField`, `ScalarField`, `tensor` — define a form.
-- `generators.uel_gen.generate_element(form, path, *, element, formulation, backend)` — emit a
-  Fortran kernel; `backend='native'` (`coupfe_element_rk`) or `'abaqus_uel'` (`UEL`).
-  `generate_uel(...)` = the Abaqus-UEL convenience wrapper.
-- **`formulation=`** — `'standard'` (full integration) or **`'fbar_mechanics'`** (mean-dilatation /
-  F-bar; **both backends**). This provides an anti-locking implementation seam
-  for isochoric/near-incompressible studies. The private `j2_fefp_uel` bending
-  study is withheld for source/port provenance, so its historical stiffness
-  comparison is not first-release validation.
-- **Spectral tensor ops** — `tensor.logm`/`expm`/`polar`/`eig` (→ `logm33z`/`expm33z`/`polar33z`/`eig33z`)
-  for finite-strain plasticity (Hencky `E=½logm(C)`, exponential `Fp` update).
-  The private finite-strain J2 example supplies internal implementation checks
-  but is excluded from the public artifact pending provenance.
-- `Material.state_schema` — declared named state (offsets generated for both backends; init;
-  `field_history` vs stored `state_vars`). **Tensor state is stored column-major** — pack/unpack with
-  `order='F'`; a non-symmetric tensor state (e.g. `Fp`) must round-trip through `reference_assembly`.
-- `core.reference_assembly.assemble_element(...)` — the independent Python oracle for verification.
+## Build-time code generation
 
-## Withheld diagnostic record (`cattaneo_3d`)
+Install the `codegen` extra and import `coupfe.codegen` for:
 
-The private release-preparation tree contains a 3D rigid-sphere
-Cattaneo-Mindlin/Abaqus diagnostic that exercised serial, PETSc/MUMPS, and
-distributed node-local penalty paths. It is not part of the public artifact:
-its reviewed end-to-end gate is a strict expected failure and its retained
-solve says `converged=false`. Previous comparison values therefore are not
-release evidence and must not be cited as validation.
+- declarations: `Material`, `SmallStrainMaterial`, `WeakForm`, `VectorField`,
+  `ScalarField`, and `LocalScalar`;
+- verification: `VerificationError` and each declaration's `verify()` method;
+- UEL generation: `generate_uel` and `generate_uel_local_pressure`;
+- UMAT generation: `generate_umat` and `generate_small_strain_umat`;
+- Abaqus input scaffolding: `UELModelConfig`, `ScaffoldReport`,
+  `generate_inp_scaffold`, `write_job_inp`, and
+  `ensure_coupled_dummy_material`; and
+- tensor, plasticity, soil, and Fortran-helper utilities exposed by the module.
 
-The shipped Hertz, exact-stick, semismooth, finite-sliding, and 3D block
-examples exercise the public contact APIs with passing gates. See
-[`examples/REFERENCES.md`](../examples/REFERENCES.md) for the exact
-READY/RESEARCH/WITHHELD boundary.
-
-## Install extras
-`pip install -e ".[runtime]"` (f2py compile: meson+ninja, + system gfortran) · `".[codegen]"`
-(sympy, build-time) · `".[dev]"` (pytest). CI installs `".[dev,runtime,codegen]"`.
+Generated-kernel/reference-assembly or native/UEL agreement checks
+implementation consistency. They are not independent validation of the source
+equations or parameters.

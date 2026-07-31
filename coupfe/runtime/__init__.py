@@ -3,7 +3,7 @@
 A single residual definition is emitted once as a self-contained Fortran ``.for``
 (consistent tangent derived inside the kernel by complex step) and compiled here.
 ``build_element_kernel`` builds the importable module; ``CompiledElement`` drives it
-in one batched call per group.  CoupFE never imports the research lab at runtime.
+in one batched call per group.
 """
 
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel

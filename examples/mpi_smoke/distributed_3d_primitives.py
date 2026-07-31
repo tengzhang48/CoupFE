@@ -7,10 +7,11 @@ by the secondary vertex) and **edge-edge** (partitioned by the first node of eac
 via ``owns_edge_pair``) — with global dof indices, PETSc off-process ``ADD_VALUES`` routing the
 off-rank stencil nodes, and a **global CCD** step bound (``Vec.min``).
 
-At a fixed config with an active vertex-face pair AND an active edge-edge pair, the gathered residual
-``R`` and a tangent mat-vec ``K·v`` equal the serial full ``DeformableBarrierContact3D`` assembly to
-machine precision, and the global CCD bound equals the serial full-surface ``max_step``, for any rank
-count (1-vs-N). This is the 3D analog of ``distributed_deformable_barrier`` (2D).
+At a fixed configuration with active vertex-face and edge-edge pairs, the
+program compares the gathered residual ``R``, tangent mat-vec ``K·v``, and
+global CCD bound with the serial full-surface implementation at the invoked
+rank count. This is the 3D analog of ``distributed_deformable_barrier`` (2D);
+no retained rank sweep ships here.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_3d_primitives.py
 """

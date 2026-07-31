@@ -1,8 +1,10 @@
-"""CoupFE — a small, validated finite-element scaffold.
+"""CoupFE — a compact finite-element scaffold for custom operators.
 
-One element definition → a complex-step kernel that runs both inside Abaqus (as a
-UEL/UMAT) and standalone here.  The core is the operator contract; meshing, BCs,
-loading, and time integration are thin, AI-writable glue validated by the harness.
+Supported element definitions can target both an Abaqus UEL and the standalone
+native runtime; supported material declarations can target an Abaqus UMAT. The
+core is the operator contract. Applications own model setup, mesh adapters,
+loading policy, and output. AI assistance can accelerate that application code,
+but its assumptions still require domain review and executable tests.
 
 See ``docs/DESIGN.md`` for the architecture and ``docs/roadmap.md`` for the plan.
 """

@@ -15,23 +15,18 @@ target problem and environment before drawing a performance conclusion.  The
 interface of both direct backends mirrors ``scipy.sparse.linalg.splu``:
 ``.solve(b)`` accepts a vector or a dense ``(n, k)`` block.
 
-Known solver traps (documented so nobody re-debugs them):
+Known solver considerations:
 
-* **Zero pivot / ``KSP_DIVERGED_PC_FAILED`` at first contact engagement** is a
-  MODEL problem, not a MUMPS bug: a (near-)degenerate system — e.g. contact on
-  mass points with **no bulk element** — fails BOTH direct factorizations
-  (mumps *and* superlu_dist) and can SEGV PETSc on size-0 objects.  Fix the
-  configuration (wire the volumetric element); an iterative solve "working"
-  there is a breadcrumb, not a fix (`docs/dev/contact_experiments.md`,
-  `docs/lessons_learned.md` 2026-06-23).
-* **Parallel MUMPS is non-reproducible** (dynamic pivoting; friction's slip
-  near-null mode amplifies ~1e-12 to ~1e-3).  This module is serial
-  (``COMM_SELF``) where MUMPS is deterministic; the DISTRIBUTED path uses
-  ``superlu_dist`` — see `skills/distributed.md`.
-* Fallbacks are WARNED, not silent: a PETSc failure downgrades to scipy with a
-  ``RuntimeWarning`` — on an ill-conditioned contact system the scipy solve may
-  "succeed" with a garbage ``du``, so the warning is your cue to check the
-  model before blaming the solver.
+* A zero pivot or failed preconditioner at contact engagement can indicate a
+  singular or nearly singular model, including a contact-only configuration
+  with no bulk stiffness. Check the model and null modes before changing the
+  solver.
+* Parallel factorization and iterative methods have environment- and
+  tolerance-dependent comparison floors. This module is serial (``COMM_SELF``);
+  distributed qualification is described in `skills/distributed.md`.
+* Fallbacks emit a ``RuntimeWarning`` rather than changing backends silently.
+  On an ill-conditioned contact system, any reported update still needs a
+  residual and finiteness check.
 """
 from __future__ import annotations
 
@@ -65,11 +60,9 @@ class _ScipyLU:
 class _PetscLU:
     """PETSc serial direct factorization (COMM_SELF), factored eagerly.
 
-    Prefers MUMPS, then superlu_dist, else PETSc's built-in LU.  Dense
-    multi-RHS blocks use a per-column KSP loop over the same factorization.
-    One available conda-forge PETSc 3.18.4/MUMPS build was directly verified
-    to abort the entire process inside ``MatMatSolve`` rather than report an
-    error, so that optional fast path is deliberately avoided.
+    Prefers MUMPS, then superlu_dist, else PETSc's built-in LU. Dense
+    multi-RHS blocks use a conservative per-column KSP loop over the same
+    factorization rather than requiring an optional matrix-solve path.
     """
 
     def __init__(self, K):
@@ -112,10 +105,7 @@ class _PetscLU:
 
     def _solve_block(self, B):
         n, k = B.shape
-        # Keep factor-once semantics while avoiding PETSc MatMatSolve.  In the
-        # available conda-forge PETSc 3.18.4/MUMPS build directly verified
-        # here, MatMatSolve SIGSEGVs and calls MPI_Abort, which cannot be caught
-        # as a Python exception.
+        # Keep factor-once semantics with a portable per-column KSP path.
         X = np.empty((n, k), dtype=float)
         for j in range(k):
             X[:, j] = self._solve_vec(B[:, j])
@@ -144,15 +134,13 @@ class _PetscLU:
 def factored_lu(K, *, prefer="auto"):
     """Factor ``K`` once; the returned object solves 1D vectors and 2D blocks.
 
-    ``prefer`` is the CALLER's structure hint (the fill-in behaviour that
-    decides the winner is dimensionality, which only the call site knows):
+    ``prefer`` controls the backend policy:
 
-    * ``"scipy"`` — use scipy for a caller-known sparse structure or for
-      exact/direct 2D contact work.  This is a structure and reproducibility
-      hint, not an any-size performance claim.
-    * ``"auto"`` — 3D-mesh problems: scipy below ``COUPFE_FACTORED_PETSC_MIN_N``
-      (default 20k DOFs), PETSc MUMPS above.  The threshold is configurable and
-      should be remeasured for the target environment.
+    * ``"scipy"`` — use SciPy's sparse LU. This is a reproducibility or
+      environment choice, not an any-size performance claim.
+    * ``"auto"`` — use SciPy below ``COUPFE_FACTORED_PETSC_MIN_N`` and try
+      PETSc above it. The threshold is configurable and should be remeasured
+      for the target matrices and environment.
     * ``"petsc"`` — force PETSc at any size.
 
     ``COUPFE_LINEAR_SOLVER=scipy`` forces scipy everywhere (same convention as
@@ -167,9 +155,8 @@ def factored_lu(K, *, prefer="auto"):
             except Exception as exc:
                 warnings.warn(
                     f"PETSc factorization failed ({exc!r}); falling back to "
-                    "scipy splu. If this system carries contact, check for a "
-                    "degenerate configuration (zero pivot at engagement = "
-                    "model problem) before blaming the solver.",
+                    "scipy splu. If this system carries contact, check the "
+                    "configuration and constrained null modes.",
                     RuntimeWarning, stacklevel=2)
     return _ScipyLU(K)
 
@@ -191,8 +178,8 @@ def linear_solve(K, b, *, prefer="auto"):
             except Exception as exc:
                 warnings.warn(
                     f"PETSc direct solve failed ({exc!r}); falling back to "
-                    "scipy spsolve — verify the result is finite (an "
-                    "ill-conditioned contact system may 'solve' to garbage).",
+                    "scipy spsolve; verify the fallback result is finite and "
+                    "satisfies the requested residual tolerance.",
                     RuntimeWarning, stacklevel=2)
     return spla.spsolve(K.tocsr(), b)
 
@@ -202,20 +189,15 @@ def iterative_solve(K, b, *, ksp_type="gmres", pc_type=None, rtol=1e-8,
     """OPT-IN iterative solve (PETSc Krylov + algebraic multigrid), serial.
 
     ``pc_type=None`` (default) tries **hypre** (BoomerAMG) and falls back to
-    **gamg** if hypre is not in the PETSc build.  Measured on this box (2D
-    Poisson, rtol 1e-10): hypre 0.13/0.36/0.90 s vs gamg 0.44/0.75/1.73 s vs
-    SuperLU 0.56/2.5/7.3 s at 90k/250k/490k DOFs — hypre is 2-4x gamg, and the
-    iterative path beats direct on well-conditioned 2D SPD already at ~90k
-    DOFs (the abaqus_ufl.fe lab measured the same: constant iterations,
-    mesh-independent, ~20x MUMPS at 79k DOFs).
+    **gamg** if hypre is not in the PETSc build. Backend crossover and scaling
+    depend on the matrix and environment; profile before selecting a production
+    policy.
 
-    When to use: large WELL-CONDITIONED bulk systems.  When NOT to use:
-    (a) contact-stiffened systems — penalty/barrier terms create the
-    high-contrast, unsymmetric entries AMG handles poorly, and a loose Krylov
-    tolerance CONFLATES linear-solver error with contact-nonlinearity
-    diagnostics (a direct solve's ``ksp_its=1`` is what isolated the real
-    active-set chatter in the cattaneo-3d investigation); (b) validation and
-    1-vs-N invariant work — those need exact solves (`skills/distributed.md`).
+    This is a candidate for large bulk systems when the selected Krylov method
+    and preconditioner match the matrix. Contact terms can introduce contrast,
+    nonsymmetry, and near-null modes; qualify those systems separately. For
+    serial-versus-rank work, set comparison tolerances from the actual solver
+    tolerances and conditioning (see ``skills/distributed.md``).
 
     Raises on non-convergence instead of silently degrading — if the iteration
     stalls, switch to :func:`linear_solve` (direct) rather than loosening
@@ -266,22 +248,17 @@ def make_fieldsplit_solver(field_components, dof_per_node, *, ksp_type="gmres",
                            rtol=1e-10, atol=1e-50, maxit=2000):
     """FieldSplit (block) preconditioner factory for COUPLED multi-field systems.
 
-    Ported from ``abaqus_ufl.fe.petsc_backend`` (same API, validated there on
-    coupled ``u-c-phi`` tangents; the EDA project runs the same pattern on
-    ``phi-T``).  Monolithic AMG struggles on coupled, non-symmetric, indefinite
-    tangents — FieldSplit splits the system BY FIELD and preconditions each
-    block separately (AMG per scalar/elliptic block).  Scale each equation to
-    O(1) first (the mu/RT lesson): FieldSplit fixes the block structure, not a
-    badly scaled residual.
+    FieldSplit separates a node-major coupled system by field and assigns a
+    preconditioner to each block. Scale each equation meaningfully first:
+    FieldSplit addresses block structure, not a badly scaled residual.
 
     ``field_components``: ``[(name, [comp_idx, ...]), ...]`` mapping each field
     to its per-node DOF component indices in the NODE-MAJOR interleaved layout
     (e.g. 2D displacement + concentration: ``[("u", [0, 1]), ("c", [2])]`` with
-    ``dof_per_node=3``).  ``split_type``: ``"additive"`` (block-Jacobi-like,
-    the validated default) / ``"multiplicative"`` / ``"schur"`` (2 fields
-    only).  ``sub_pc``: preconditioner per block — ``"gamg"`` (validated
-    default), ``"hypre"`` (often 2-4x faster per the iterative_solve
-    measurements), ``"lu"`` (small stiff blocks).
+    ``dof_per_node=3``). ``split_type`` may be ``"additive"``
+    (block-Jacobi-like), ``"multiplicative"``, or ``"schur"`` (two fields
+    only). ``sub_pc`` selects a PETSc preconditioner available in the active
+    build, such as ``"gamg"``, ``"hypre"``, or ``"lu"``.
 
     Returns ``linear_solve(K, b) -> x`` (drop-in for the driver's pluggable
     solver).  Raises on divergence instead of silently degrading.

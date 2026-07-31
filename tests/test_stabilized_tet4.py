@@ -114,12 +114,8 @@ def test_tet4_generation_and_object_compile(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-def test_reference_record_is_explicitly_historical():
-    record = json.loads((_EXAMPLE_DIR / "reference_result.json").read_text())
-    assert record["record_kind"] == (
-        "historical_abaqus_published_comparison_metadata"
-    )
-    assert record["current_coupfe_solver_reproduction"] is False
-    assert record["historical_abaqus_result"]["final_center_u3_mm"] == pytest.approx(
-        -0.6962435841560364
-    )
+def test_evidence_record_keeps_claim_at_current_checks():
+    record = json.loads((_EXAMPLE_DIR / "evidence_record.json").read_text())
+    assert record["status"] == "RESEARCH"
+    assert "published Figure 14 reproduction" in record["not_established"]
+    assert "Abaqus deck and ODB" in record["excluded_artifacts"]

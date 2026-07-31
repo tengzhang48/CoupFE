@@ -1,20 +1,20 @@
-"""Distributed DYNAMICS + deformable BARRIER contact: serial == N-rank. Run under mpirun.
+"""Distributed dynamics plus deformable-barrier contact smoke. Run under mpirun.
 
-This is path (B): the ppf/IPC substrate (implicit dynamics) brought to the distributed solver, which
-makes the **penetration-free deformable barrier** work distributed — the case that does NOT converge
-quasistatically (the residual-norm line search stalls at the node-to-segment projection flip; ppf
-uses no energy-merit line search, it relies on dynamics + a PSD/CCD-bounded step). The inertia
-`M/dt²` regularizes the non-smooth contact and supplies the barrier's capacity; backward-Euler
-damping settles it to equilibrium.
+This exercises the ppf/IPC-style implicit-dynamics substrate in the distributed
+solver. Inertia `M/dt²` regularizes the nonsmooth contact for this setup, while
+the driver applies a CCD-bounded step. It does not establish a general result
+about whether a quasistatic formulation can converge.
 
 Two stacked neo-Hookean blocks; the top falls under gravity onto the bottom; the load is carried only
-by the cross-rank node-to-segment cubic barrier, penetration-free (CCD-bounded predictor + step).
+by the cross-rank node-to-segment cubic barrier. The program checks a positive
+reported gap for its configured CCD-bounded predictor and step.
 `solve_dynamics_distributed` does node-local inertia + gravity, ghosted bulk, and the shared
 cross-rank deformable-contact helper + global CCD.
 
-Gates: (1) gathered U == an INDEPENDENT serial oracle (`solve_dynamics([InertiaOperator, ElementGroup,
-DeformableBarrierContact2D, gravity])`, a different driver/assembly path); (2) rank-independent
-(1-vs-N); (3) penetration-free AND engaged (the minimum interface gap stays > 0 but inside d̂).
+The current run reports a serial-operator sanity comparison, convergence, and
+an engaged positive gap. The two drivers use different line searches, so exact
+trajectory agreement is not a gate. An optional output path supports an
+external same-revision comparison across rank counts.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_dynamics_barrier.py
 """
@@ -130,11 +130,11 @@ def main():
         penetration_free = min_gap > 0.0
         engaged = min_gap < DHAT
         converged = info["rnorm"] < 1e-7 and not info["ksp_diverged"]
-        # Gate = physical (penetration-free + engaged + converged). The serial number is a SANITY
+        # Current-run gate = positive gap + engagement + convergence. The serial number is a SANITY
         # check, not an exact gate: the distributed driver is ppf-style (CCD bound, no residual
         # backtracking) while serial newton_solve backtracks, so two valid backward-Euler
-        # trajectories drift over the steps. Rank-independence (1-vs-N) is gated by the test, which
-        # diffs the saved U across rank counts (same algorithm → must match to solver precision).
+        # trajectories drift over the steps. Saved U can be compared across rank counts in an
+        # external, same-revision qualification run.
         ok = penetration_free and engaged and converged
         if len(sys.argv) > 1:
             np.save(sys.argv[1], U_par)

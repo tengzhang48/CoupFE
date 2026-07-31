@@ -1,4 +1,4 @@
-"""Distributed deformable-CONTACT solve: two elastic blocks, serial == N-rank. Run under mpirun.
+"""Distributed deformable-contact solve for two elastic blocks. Run under mpirun.
 
 A full finite-strain Newton solve across ranks WITH deformable-deformable contact: a top
 neo-Hookean block is pushed down onto a bottom neo-Hookean block; the only thing transmitting
@@ -7,11 +7,12 @@ block of elements (bulk, via the compiled f2py kernel) AND the contact secondari
 owns; the contact surface is replicated each iteration and PETSc routes the cross-rank edge-node
 contributions (``solve_distributed(..., deformable_contact=...)``).
 
-Two gates:
-  * **1-vs-N invariant** — gathered distributed U equals the serial solve for any rank count.
-  * **independent serial oracle** — the serial truth is assembled by a *different* path: the
-    operator-level ``solve_increments([ElementGroup, DeformableContact2D])`` (dense COO → scipy),
-    not ``solve_distributed`` at one rank. So the test is not the distributed code grading itself.
+Checks available from this program:
+  * **serial comparison** — the reference is assembled by a *different* path:
+    the operator-level ``solve_increments([ElementGroup, DeformableContact2D])``
+    (dense COO → scipy), not ``solve_distributed`` at one rank;
+  * **cross-rank comparison hook** — save the gathered distributed `U` and
+    compare same-revision runs externally; no retained multi-rank record ships;
   * **contact actually engaged** — the secondary nodes penetrate (g<0 absent contact) and the
     resolved penetration is small (held out by the penalty), i.e. the run is non-trivial.
 

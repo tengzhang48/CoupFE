@@ -7,8 +7,9 @@ smallest pure-Python one).  It wires the vendored neo-Hookean Quad4 kernel
 small block/patch through ``newton_solve`` — the same contract as every other
 operator.
 
-Meshing and BC bookkeeping live here in the example layer on purpose (per
-``docs/DESIGN.md`` they are thin, per-problem glue, not core).  The kernel is built
+Meshing and boundary-condition bookkeeping live here in the example layer on
+purpose; ``docs/DESIGN.md`` treats them as important application-specific code
+rather than Core policy. The kernel is built
 once and cached so importing this module is cheap to reuse across the run and tests.
 """
 
@@ -22,7 +23,7 @@ import numpy as np
 from coupfe.operators.element_group import ElementGroup, GroupState
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
 
-# Vendored kernel: the lab codegen's NeoHookean Quad4 output, copied as data.
+# Vendored native Neo-Hookean Quad4 kernel shipped with CoupFE.
 _FOR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                     "coupfe", "runtime", "elements", "neo_hookean_q4_native.for")
 

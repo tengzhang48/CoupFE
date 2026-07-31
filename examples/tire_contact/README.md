@@ -32,18 +32,16 @@ pytest end-to-end gate.
 
 ## External-reference limit
 
-The current code and build log call this a qualitative reproduction of the
-GetFEM “tire under its own weight” example and identify it only by the name
-“Khenous.” The repository does not yet contain a stable URL or full publication
-entry, an upstream GetFEM version/commit, a precise reference parameter table, a
+The workflow is qualitatively inspired by a tire-under-own-weight contact
+problem. The repository does not yet contain a stable reference URL or full
+publication entry, an upstream GetFEM version/commit, a precise parameter table, a
 redistributable result record, or a retained comparison image/hash. No GetFEM
 mesh, screenshot, or other third-party asset is distributed.
 
 Consequently, the current checks establish internal mesh validity and expose
 the layered CoupFE workflow. A completed self-reported run and qualitative
 stress pattern do not establish a reproducible GetFEM parity benchmark.
-Resolve the reference, retained result, and bounded-gate fields in
-[`examples/REFERENCES.md`](../REFERENCES.md) before promoting this example from
-research to the supported set. The full development record and honest negative
-result are in
-[`docs/dev/tire_buildlog.md`](../../docs/dev/tire_buildlog.md).
+A future promotion would require an identified reference, retained result, and
+bounded end-to-end gate, followed by an update to
+[`examples/REFERENCES.md`](../REFERENCES.md). The negative static-adjoint
+diagnostic is summarized above and documented directly in `sensitivity.py`.

@@ -25,7 +25,7 @@ Supports three modes:
    - The gel transport (solvent flux/storage) is appended to the residual/tangent.
 
 The local pressure is stored in ``SVARS(1)`` and statically condensed from the
-element tangent before returning AMATRX/RHS to Abaqus/feacheap.
+element tangent before returning ``AMATRX`` and ``RHS`` to Abaqus.
 """
 
 from .element_config import ELEMENT_CONFIGS
@@ -610,7 +610,7 @@ def _generate_uel_local_pressure(weakform, mat_prefix, cfg):
     lines.append('      Rp_final = R_p')
     # Schur complement of K [dx; dp] = [-r_x; -r_p]: eliminating dp gives
     # (Kxx - Kxp Kpx/Kpp) dx = -r_x + Kxp r_p/Kpp. Rtmp = -r_x, R_p = +r_p,
-    # so the coupling term ADDS (audit 2026-06-10 finding M10).
+    # so the coupling term adds.
     lines.append('      DO i = 1, NDOFEL')
     lines.append('        RHS(i,1) = Rtmp(i) + Kxp(i)*Rp_final/K_pp')
     lines.append('        DO j = 1, NDOFEL')
@@ -637,8 +637,8 @@ def _generate_uel_local_pressure(weakform, mat_prefix, cfg):
 def _generate_uvarm_bridge():
     """Generate an Abaqus UVARM bridge for local-pressure diagnostics.
 
-    UVARM is not called by feacheap.  The same diagnostics are also written to
-    SVARS by the generated UEL so feacheap can project them as U1/U2.
+    The same diagnostics are also written to ``SVARS`` so a compatible element
+    runner can inspect them without calling ``UVARM``.
     """
     lines = []
     lines.append('      MODULE localp_uvarm_bridge')

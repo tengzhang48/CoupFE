@@ -1,9 +1,8 @@
 """Backend-agnostic operator-sign / block-definiteness gate.
 
-Generalizes the ``OperatorSignWarning`` screen (``core/verify.py``) and
-``tests/test_phase_flux_operator.py`` into a reusable assertion on raw
-coefficients, so it can gate any scalar storage/flux pair — phase-field damage,
-species transport, the electroneutral electric potential — across backends.
+Generalizes the ``OperatorSignWarning`` screen (``core/verify.py``) into a
+reusable assertion on raw coefficients, so it can check scalar storage/flux
+pairs such as phase-field damage or species transport across backends.
 
 The package convention is ``r = storage*eta - flux . grad(eta)`` (strong form
 ``storage + Div(flux) = 0``).  A correct diffusive pair has
@@ -11,7 +10,7 @@ The package convention is ``r = storage*eta - flux . grad(eta)`` (strong form
 of ``sym(dflux/dgrad)`` has the opposite sign to ``dstorage/dfield`` (the
 single-field block ``s*M - d_i*L`` is then sign-definite in every eigen-
 direction).  Any eigenvalue sharing the sign of ``dstorage/dfield`` is an
-anti-diffusive direction — the phase-flux/LCE/Li sign trap.  The check looks at
+anti-diffusive direction. The check looks at
 the FULL matrix and ALL eigenvalues, so anisotropic and 3D sign errors (a bad
 z-direction, or a small positive eigenvalue hiding behind a large good one) are
 caught, not just isotropic 2D flips.

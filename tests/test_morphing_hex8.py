@@ -158,14 +158,9 @@ def test_generate_and_object_compile(tmp_path):
     assert (tmp_path / "pressuregel_local_pressure_hex8.o").is_file()
 
 
-def test_reference_record_separates_historical_and_current_evidence():
-    record = json.loads((_EXAMPLE_DIR / "reference_result.json").read_text())
+def test_evidence_record_keeps_claim_at_current_checks():
+    record = json.loads((_EXAMPLE_DIR / "evidence_record.json").read_text())
     assert record["status"] == "RESEARCH"
-    assert (
-        record["historical_paper_run"]["record_role"]
-        == "context only; not reproduced by this CoupFE bundle"
-    )
-    assert "contact behavior" in record["current_coupfe_validation"][
-        "not_established"
-    ]
+    assert "contact behavior" in record["not_established"]
+    assert "paper Figure 6 reproduction" in record["not_established"]
     assert "Abaqus decks" in record["excluded_artifacts"]

@@ -1,12 +1,11 @@
-"""Compose operators into a global system and solve it with Newton.
+"""Compose serial operators into a global system and solve it with Newton.
 
-This is the minimal CoupFE driver: it knows nothing about elements, materials,
-or contact — only the :class:`~coupfe.operators.base.Operator` contract.  Any
-mix of operators (bulk element groups, contact, constraints, loads) assembles
-and solves through the same path.  Linear solves route through
-:func:`coupfe.assembly.factored.linear_solve` (scipy for small systems, PETSc
-MUMPS above the size threshold — ONE policy, see that module); the MPI runtime
-adds distribution but the composition contract is identical.
+The driver consumes the :class:`~coupfe.operators.base.Operator` contract, so
+bulk element groups, contact, and loads can share the assembly path. Exact
+affine constraints are applied through a separate algebraic transform. Linear
+solves route through :func:`coupfe.assembly.factored.linear_solve`; distributed
+drivers use their own PETSc assembly interfaces and have a narrower capability
+boundary.
 """
 
 from __future__ import annotations
@@ -175,7 +174,10 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
         solve runs in ``q``.  Applications remain responsible for constructing
         relations from their mesh/domain semantics.
 
-    Returns ``(U, new_state, n_iters)``.
+    Returns ``(U, new_state, n_iters)``. The iteration count is not a
+    convergence flag, and this routine calls each operator's ``commit`` after
+    the loop. Callers using path-dependent state must independently establish
+    convergence before treating the returned state as accepted.
     """
     if constraints is not None:
         return _newton_solve_affine(
@@ -256,10 +258,9 @@ def solve_increments(
     fixed.  For a non-proportional schedule, pass a callable ``fraction ->
     relations``; its returned offsets are used as current values.
 
-    NOTE: this passes ``state=None`` each increment, which is correct for
-    history-free (e.g. hyperelastic) operators. Path-dependent operators need the
-    committed state carried between increments — a follow-up tied to giving each
-    operator its own state slot (see ``docs/roadmap.md`` workstream B).
+    This passes ``state=None`` each increment and is therefore intended for
+    history-free operators (for example, hyperelastic operators). It does not
+    carry path-dependent state between increments.
     """
     U = np.asarray(U0, dtype=float).copy()
     total = 0

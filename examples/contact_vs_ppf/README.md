@@ -21,39 +21,24 @@ The two solvers are *not* unit-matched and should not be compared by magnitude:
 |---|---|---|
 | precision | single (GPU) | double (CPU) |
 | elasticity | `snhk` (stiff) | neo-Hookean, **G=1 (soft)** |
-| gravity | g = 9.8 | **g = 0.4** (`εg=ρgL/G ≲ 0.5` or no converged equilibrium) |
+| gravity | g = 9.8 | **g = 0.4** in the current scoped CoupFE setup |
 | observable | box centroid x | bottom-face **interface slip** |
 
-So slide *distances* are meaningless to compare. What must agree is the
-**behaviour**.
+The different units and models mean slide distances are not a quantitative
+comparison. A retained rerun can compare only the explicitly stated qualitative
+controls below.
 
-## Historical, unretained observations
+## Rerun and evidence boundary
 
-The table below records development observations whose raw external log and
-environment were not retained. It is useful context for rerunning the recipe,
-not current release evidence.
+A fresh retained rerun can check non-penetration and the qualitative direction
+of friction in both implementations. Record the upstream commit, build options,
+GPU and CPU hardware, parameters, raw logs, and output hashes. Do not infer a
+quantitative match from the different observables in the table above.
 
-| config | ppf (centroid_x, min gap) | CoupFE (slip, min gap) | agree |
-|---|---|---|---|
-| **non-penetration** (every config) | min_y `> 0` (even sliding 17.7) | min_gap `≈ +0.033` | ✅ **yes** |
-| friction holds below threshold | θ=20° μ=0.5 → held `+0.026` | θ=20° μ=2.0 → stick `+0.073` | ✅ both stick |
-| frictionless slides | θ=35° μ=0 → `+17.7` | θ=20° μ=0 → `+0.40` (5.5× the stick) | ✅ both slide |
-
-**What a fresh retained rerun could check:** non-penetration and the qualitative
-direction of friction in both implementations. The historical numbers above do
-not establish those as release claims.
-
-## Model nuance (the "ppf isn't exact Coulomb" caveat, made concrete)
-
-At **θ=35°, μ=0.5** (tan 35° = 0.70 > 0.5, so ideal Coulomb says *slide*):
-
-- **ppf over-holds** — centroid `+0.054` (essentially stuck).
-- **CoupFE slides** — interface slip `+0.26`.
-
-Both use a *regularized rate-form* friction (not exact Coulomb), so neither is
-the ground truth near the threshold; they just regularize differently. The
-clean, model-agnostic comparison points are therefore **well below threshold
-(both stick)** and **frictionless (both slide)** — plus **non-penetration always**.
+Both solvers use regularized rate-form friction, so neither is an exact-Coulomb
+oracle near the transition. Clean qualitative controls are a clearly subcritical
+case, a frictionless case, and non-penetration. Report the observed values only
+from a retained rerun.
 
 For a *quantitative* friction comparison you want a known-answer benchmark
 (Cattaneo–Mindlin partial slip) with CoupFE's **return-map (exact Coulomb)**

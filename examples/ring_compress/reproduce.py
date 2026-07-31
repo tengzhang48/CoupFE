@@ -1,4 +1,4 @@
-"""Reproduce Abaqus ring_compress.inp in CoupFE.
+"""RESEARCH CoupFE workflow based on a user-supplied ring input deck.
 
 The Abaqus model is a 2D plane-strain neo-Hookean ring (inner radius 8, outer
 radius 10) compressed between two rigid flat plates, then the top plate is slid
@@ -6,21 +6,19 @@ horizontally.
 
 CoupFE model choices:
 - 2D F-bar Quad4 element (``neo_hookean_q4.for``) for the ring.
-- ``RigidContact`` with ``HalfSpace`` obstacles for the rigid plates.  A penalty
-  stiffness ``k=1e4`` is used: small enough that the return-map friction has a
-  meaningful cap, large enough that penetration stays below ~5e-6.
+- ``RigidContact`` with ``HalfSpace`` obstacles for the rigid plates. The
+  penalty and friction values are study settings that require sensitivity and
+  penetration checks for any claimed result.
 - Return-map Coulomb friction (``mu=0.5``, ``k_t=1e4``) on both plates.
-- **Adaptive load stepping** that mimics Abaqus's automatic time incrementation:
-  the step size is cut when Newton does not converge and grown when it does.
-  This is the key to avoiding the asymmetric collapse mode that a fixed large
-  increment follows.
+- **Adaptive load stepping** based on the iteration and residual checks in this
+  script. It is not asserted to reproduce Abaqus's increment-control policy.
 
-The sliding step is reproduced by prescribing the Abaqus top-plate horizontal
-shift (2 units) to the ring nodes that are in contact with the top plate at the
-end of compression.  CoupFE's ``RigidContact`` friction tracks stick anchors in
-the spatial frame, so a moving rigid obstacle does not by itself generate
-tangential friction; prescribing the displacement is the stick-limited
-equivalent.
+The sliding stage prescribes a horizontal shift to ring nodes selected near the
+top plate after compression. This is an application approximation, not an
+equivalence proof for the source model's contact kinematics.
+
+No input deck, authoritative external output, or retained CoupFE run is bundled;
+the script is not public validation or a reproduction claim.
 """
 from __future__ import annotations
 

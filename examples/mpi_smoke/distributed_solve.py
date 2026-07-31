@@ -1,16 +1,17 @@
-"""Memory-local distributed SOLVE (M3b core): serial == N-rank. Run under mpirun.
+"""Memory-local distributed solve with a serial reference. Run under mpirun.
 
 Each rank generates ONLY its block of cell-rows (no global mesh is ever built),
 assembles them into a distributed PETSc matrix, and a PETSc KSP solves the global
-system. Gathered to rank 0 the solution must equal a serial reference — the 1-vs-N
-invariant. This is the memory-local distributed solve the M3 decomposition was built
-for; petsc4py only.
+system. At the invoked rank count, rank 0 compares the gathered solution with a
+serial reference. No retained multi-rank qualification record ships with the
+release. This is the memory-local distributed solve the M3 decomposition was
+built for; petsc4py only.
 
     mpirun -n 4 python examples/mpi_smoke/distributed_solve.py
 
-Scope: a structured Q1 Laplace problem (the regular-mesh target). Wiring the operator
-contract + the f2py element + nonlinear Newton onto this same pattern is the remaining
-step, and reuses the lab's proven solve_steps_mpi_local.
+Scope: a structured Q1 Laplace problem that isolates the regular-mesh,
+memory-local linear path. The nonlinear compiled-element entry point is
+documented separately in `docs/api.md`.
 """
 
 from __future__ import annotations

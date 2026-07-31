@@ -1,17 +1,16 @@
 """Differentiable dual-multiplier friction — the RELAY: friction-field identifiability. ``python run.py``.
 
-The forward solve (semismooth Newton on the contact multipliers) is non-differentiable, but we don't need
-it to be: at convergence the **active set is frozen**, so the state solves a LINEAR system and a single
-linear **adjoint** gives exact gradients of any QOI w.r.t. a per-node friction field ``μ_i``
-(RetroMech's relay idea applied to the dual multiplier).
+The semismooth forward solve changes active sets. This scoped study freezes the
+converged active set, leaving a linearized system whose adjoint gives derivatives
+with respect to a per-node friction field ``μ_i`` within that fixed set.
 
 The frozen-active-set Jacobian on the condensed multipliers ``p`` (interface compliance ``G = S Kff⁻¹ Sᵀ``,
 normal-coupling ``H = ∂N/∂p``):
     stick rows: ``r·G``                    (the constraint ``v_t = 0``)
     slip  rows: ``I − diag(s μ)·H``        (``p = s μ N(p)`` on the cone)
 and crucially ``∂C/∂μ`` is **nonzero ONLY at slip nodes** — so ``dJ/dμ_i = λ_i s_i N_i`` is zero wherever a
-node STUCK. That is the **identifiability frontier**: with an *exact* active set, the friction coefficient
-is recoverable exactly where the interface SLIPPED, and is structurally invisible where it stuck.
+node stuck. Thus the local sensitivity in this example is supported only on slip
+nodes. This is not a general inverse-problem identifiability proof.
 
 Self-check (prints ``OK`` / ``FAIL``):
   * the relay gradient ``dp/dμ`` matches finite differences to ~machine precision (where the active set is

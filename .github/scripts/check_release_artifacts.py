@@ -47,6 +47,95 @@ PACKAGE_ASSETS |= {
     "coupfe/constraints/affine.py",
 }
 
+# Keep the installable package surface explicit.  Minimum-file checks catch
+# missing runtime assets, while this exact inventory also rejects omitted
+# Python modules and accidentally published internal modules.
+PUBLIC_PACKAGE_FILES = PACKAGE_ASSETS | {
+    "coupfe/__init__.py",
+    "coupfe/materials.py",
+    "coupfe/model.py",
+} | {
+    f"coupfe/assembly/{name}"
+    for name in {
+        "__init__.py",
+        "assemble.py",
+        "distributed.py",
+        "factored.py",
+    }
+} | {
+    "coupfe/codegen/__init__.py",
+} | {
+    f"coupfe/codegen/core/{name}"
+    for name in {
+        "__init__.py",
+        "_cs_state.py",
+        "defs.py",
+        "fields.py",
+        "fortran_helper.py",
+        "material.py",
+        "reference_assembly.py",
+        "small_strain_plasticity.py",
+        "soil.py",
+        "symbolic_tangent.py",
+        "tagent.py",
+        "tensor.py",
+        "verify.py",
+        "weakform.py",
+    }
+} | {
+    f"coupfe/codegen/generators/{name}"
+    for name in {
+        "__init__.py",
+        "_fortran_format.py",
+        "element_config.py",
+        "inp_scaffold.py",
+        "uel_fbar_coupled.py",
+        "uel_gen.py",
+        "uel_local_pressure.py",
+        "uel_magneto.py",
+        "umat_gen.py",
+    }
+} | {
+    f"coupfe/codegen/testing/{name}"
+    for name in {
+        "__init__.py",
+        "_util.py",
+        "element_convergence.py",
+        "finite_strain.py",
+        "invariants.py",
+        "manifest.py",
+        "objectivity.py",
+        "operators.py",
+        "paths.py",
+    }
+} | {
+    f"coupfe/mesh/{name}"
+    for name in {
+        "__init__.py",
+        "distribute.py",
+        "geometry.py",
+        "refine.py",
+        "view.py",
+    }
+} | {
+    f"coupfe/operators/{name}"
+    for name in {
+        "__init__.py",
+        "base.py",
+        "bvh_numba.py",
+        "contact.py",
+        "contact3d.py",
+        "contact3d_numba.py",
+        "contact_search.py",
+        "contact_semismooth.py",
+        "element_group.py",
+        "inertia.py",
+    }
+} | {
+    "coupfe/runtime/__init__.py",
+    "coupfe/runtime/compiled_element.py",
+}
+
 RIGHTS_BLOCKED_PATHS = {
     "examples/ring_compress/abaqus_ring_compress_reactions.csv",
 }
@@ -114,14 +203,14 @@ PAPER_EXAMPLE_FILES = {
     "examples/morphing_hex8/abaqus_mesh.py",
     "examples/morphing_hex8/build.py",
     "examples/morphing_hex8/pressuregel_local_pressure_hex8.for",
-    "examples/morphing_hex8/reference_result.json",
+    "examples/morphing_hex8/evidence_record.json",
     "examples/phasefield_corrosion_cui/README.md",
     "examples/phasefield_corrosion_cui/build.py",
     "examples/phasefield_corrosion_cui/paper_example_record.json",
     "examples/phasefield_corrosion_cui/phasefield_corrosion_cui_full_uel.for",
     "examples/stabilized_tet4/README.md",
     "examples/stabilized_tet4/build.py",
-    "examples/stabilized_tet4/reference_result.json",
+    "examples/stabilized_tet4/evidence_record.json",
     "examples/stabilized_tet4/scovazzi_block_tet4.for",
 }
 
@@ -152,45 +241,165 @@ UMAT_EXAMPLE_FILES = {
     for name in names
 }
 
+PUBLIC_EXAMPLE_FILES = {
+    "examples/README.md",
+    "examples/REFERENCES.md",
+    "examples/compression_cylinders/README.md",
+    "examples/compression_cylinders/build_model.py",
+    "examples/compression_cylinders/dirichlet_lid.py",
+    "examples/compression_cylinders/mooney_rivlin.py",
+    "examples/compression_cylinders/mr_fbar_q4.for",
+    "examples/compression_cylinders/neo_fbar_q4.for",
+    "examples/compression_cylinders/neo_std_q4.for",
+    "examples/compression_cylinders/neo_up_native_q4.for",
+    "examples/compression_cylinders/parse_inp.py",
+    "examples/compression_cylinders/run.py",
+    "examples/contact_3d_blocks/run.py",
+    "examples/contact_3d_friction/run.py",
+    "examples/contact_vs_ppf/README.md",
+    "examples/contact_vs_ppf/coupfe_box_on_floor.py",
+    "examples/contact_vs_ppf/friction_threshold_sweep.py",
+    "examples/contact_vs_ppf/ppf_reference.py",
+    "examples/curved_annulus/annulus.py",
+    "examples/curved_annulus/run.py",
+    "examples/exact_stick_friction/run.py",
+    "examples/finite_sliding_capstan/run.py",
+    "examples/finite_sliding_friction/run.py",
+    "examples/friction_identifiability/run.py",
+    "examples/gel_chester_anand/README.md",
+    "examples/gel_chester_anand/paper_example_record.json",
+    "examples/gel_chester_anand/u_p_mu_quad8/build.py",
+    "examples/gel_chester_anand/u_p_mu_quad8/chester_anand_upmu_quad8_uel.for",
+    "examples/hertz_contact/run.py",
+    "examples/j2_plasticity_uel/build.py",
+    "examples/linear_bar/bar.py",
+    "examples/linear_bar/run.py",
+    "examples/model_pipeline/run.py",
+    "examples/morphing_hex8/README.md",
+    "examples/morphing_hex8/abaqus_mesh.py",
+    "examples/morphing_hex8/build.py",
+    "examples/morphing_hex8/evidence_record.json",
+    "examples/morphing_hex8/pressuregel_local_pressure_hex8.for",
+    "examples/mpi_smoke/distributed_3d_primitives.py",
+    "examples/mpi_smoke/distributed_broadphase.py",
+    "examples/mpi_smoke/distributed_cylinders.py",
+    "examples/mpi_smoke/distributed_deformable_barrier.py",
+    "examples/mpi_smoke/distributed_deformable_residual.py",
+    "examples/mpi_smoke/distributed_deformable_solve.py",
+    "examples/mpi_smoke/distributed_dual_multiplier.py",
+    "examples/mpi_smoke/distributed_dynamics_3d_blocks.py",
+    "examples/mpi_smoke/distributed_dynamics_3d_friction.py",
+    "examples/mpi_smoke/distributed_dynamics_barrier.py",
+    "examples/mpi_smoke/distributed_dynamics_friction.py",
+    "examples/mpi_smoke/distributed_friction.py",
+    "examples/mpi_smoke/distributed_lid_walls.py",
+    "examples/mpi_smoke/distributed_neohookean.py",
+    "examples/mpi_smoke/distributed_residual.py",
+    "examples/mpi_smoke/distributed_robin_pressure.py",
+    "examples/mpi_smoke/distributed_solve.py",
+    "examples/neo_hookean_block/block.py",
+    "examples/neo_hookean_block/run.py",
+    "examples/neo_hookean_inelastic_local_pressure_quad4/build.py",
+    "examples/neo_hookean_local_pressure_hex8/build.py",
+    "examples/neo_hookean_local_pressure_hex8/neohookean_up_hex8_uel.for",
+    "examples/neo_hookean_local_pressure_quad4/build.py",
+    "examples/neo_hookean_local_pressure_quad4/neohookean_up_q4_uel.for",
+    "examples/neo_hookean_mixed/build.py",
+    "examples/neo_hookean_mixed/neo_hookean_mixed_uel.for",
+    "examples/neo_hookean_umat/README.md",
+    "examples/neo_hookean_umat/build.py",
+    "examples/neo_hookean_umat/neo_hookean_umat.for",
+    "examples/ogden_umat/README.md",
+    "examples/ogden_umat/build.py",
+    "examples/ogden_umat/ogden_umat.for",
+    "examples/phasefield_corrosion_cui/README.md",
+    "examples/phasefield_corrosion_cui/build.py",
+    "examples/phasefield_corrosion_cui/paper_example_record.json",
+    "examples/phasefield_corrosion_cui/phasefield_corrosion_cui_full_uel.for",
+    "examples/phasefield_fracture_uel/build.py",
+    "examples/phasefield_fracture_uel/phasefield_fracture_uel.for",
+    "examples/ring_compress/README.md",
+    "examples/ring_compress/reproduce.py",
+    "examples/ring_compress/reproduce_dynamics.py",
+    "examples/scalar_diffusion_uel/build.py",
+    "examples/semismooth_friction/run.py",
+    "examples/simple_gel_quad4/build.py",
+    "examples/simple_gel_quad4/simple_gel_quad4_uel.for",
+    "examples/small_strain_j2_umat/README.md",
+    "examples/small_strain_j2_umat/build.py",
+    "examples/small_strain_j2_umat/small_strain_j2.for",
+    "examples/small_strain_viscoelastic_umat/README.md",
+    "examples/small_strain_viscoelastic_umat/build.py",
+    "examples/small_strain_viscoelastic_umat/small_strain_viscoelastic.for",
+    "examples/stabilized_tet4/README.md",
+    "examples/stabilized_tet4/build.py",
+    "examples/stabilized_tet4/evidence_record.json",
+    "examples/stabilized_tet4/scovazzi_block_tet4.for",
+    "examples/thermo_mechanics_quad8/build.py",
+    "examples/thermo_mechanics_quad8/thermo_mechanics_quad8_uel.for",
+    "examples/tire_contact/README.md",
+    "examples/tire_contact/analyze.py",
+    "examples/tire_contact/mesh.py",
+    "examples/tire_contact/run.py",
+    "examples/tire_contact/sensitivity.py",
+    "examples/tire_contact/vonmises.py",
+    "examples/uel_scaffold_quad4/build.py",
+}
+
+PUBLIC_DOC_FILES = {
+    "docs/DESIGN.md",
+    "docs/api.md",
+    "docs/capabilities.md",
+    "docs/install.md",
+    "docs/lessons_learned.md",
+    "docs/porting.md",
+    "docs/roadmap.md",
+    "docs/standalone_gpu_plan.md",
+    "docs/status.md",
+    "docs/theory/contact_dynamics.md",
+    "docs/theory/framework.md",
+}
+PUBLIC_SKILL_FILES = {
+    f"skills/{name}"
+    for name in {
+        "SKILL.md",
+        "contact.md",
+        "distributed.md",
+        "model_development.md",
+        "performance.md",
+        "pipeline.md",
+        "pitfalls.md",
+        "preflight.md",
+        "testing.md",
+    }
+}
+
 REQUIRED_SDIST_FILES = (
-    PACKAGE_ASSETS
+    PUBLIC_PACKAGE_FILES
     | PUBLIC_TEST_FILES
     | PUBLIC_TEST_SUPPORT_FILES
     | PAPER_EXAMPLE_FILES
     | UMAT_EXAMPLE_FILES
+    | PUBLIC_EXAMPLE_FILES
+    | PUBLIC_DOC_FILES
+    | PUBLIC_SKILL_FILES
     | {
-    ".github/scripts/check_release_artifacts.py",
-    "LICENSE",
-    "LICENSE-DOCS.md",
-    "LICENSE-ABAQUS-UFL-EXAMPLES",
-    "NOTICE",
-    "README.md",
-    "MANIFEST.in",
-    "pyproject.toml",
-    "docs/capabilities.md",
-    "examples/README.md",
-    "examples/REFERENCES.md",
-    "examples/ring_compress/README.md",
-    "examples/tire_contact/README.md",
-    "skills/SKILL.md",
-    "validation/README.md",
+        ".github/scripts/check_release_artifacts.py",
+        "LICENSE",
+        "LICENSE-DOCS.md",
+        "LICENSE-ABAQUS-UFL-EXAMPLES",
+        "NOTICE",
+        "README.md",
+        "MANIFEST.in",
+        "pyproject.toml",
+        "examples/README.md",
+        "examples/REFERENCES.md",
+        "examples/ring_compress/README.md",
+        "examples/tire_contact/README.md",
+        "validation/README.md",
     }
 )
 
-WITHHELD_EXAMPLE_DIRS = {
-    "Fbar_uel",
-    "cattaneo_3d",
-    "gel_axisymmetric_quad8",
-    "gel_chester_anand_local_pressure_quad4",
-    "gel_three_field_hex20",
-    "hussein_2026_ductile_pff",
-    "hussein_2026_mediavilla_pff",
-    "j2_fefp_uel",
-    "lce_quad4",
-    "li_2026_battery",
-    "strain_gradient_plasticity_msg",
-    "self_contact_friction",
-}
 RESEARCH_EXAMPLE_DIRS = {
     "compression_cylinders",
     "contact_3d_blocks",
@@ -230,6 +439,7 @@ READY_EXAMPLE_DIRS = {
     "thermo_mechanics_quad8",
     "uel_scaffold_quad4",
 }
+PUBLIC_EXAMPLE_DIRS = READY_EXAMPLE_DIRS | RESEARCH_EXAMPLE_DIRS
 
 FORBIDDEN_PARTS = {
     ".git",
@@ -238,21 +448,17 @@ FORBIDDEN_PARTS = {
     ".pytest_cache",
     ".ruff_cache",
     "__pycache__",
-    "EXTERNAL_OBSERVER_FINDINGS.md",
-    "HISTORY_pqp_cattaneo_benchmark.md",
-    "NOTE_penalty_petsc_result_for_claude.md",
-    "RELEASE_READINESS.md",
-    "REVIEW_NOTES_for_gpt.md",
-    "SUMMARY_for_gpt_petsc_solve.md",
-    "contact_pqp.py",
-    "pqp_hertz_cattaneo",
-    "test_contact_pqp_friction.py",
-    "test_pqp_hertz_cattaneo.py",
 }
 FORBIDDEN_NAME_PATTERNS = {
+    "EXTERNAL_OBSERVER_FINDINGS*.md",
     "HANDOFF*.md",
+    "HISTORY_*benchmark*.md",
+    "NOTE_*.md",
     "NOTE_TO_*.md",
     "PORT_PROMPT*.md",
+    "RELEASE_READINESS*.md",
+    "REVIEW_NOTES*.md",
+    "SUMMARY_for_*.md",
     "agent_working_agreement.md",
     "codegen_*_next.md",
     "codegen_*_start.md",
@@ -366,8 +572,8 @@ def _is_forbidden_path(name: str) -> bool:
             fnmatchcase(basename, pattern.casefold())
             for pattern in FORBIDDEN_NAME_PATTERNS
         )
-        # Catch contact_pqp_utils.py, pqp-notes/, and other near-name variants,
-        # not just the exact historical filenames above.
+        # Keep the retired experimental PQP path out of public artifacts even
+        # when a filename varies.
         or any("pqp" in part for part in parts)
         or suffix in FORBIDDEN_SUFFIXES
         or (suffix in IMAGE_SUFFIXES and not _is_documentation_image(path))
@@ -382,20 +588,55 @@ def _reject_forbidden_files(names: set[str], artifact: Path) -> None:
         raise SystemExit(f"{artifact.name} contains forbidden entries: {rejected}")
 
 
-def _reject_withheld_examples(names: set[str], artifact: Path) -> None:
-    """Keep provenance-blocked examples out of release artifacts."""
+def _validate_artifact_example_dirs(
+    names: set[str], artifact: Path, *, require_complete: bool
+) -> None:
+    present = {
+        path.parts[1]
+        for name in names
+        if len((path := PurePosixPath(name)).parts) >= 3
+        and path.parts[0] == "examples"
+    }
+    unexpected = sorted(present - PUBLIC_EXAMPLE_DIRS)
+    missing = sorted(PUBLIC_EXAMPLE_DIRS - present) if require_complete else []
+    if missing or unexpected:
+        raise SystemExit(
+            f"{artifact.name} public example directory mismatch: "
+            f"missing={missing}, unexpected={unexpected}"
+        )
 
-    rejected = sorted(
+
+def _validate_exact_subtree(
+    names: set[str], artifact: Path, prefix: str, expected: set[str]
+) -> None:
+    """Require one public subtree to match its reviewed inventory exactly."""
+
+    present = {
         name
         for name in names
-        if len(PurePosixPath(name).parts) >= 2
-        and PurePosixPath(name).parts[0] == "examples"
-        and PurePosixPath(name).parts[1] in WITHHELD_EXAMPLE_DIRS
-    )
-    if rejected:
+        if PurePosixPath(name).parts
+        and PurePosixPath(name).parts[0] == prefix
+    }
+    missing = sorted(expected - present)
+    unexpected = sorted(present - expected)
+    if missing or unexpected:
         raise SystemExit(
-            f"{artifact.name} contains first-release-withheld examples: {rejected}"
+            f"{artifact.name} public {prefix} inventory mismatch: "
+            f"missing={missing}, unexpected={unexpected}"
         )
+
+
+def _validate_public_subtrees(names: set[str], artifact: Path) -> None:
+    """Require all reviewed public source subtrees exactly."""
+
+    inventories = {
+        "coupfe": PUBLIC_PACKAGE_FILES,
+        "docs": PUBLIC_DOC_FILES,
+        "skills": PUBLIC_SKILL_FILES,
+        "examples": PUBLIC_EXAMPLE_FILES,
+    }
+    for prefix, expected in inventories.items():
+        _validate_exact_subtree(names, artifact, prefix, expected)
 
 
 def _reject_private_harness(names: set[str], artifact: Path) -> None:
@@ -420,22 +661,6 @@ def _reject_private_harness(names: set[str], artifact: Path) -> None:
         raise SystemExit(
             f"{artifact.name} contains non-public validation harness files: "
             f"{rejected}"
-        )
-
-
-def _require_shipped_examples(names: set[str], artifact: Path) -> None:
-    expected = READY_EXAMPLE_DIRS | RESEARCH_EXAMPLE_DIRS
-    present = {
-        path.parts[1]
-        for name in names
-        if len((path := PurePosixPath(name)).parts) >= 3
-        and path.parts[0] == "examples"
-        and path.parts[1] in expected
-    }
-    missing = sorted(expected - present)
-    if missing:
-        raise SystemExit(
-            f"{artifact.name} is missing shipped example directories: {missing}"
         )
 
 
@@ -477,8 +702,8 @@ def _validate_text(name: str, payload: bytes, artifact: Path) -> None:
         )
 
 
-def _validate_example_policy(source_root: Path) -> set[str]:
-    """Keep the inventory aligned while allowing a filtered public example tree."""
+def _validate_example_policy(source_root: Path) -> None:
+    """Require the source tree and ledger to match the public example policy."""
 
     example_root = source_root / "examples"
     directories = {
@@ -488,7 +713,7 @@ def _validate_example_policy(source_root: Path) -> set[str]:
     }
     ledger = (example_root / "REFERENCES.md").read_text(encoding="utf-8")
     rows = re.findall(
-        r"^\| `([^`]+)` \| \*\*(READY|RESEARCH|WITHHELD)",
+        r"^\| `([^`]+)` \| \*\*(READY|RESEARCH)",
         ledger,
         flags=re.MULTILINE,
     )
@@ -497,45 +722,40 @@ def _validate_example_policy(source_root: Path) -> set[str]:
         name for name, count in Counter(row_names).items() if count > 1
     )
     ledger_names = set(row_names)
-    if duplicates or directories - ledger_names:
+    missing_directories = sorted(PUBLIC_EXAMPLE_DIRS - directories)
+    unexpected_directories = sorted(directories - PUBLIC_EXAMPLE_DIRS)
+    if missing_directories or unexpected_directories:
+        raise SystemExit(
+            "source public example directory mismatch: "
+            f"missing={missing_directories}, "
+            f"unexpected={unexpected_directories}"
+        )
+    if duplicates or ledger_names != PUBLIC_EXAMPLE_DIRS:
         raise SystemExit(
             "example reference inventory mismatch: "
             f"duplicates={duplicates}, "
-            f"unlisted_directories={sorted(directories - ledger_names)}"
+            f"ledger_only={sorted(ledger_names - PUBLIC_EXAMPLE_DIRS)}, "
+            f"guard_only={sorted(PUBLIC_EXAMPLE_DIRS - ledger_names)}"
         )
-    ledger_withheld = {name for name, status in rows if status == "WITHHELD"}
     ledger_research = {name for name, status in rows if status == "RESEARCH"}
-    if ledger_withheld != WITHHELD_EXAMPLE_DIRS:
-        raise SystemExit(
-            "withheld-example policy mismatch: "
-            f"ledger_only={sorted(ledger_withheld - WITHHELD_EXAMPLE_DIRS)}, "
-            f"guard_only={sorted(WITHHELD_EXAMPLE_DIRS - ledger_withheld)}"
-        )
     if ledger_research != RESEARCH_EXAMPLE_DIRS:
         raise SystemExit(
             "research-example policy mismatch: "
             f"ledger_only={sorted(ledger_research - RESEARCH_EXAMPLE_DIRS)}, "
             f"guard_only={sorted(RESEARCH_EXAMPLE_DIRS - ledger_research)}"
         )
-    ledger_ready = ledger_names - ledger_withheld - ledger_research
+    ledger_ready = {name for name, status in rows if status == "READY"}
     if ledger_ready != READY_EXAMPLE_DIRS:
         raise SystemExit(
             "ready-example policy mismatch: "
             f"ledger_only={sorted(ledger_ready - READY_EXAMPLE_DIRS)}, "
             f"guard_only={sorted(READY_EXAMPLE_DIRS - ledger_ready)}"
         )
-    missing_ready = sorted(ledger_ready - directories)
-    if missing_ready:
-        raise SystemExit(
-            f"example reference inventory is missing READY directories: {missing_ready}"
-        )
-    return directories.intersection(ledger_withheld)
 
 
 def _validate_source_tree(
     source_root: Path,
     *,
-    allow_withheld_source: bool = False,
     allow_untracked_required: bool = False,
     allow_dirty_source: bool = False,
     allow_indexed_rights_blocked_deletion: bool = False,
@@ -666,19 +886,12 @@ def _validate_source_tree(
             raise SystemExit(message)
         print(f"WARNING: {message} (audit override enabled)")
     _reject_forbidden_files(files, source_root)
+    _validate_public_subtrees(files, source_root)
     for name in sorted(files):
         path = source_root / PurePosixPath(name)
         if path.is_file():
             _validate_text(name, path.read_bytes(), source_root)
-    present_withheld = _validate_example_policy(source_root)
-    if present_withheld:
-        message = (
-            f"{source_root} still contains first-release-withheld example "
-            f"directories: {sorted(present_withheld)}"
-        )
-        if not allow_withheld_source:
-            raise SystemExit(message)
-        print(f"WARNING: {message} (audit override enabled)")
+    _validate_example_policy(source_root)
     return len(files)
 
 
@@ -711,7 +924,7 @@ def _validate_wheel(wheel: Path) -> int:
         )
 
     dist_info = metadata[0]
-    required = PACKAGE_ASSETS | {
+    required = PUBLIC_PACKAGE_FILES | {
         f"{dist_info}/licenses/LICENSE",
         f"{dist_info}/licenses/LICENSE-DOCS.md",
         f"{dist_info}/licenses/LICENSE-ABAQUS-UFL-EXAMPLES",
@@ -719,7 +932,8 @@ def _validate_wheel(wheel: Path) -> int:
     }
     _require_files(files, required, wheel)
     _reject_forbidden_files(files, wheel)
-    _reject_withheld_examples(files, wheel)
+    _validate_exact_subtree(files, wheel, "coupfe", PUBLIC_PACKAGE_FILES)
+    _validate_artifact_example_dirs(files, wheel, require_complete=False)
     _reject_private_harness(files, wheel)
     with zipfile.ZipFile(wheel) as archive:
         for member in members:
@@ -761,9 +975,9 @@ def _validate_sdist(sdist: Path) -> int:
     }
     _require_files(files, REQUIRED_SDIST_FILES, sdist)
     _reject_forbidden_files(files, sdist)
-    _reject_withheld_examples(files, sdist)
+    _validate_public_subtrees(files, sdist)
     _reject_private_harness(files, sdist)
-    _require_shipped_examples(files, sdist)
+    _validate_artifact_example_dirs(files, sdist, require_complete=True)
     with tarfile.open(sdist, mode="r:gz") as archive:
         for member in archive.getmembers():
             if member.isfile():
@@ -781,7 +995,6 @@ def validate(
     dist_dir: Path,
     source_root: Path | None = None,
     *,
-    allow_withheld_source: bool = False,
     allow_untracked_required: bool = False,
     allow_dirty_source: bool = False,
     allow_indexed_rights_blocked_deletion: bool = False,
@@ -789,7 +1002,6 @@ def validate(
     source_count = (
         _validate_source_tree(
             source_root.resolve(),
-            allow_withheld_source=allow_withheld_source,
             allow_untracked_required=allow_untracked_required,
             allow_dirty_source=allow_dirty_source,
             allow_indexed_rights_blocked_deletion=(
@@ -842,14 +1054,6 @@ def main() -> None:
         help="skip the source-tree check and inspect only the built archives",
     )
     parser.add_argument(
-        "--allow-withheld-source-for-audit",
-        action="store_true",
-        help=(
-            "inspect artifacts while private staging still contains WITHHELD "
-            "examples; the source result is not publishable"
-        ),
-    )
-    parser.add_argument(
         "--allow-untracked-required-for-audit",
         action="store_true",
         help=(
@@ -878,7 +1082,6 @@ def main() -> None:
     validate(
         args.dist_dir,
         source_root=None if args.artifacts_only else args.source_root,
-        allow_withheld_source=args.allow_withheld_source_for_audit,
         allow_untracked_required=args.allow_untracked_required_for_audit,
         allow_dirty_source=args.allow_dirty_source_for_audit,
         allow_indexed_rights_blocked_deletion=(

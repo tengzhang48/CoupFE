@@ -1,33 +1,23 @@
 """RESEARCH dynamic-relaxation ring-compression workflow.
 
 This solves the ring-between-rigid-plates problem through the implicit dynamics
-solver using a staged ramp-hold-settle protocol. The private development tree
-contains historical Abaqus-derived values, but it does not retain the
-authoritative input provenance, external raw run, extraction record, or
-environment. Those values are diagnostic context, not release validation.
+solver using a staged ramp-hold-settle protocol. No authoritative external raw
+run, extraction record, or locked environment is retained, so the workflow is
+not release validation.
 
-Why the earlier attempts failed (see docs/lessons_learned.md 2026-07-02): the
-loading protocol was never quasistatic, because nobody computed the ring's
-timescales first.
-
-* The free ring's fundamental (ovalization) mode is ``omega_1 = 0.0498`` rad/s
-  (measured by ``eigsh(K, M)`` on this mesh), i.e. a period ``T_1 = 126 s``.
-  The old "slow" 40 s ramp was three times FASTER than one period — an
-  impulsive load, not a slow one.
-* With mass-proportional damping ``alpha = 0.01`` the fundamental mode has
-  ``zeta = alpha/(2*omega_1) = 0.10`` — underdamped, settle time ~200 s — and
-  the reaction was sampled at the END OF THE RAMP with no hold at all.  Every
-  reported number was a snapshot of an oscillating transient (hence the
-  non-monotonic RF2 and the "slower ramps separate" mystery: the ring was
-  simply caught mid-rebound).
+Recompute or justify ramp and settling durations for the supplied mesh and
+parameters; sampling reaction at the end of an underdamped ramp can capture a
+transient rather than a quasistatic state. The defaults below are research
+settings, not a retained modal qualification.
 
 The implemented protocol (skills/contact.md "dynamic relaxation" note):
 
-1. ramp the plate one displacement unit over ``T_RAMP`` (rate is uncritical);
+1. ramp the plate one displacement unit over ``T_RAMP`` and check sensitivity
+   to the chosen rate before treating the result as quasistatic;
 2. HOLD the plate and let the ring relax under ``alpha ~ 2*omega_1`` (near
    critical for the fundamental mode).  The damping force ``alpha*M*v``
-   corrupts the reaction only WHILE the ring moves; as ``v -> 0`` it vanishes
-   identically, so the settled state solves ``F_int + F_contact = 0`` exactly;
+   contributes while the ring moves; as ``v -> 0`` that term vanishes, but the
+   residual must still be checked against the stated tolerance;
 3. sample RF2 only when the kinetic energy has collapsed below the stated
    threshold.
 
@@ -71,8 +61,8 @@ G_RING = 2.0
 K_RING = 20.0
 DENSITY = 1.0
 
-# Fundamental free-ring mode (eigsh(K, M) on this mesh): omega_1 = 0.0498 rad/s,
-# T_1 = 126 s.  Near-critical mass-proportional damping for that mode:
+# Historical research setting used to choose mass-proportional damping. A
+# qualified run must recompute the spectrum for its supplied mesh and units.
 OMEGA_1 = 0.0498
 DAMPING = 2.0 * OMEGA_1                 # ~0.1; zeta_1 ~ 1, zeta_2 ~ 0.37
 

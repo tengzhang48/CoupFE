@@ -2,11 +2,11 @@
 
 Everything that contributes to the global nonlinear system is an **Operator**
 with one small contract: a bulk element group, a contact set, a constraint, a
-load.  An operator is functionally **pure** (same inputs → same outputs) and it
-**never commits state implicitly** — a candidate ``state_trial`` is returned and
-only committed after the global solve accepts a step.  That discipline is what
-makes complex-step tangent columns, line searches, and (later) matrix-free
-products correct; see ``docs/DESIGN.md``.
+load. The interface separates residual/tangent evaluation from state commit.
+Operators should not mutate committed state while evaluating a trial. The
+driver decides when to call ``commit``; callers using history-dependent state
+must verify that their chosen driver commits only accepted increments. See
+``docs/DESIGN.md``.
 
 The contract is deliberately at **group granularity** (a batch of like
 contributions sharing one kernel), matching how the compiled f2py element kernels
@@ -62,8 +62,10 @@ class Operator(Protocol):
         ...
 
     def commit(self, U: np.ndarray, state: Any, t: float, dt: float) -> Any:
-        """After the global solve accepts ``U``: recompute and return the new
-        committed state.  Stateless operators return ``state`` unchanged."""
+        """Commit ``U`` after the caller has accepted it and return new state.
+
+        Stateless operators return ``state`` unchanged.
+        """
         ...
 
 

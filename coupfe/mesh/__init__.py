@@ -1,8 +1,9 @@
-"""CoupFE meshing — the geometry + kernel-view contracts (serial; distributed later).
+"""CoupFE meshing — geometry, kernel-view, and partitioning contracts.
 
 Operators consume a :class:`KernelMeshView` only; geometry (curvature) is a separate
 :class:`GeometryBackend`. Uniform refinement re-embeds curved boundaries onto the
-geometry. See ``docs/dev/distributed_mesh.md``.
+geometry. See ``skills/distributed.md`` for the MPI ownership and verification
+rules.
 """
 
 from coupfe.mesh.geometry import Circle, GeometryBackend, Plane, Sphere

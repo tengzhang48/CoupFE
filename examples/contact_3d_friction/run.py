@@ -7,8 +7,8 @@ friction** on the 3D tangent plane (``P = I − n⊗n``) at the interface resist
 the interface slips noticeably LESS than the frictionless block. Contact runs on the numba narrow-phase
 + LBVH broad-phase.
 
-`friction_eps` is set ABOVE the interface slip (near-stick) so the ppf Gauss-Newton friction tangent
-stays consistent → the Newton solve converges tightly (see docs/dev/contact_experiments.md 2026-06-24).
+`friction_eps` is chosen on the interface-slip scale so the regularized
+Gauss-Newton tangent remains usable; see `docs/theory/contact_dynamics.md`.
 
 Self-check: ``μ>0`` interface slip < 0.7× the frictionless slip (friction acts) AND penetration-free.
 Prints ``OK`` / ``FAIL``.

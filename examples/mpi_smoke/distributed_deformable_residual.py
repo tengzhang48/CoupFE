@@ -8,9 +8,10 @@ computed exactly once) with **global** DOF indices, and PETSc's off-process ``AD
 the edge-node contributions to whatever rank owns them. The serial ``DeformableContact2D`` is reused
 verbatim per rank.
 
-Gate (1-vs-N invariant): the gathered distributed residual ``R`` and a tangent mat-vec ``K·v`` equal
-the serial assembly to machine precision, for any rank count. (Penalty contact — no CCD/dynamics; the
-barrier + global CCD layer onto this next.)
+At the invoked rank count, the program compares the gathered distributed
+residual ``R`` and tangent mat-vec ``K·v`` with the serial assembly. The scoped
+algebraic tolerance is checked at runtime; no retained rank sweep ships here.
+(Penalty contact — no CCD/dynamics; the barrier and global CCD are separate.)
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_deformable_residual.py
 """

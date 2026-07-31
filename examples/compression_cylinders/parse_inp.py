@@ -17,8 +17,8 @@ def resolve_input_deck(path=None):
     """Resolve a user-supplied, lawfully obtained Abaqus input deck.
 
     The copyrighted deck is not part of the public distribution.  An explicit
-    argument takes precedence over ``COUPFE_CYLINDERS_INP``; the historical
-    repository-root location remains a developer convenience only.
+    argument takes precedence over ``COUPFE_CYLINDERS_INP``. For backward
+    compatibility, the repository-root basename is checked last.
     """
 
     candidate = path or os.environ.get("COUPFE_CYLINDERS_INP")

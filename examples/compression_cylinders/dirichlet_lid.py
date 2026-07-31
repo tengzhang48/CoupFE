@@ -1,22 +1,16 @@
-"""Dirichlet-driven lid — the principled fix for the moving-obstacle tunneling.
+"""RESEARCH Dirichlet-driven deformable-lid study.
 
-A rigid lid moved by recreating its `HalfSpace` each step bypasses the CCD and
-tunnels if it jumps > dhat (see the example README / lessons). The fix: model the
-lid as a stiff **deformable strip whose nodes are Dirichlet-driven** downward.
-Then the lid's motion goes through `solve_dynamics`' **CCD-bounded predictor** (BC
-ramps are already CCD-bounded), so it is penetration-free **at any step size**,
-and it is plain `deformable_contact` (so it also distributes).
+A stiff deformable strip supplies moving contact edges while its nodes are
+driven downward over multiple increments. The default increment of prescribed
+motion is smaller than the contact band; generic Dirichlet motion is not
+automatically collision-bounded, so this is not an any-step-size guarantee.
 
-This script proves the mechanism: lower the lid by a step FAR larger than dhat in
-one ramp and confirm it stays **penetration-free / does not tunnel** (a recreated
-rigid `HalfSpace` lid passes clean through at this step).  Floor + side walls stay
-rigid `HalfSpace`s (fixed obstacles don't tunnel).
+The script checks a scoped no-gross-tunneling condition, a floor gap, and
+finiteness on a small case. Floor and side walls remain fixed rigid
+``HalfSpace`` obstacles.
 
-NOTE: this validates the *no-tunnel* behaviour on a small/fast case (a single
-stiff cylinder barely compacts).  A clean *dense-pack compaction* under the lid is
-iteration-heavy serially (the lid driving many cylinders chatters) — that is the
-load the distributed path splits; the lid then carries to
-`solve_dynamics_distributed` as plain `deformable_contact`.
+It is a mechanism study rather than dense-pack validation or distributed
+qualification.
 
     PYTHONPATH=. python examples/compression_cylinders/dirichlet_lid.py
 """
@@ -68,12 +62,13 @@ def main(n_cyl=6, lid_step=1.5):
     shrink = 0.92
 
     # --- assemble cylinders ---
-    cnodes, celems, cbedges, cbnodes = [], [], [], []
+    cnodes, celems, cbedges, cbnodes, cbody = [], [], [], [], []
     off = 0
-    for c in cyls:
+    for ci, c in enumerate(cyls):
         nd, q = disk_mesh(c["center"], c["R"] * shrink, n=3)
         be = boundary_edges(q, nd) + off
         cnodes.append(nd); celems.extend((q + off).tolist())
+        cbody.extend([ci] * len(nd))
         cbedges.extend(be.tolist()); cbnodes.extend(sorted(set(be.ravel().tolist())))
         off += len(nd)
     cnodes = np.vstack(cnodes); n_cnode = len(cnodes)
@@ -85,6 +80,10 @@ def main(n_cyl=6, lid_step=1.5):
     lbottom = lbottom + n_cnode
     le = le + n_cnode
     nodes = np.vstack([cnodes, ln])
+    body_id = np.concatenate([
+        np.asarray(cbody, dtype=int),
+        np.full(len(ln), len(cyls), dtype=int),
+    ])
     ndof = len(nodes) * 2
     lid_nodes = np.arange(n_cnode, len(nodes))
     lid_bottom_edges = np.array([[lbottom[i], lbottom[i + 1]] for i in range(len(lbottom) - 1)], int)
@@ -110,11 +109,11 @@ def main(n_cyl=6, lid_step=1.5):
     # ONE deformable barrier: cylinder nodes vs (cylinder + lid-bottom) edges
     all_edges = np.vstack([cbedges, lid_bottom_edges])
     contact = DeformableBarrierContact2D(nodes, cbnodes, all_edges, dof_per_node=2, comps=(0, 1),
-                                         dhat=DHAT, kappa=KAPPA, mass=nodal[cbnodes], mu=0.1, friction_eps=FEPS)
+                                         dhat=DHAT, kappa=KAPPA, mass=nodal[cbnodes], mu=0.1,
+                                         friction_eps=FEPS, body_id=body_id)
 
     def dirichlet(t):
-        # lid driven down by the FULL lid_step over the solve (one big ramp);
-        # CCD-bounded predictor keeps it penetration-free despite step >> dhat
+        # The total lid displacement is ramped over N_STEPS prescribed updates.
         frac = t / (DT * N_STEPS)
         d = {}
         for n in lid_nodes:
@@ -130,17 +129,16 @@ def main(n_cyl=6, lid_step=1.5):
     pos = nodes + U.reshape(len(nodes), 2)
     lid_y = pos[lid_bottom_edges.ravel(), 1].min()           # final lid bottom
     top_after = pos[cbnodes, 1].max()
-    # tunneling = the lid passed BELOW the pack top (rigid HalfSpace did this)
-    # CORE claim: no gross tunnel — the lid edge stays within the barrier band of
-    # the pack top (a recreated rigid HalfSpace lid would pass clean through here).
+    # Scoped check: the lid edge does not finish grossly below the pack top.
     no_tunnel = lid_y > top_after - DHAT - 1e-3
     floor_ok = pos[cbnodes, 1].min() - yB > -1e-3
     compaction = pack_top - top_after                    # informational (dense packs compact more)
     ok = no_tunnel and floor_ok and np.all(np.isfinite(U))
-    print(f"Dirichlet lid: step={lid_step} (={lid_step/DHAT:.1f}x dhat in one ramp)")
+    print(f"Dirichlet lid: total travel={lid_step}, "
+          f"per-step travel={lid_step/N_STEPS:.3f}, dhat={DHAT}")
     print(f"  lid bottom y={lid_y:.2f}, pack top={top_after:.2f} -> no_tunnel={no_tunnel} "
-          f"(rigid-HalfSpace lid TUNNELS at this step)")
-    print(f"  floor penetration-free={floor_ok};  compaction={compaction:.2f} (informational)")
+          "(scoped final-geometry check)")
+    print(f"  floor gap check={floor_ok}; compaction={compaction:.2f} (informational)")
     print("OK" if ok else "FAIL")
     return ok
 

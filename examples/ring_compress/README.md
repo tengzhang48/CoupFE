@@ -1,16 +1,14 @@
-# Ring compression against an Abaqus result record
+# Ring-compression research workflow
 
 **First-release status: RESEARCH workflow; not validation evidence pending
 reference-result provenance.**
 
-This directory contains two CoupFE reproductions of a two-dimensional
+This directory contains two manual CoupFE workflows for a two-dimensional
 plane-strain neo-Hookean ring compressed between rigid plates:
 
 - `reproduce.py` — quasistatic adaptive load stepping with penalty contact and
   return-map friction.
 - `reproduce_dynamics.py` — staged ramp/hold/settle dynamic relaxation.
-- `coupfe_ring_compress_summary.csv` — a compact record of selected CoupFE
-  results and superseded runs.
 
 The scripts require a user-supplied `ring_compress.inp`. The proprietary input
 deck is not distributed. Point the scripts and tests to a deck you are entitled
@@ -32,10 +30,11 @@ The reaction table is deliberately not distributed because its per-file
 redistribution authority is unresolved. Without that variable, the dynamic
 workflow runs and reports no external comparison.
 
-The private development tree has optional slow checks that require this deck,
-but they are not in the reviewed public test partition and no retained release
-run establishes their external comparison. Treat the scripts as manual
-RESEARCH workflows.
+No retained release run establishes the external comparison. Historical
+summary values are deliberately not shipped because their raw runs and exact
+environments were not retained. Treat the scripts as manual RESEARCH workflows
+and retain the authorized input, environment, and raw output for any new
+comparison.
 
 ## What is and is not established
 

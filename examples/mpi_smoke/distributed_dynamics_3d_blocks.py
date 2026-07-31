@@ -1,25 +1,26 @@
-"""End-to-end 3D distributed dynamics: two deformable Hex8 blocks COLLIDE. Run under mpirun.
+"""End-to-end 3D distributed dynamics smoke: two Hex8 blocks collide. Run under mpirun.
 
 The full 3D analog of the 2D distributed dynamics barrier, done as a clean collision (no
 gravity-balance, which is finicky in 3D): two compressible neo-Hookean **Hex8 blocks** (real
 volumetric elements), the top given a downward initial velocity, collide; both deform on impact and
 the 3D deformable barrier across the interface (top block's bottom-face vertices vs the bottom
-block's top-face triangles + edge-edge) keeps them **penetration-free** — the CCD bounds every step
-so no node ever crosses. Backward-Euler damping dissipates the impact energy.
+block's top-face triangles + edge-edge) uses a CCD step bound. The program checks
+a positive interface gap for this parameter set; that is not an unconditional
+guarantee for arbitrary geometry or time steps. Backward-Euler damping dissipates the impact energy.
 
-Element/physics notes (see docs/dev/contact_experiments.md):
-  * **F-bar Hex8** (`neo_hookean_hex8_fbar.for`) — a *standard* Hex8 volumetrically locks (over-stiff
-    → non-convergence); F-bar is locking-free.
-  * **κ matched to the bulk** (`κ ~ K_bulk`, not 200×) for conditioning; the CCD owns non-penetration.
+Element/physics notes (see `skills/contact.md`):
+  * **F-bar Hex8** (`neo_hookean_hex8_fbar.for`) is used for the nearly
+    incompressible block in this study.
+  * **κ is scaled with the bulk** for conditioning; the CCD owns non-penetration.
   * Modest impact velocity (dimensionless impact strain `~ v0/√(E/ρ)` small) → modest deformation →
-    the direct solver converges in a few Newton iters with no line-search/PSD band-aids.
+    the example remains in its intended moderate-deformation regime.
 
 Each rank owns a block of hexes (bulk via the vendored Hex8 kernel) + the contact secondaries/faces
 it owns; `_DistDeformableContact3D` routes the cross-rank vertex-face/edge-edge contributions.
 
-Gates: (1) converged each step; (2) the blocks collided AND stayed penetration-free — the minimum
-interface gap over the whole trajectory is in `(0, d̂)`; (3) rank-independent (1-vs-N) — the test
-diffs the saved final U across rank counts.
+The current run self-checks convergence and an engaged positive interface gap.
+An optional output path saves the final `U` for an external same-revision
+comparison across rank counts; no retained multi-rank record ships here.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_dynamics_3d_blocks.py
 """
@@ -39,7 +40,7 @@ from coupfe.operators.contact3d import (
 )
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
 
-_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # F-bar → locking-free
+_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # scoped F-bar formulation
 NE = 2                                  # NE×NE×NE hexes per block
 G, K_BULK, DENSITY = 1.0, 10.0, 1.0     # K/G = 10 (moderate compressibility)
 DHAT, KAPPA = 0.04, 1.0e2               # κ ~ K_bulk (matched); CCD owns non-penetration
@@ -153,8 +154,8 @@ def main():
           "edges": np.zeros((0, 2), int), "dhat": DHAT, "kappa": KAPPA}
     dirich = {int(n) * 3 + c: 0.0 for n in base for c in (0, 1, 2)}
 
-    # track the minimum interface gap over the whole trajectory (the collision closeness; the CCD
-    # guarantees it stays > 0 every step, so a min in (0, d̂) proves "collided AND penetration-free")
+    # Track the minimum reported interface gap over this trajectory. A value in
+    # (0, d̂) shows that contact engaged without a sampled crossing for this run.
     min_gap = [np.inf]
 
     def track(step, U_full, rk):
@@ -170,7 +171,7 @@ def main():
         mg = float(min_gap[0])
         converged = info["rnorm"] < 1e-6 and not info["ksp_diverged"]
         collided = mg < DHAT                                 # the blocks came into contact
-        penetration_free = mg > 0.0                          # never crossed (CCD-guaranteed)
+        penetration_free = mg > 0.0                          # positive sampled gap in this run
         ok = converged and collided and penetration_free
         if len(sys.argv) > 1:
             np.save(sys.argv[1], U_par)

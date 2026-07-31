@@ -1,12 +1,11 @@
 """Method of Manufactured Solutions (MMS) — element convergence-rate gate.
 
-The one verification class the rest of the harness can't see. `verify()` checks
-the material tangent is self-consistent; the invariants check kinematics/signs;
-feacheap checks the thing *runs*. NONE of them check that the **element
-machinery is correct** — the B-matrix (physical shape-function gradients), the
-Gauss quadrature rule, the Jacobian mapping, the assembly. A wrong B-matrix or
-an under-integrated rule is a *consistent* operator: it differentiates cleanly
-and solves to *something*, so every other gate passes.
+`verify()` checks that a material tangent is self-consistent, invariants check
+selected kinematics and signs, and a compiled smoke test checks execution.
+Those checks do not establish the convergence behavior of the complete element
+machinery: the physical shape-function gradients, quadrature, Jacobian mapping,
+and assembly. A wrong B-matrix or under-integrated rule can still form a
+consistent operator and produce a solution.
 
 MMS catches it by the **convergence rate**. Manufacture an exact field, derive
 the source that makes it an exact solution, solve on a refining mesh, and check

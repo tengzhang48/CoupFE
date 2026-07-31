@@ -7,7 +7,7 @@ by `solve_dynamics`.
 
 Only the mesh currently has a reviewed pytest gate. No retained full-solve
 output, equilibrium study, or exact GetFEM source/result supports a
-reproduction or validation claim; see `docs/dev/tire_buildlog.md`.
+reproduction or validation claim; see `examples/REFERENCES.md`.
 
 The driver self-reports diagnostic gap, patch, and reaction checks. Those
 labels help a research rerun but are not a release gate.

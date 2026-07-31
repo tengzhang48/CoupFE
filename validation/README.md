@@ -1,105 +1,74 @@
-# CoupFE validation scaffold — test broadly, release narrowly
+# CoupFE public test and evidence policy
 
-This directory is CoupFE's **internal confidence harness**. It is deliberately
-**not** the public support boundary.
+The executable public tests live in [`../tests/`](../tests/). This directory
+contains documentation only; it is not an importable `validation` package or a
+model registry.
 
-- `examples/` is the broader development inventory. The first-release decision
-  is recorded in `examples/REFERENCES.md`: 21 directories have a limited
-  `READY` role, 14 ship as explicitly unsupported `RESEARCH` capability demos,
-  and 12 are `WITHHELD` pending source authority, licensing, or repair of a
-  known release-gate failure.
-- `validation/` holds implementation and numerical confidence checks. Their
-  evidence can be analytic, published, cross-backend, or self-consistency based;
-  those categories do not carry the same scientific weight.
-
-This separation is the point. A package earns trust by being tested against far more
-than it advertises; it stays clean by advertising only the parts that are polished.
-
-The first-release sdist retains the capability-rich READY and RESEARCH example
-set plus an explicitly reviewed 30-file public test partition. It omits the
-remaining executable `validation/` harness and tests tied to WITHHELD,
-private-input, expected-failure, MPI, or unqualified codegen paths. The artifact
-guard's `PUBLIC_TEST_FILES` set is the authoritative allowlist.
-
-The base public tier has no skips or expected failures:
+Run the default public suite from the repository root with:
 
 ```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q \
-  tests/test_affine_constraints.py \
-  tests/test_operator_contract.py \
-  tests/test_mesh.py tests/test_distribute.py tests/test_dynamics.py \
-  tests/test_all_primitive_barrier_2d.py \
-  tests/test_contact_3d_persistent_friction.py \
-  tests/test_contact_finite_sliding_repairing.py \
-  tests/test_contact_persistent_friction.py \
-  tests/test_contact_return_map_friction.py \
-  tests/test_contact_search.py tests/test_multibody_contact.py \
-  tests/test_tire_mesh.py
+python -m pytest -q
 ```
 
-Fresh release-worktree result: **57 passed, 0 skipped, 0 xfailed**. Seventeen
-additional allowlisted files gate Hertz, exact-stick, semismooth and
-finite-sliding friction, the CoupFE side of the ppf interoperability recipe,
-both 3-D contact examples, curved convergence, declarative model setup, the
-compiled contact pipeline, four paper forms, four UMAT material/codegen
-examples, and the example-local pasta mesh extractor. In the current
-base-dependency environment, the exact 30-file partition reports **95 passed,
-5 skipped**: the five module-level skips all state that SymPy is not installed.
-Run the complete optional tier with its codegen dependencies and `gfortran` in
-the final release environment before recording an all-green partition result.
-The strict-xfailed Cattaneo and timed-out self-contact files are deliberately
-absent; the full pasta-deck inventory is a separate opt-in check because the
-large companion inputs are not bundled.
+The project configuration excludes tests marked `slow` by default. Optional
+code-generation, compiled-element, numba, PETSc, MPI, or external-data paths
+require their corresponding tools and environments. Long workflows can be run
+explicitly with:
 
-## How it works
-
-Each model is a `ValidationModel`: a name, a one-line description, and a
-zero-argument `check()` that builds a problem, solves it through
-`coupfe.newton_solve`, compares a measured quantity with its stated oracle, and
-returns a `ValidationResult`. Generated-kernel/reference-assembly and
-native/UEL comparisons are implementation checks when both sides share the
-same weak form; they are not independent physics validation.
-
-Models self-register via `@register(...)` (see `validation/registry.py`). The registry
-is enumerated by `tests/test_validation_models.py`, so every registered model is a
-pytest case automatically.
-
-```python
-from validation import run_all, run_one, registered_models
-run_all()                       # run every model's classified evidence check
-run_one("neo_hookean_uniaxial") # run one
+```bash
+python -m pytest -q -ra -m slow
 ```
 
-## Adding a model (the template)
+## What the public tests cover
 
-1. Drop a module in `validation/models/` (copy `neo_hookean.py`).
-2. Build the problem in the **example layer** (`examples/...`) and import it here —
-   validation consumes per-problem glue, it does not duplicate meshing/BCs.
-3. State the oracle category honestly and compare to it with a meaningful
-   tolerance. Use an independent analytic or published reference when making a
-   physics-validation claim.
-4. `@register(...)` the `check()` and import the module in
-   `validation/models/__init__.py`.
+The shipped suite includes focused checks for:
 
-## Hooks / notes for the models still to be ported
+- operator assembly, nonlinear solves, dynamics, and exact affine constraints;
+- compiled element groups, state behavior, and the declarative model pipeline;
+- regular-mesh refinement, geometry checks, and in-process distribution;
+- two- and three-dimensional contact primitives and selected end-to-end
+  examples;
+- return-map, persistent, finite-sliding, and semismooth friction studies;
+- UEL/UMAT generation, deterministic generated source, compilation, state, and
+  reference-assembly behavior for the examples that claim those checks; and
+- analytic or independently implemented checks for selected examples such as
+  the linear bar, curved annulus, Hertz contact, and material-point paths.
 
-The neo-Hookean entry is stateless and monolithic. The lab has harder models; the
-scaffold is ready for them, with these seams already present:
+`examples/mpi_smoke/` contains rerunnable MPI programs. They are useful for
+qualifying a concrete PETSc/MPI installation, but this release does not publish
+a retained final-revision multi-rank result.
 
-- **Stateful elements (gel, J2 plasticity).** `CompiledElement` carries `svars` and
-  `ElementGroup.commit()` calls `commit_group` after an accepted step (the
-  transactional state protocol). A stateful model registers the same way but its
-  oracle is usually a *path* quantity (a stress–strain curve, a swell ratio), so its
-  `check()` will loop `newton_solve` over load steps, threading `state` between them.
-- **Coupled / multi-field (u-µ, u-φ).** Use the `dof_per_node` + per-group `comps`
-  pattern (`ElementGroup(..., comps=(0,1,2))`); add the coupled-field block-scale gate
-  (`skills/pitfalls.md`) to the model's `check()` before the transient.
-- **Staggered solves (phase-field fracture).** The monolithic `newton_solve` is the
-  baseline; a staggered driver is per-problem glue that composes the same operators.
-- **Cross-backend parity (Abaqus UEL).** Running the same generated `.for` in
-  two hosts is a valuable ABI, sign, ordering, and state-transfer check. It is
-  not an independent formulation oracle unless the external result was
-  produced from an independently sourced model and its provenance is retained.
+## Evidence categories
 
-Each new model must ship its **broken control** (the test fails when a known bug is
-reintroduced) — consistency (CS-vs-FD, compile, smoke) is not correctness.
+Tests in this repository answer different questions:
+
+- **Analytic or independent oracle:** compares a measured quantity with a
+  separately derived result or invariant.
+- **Convergence evidence:** checks the expected trend under refinement.
+- **Implementation consistency:** compares a tangent with a numerical
+  derivative, a generated kernel with reference assembly, or native and UEL
+  backends generated from the same form.
+- **Compilation and integration:** verifies that generated source builds and a
+  documented execution path runs.
+- **Broken control:** demonstrates that a known incorrect variant fails a
+  discriminating check.
+
+Implementation consistency is not independent physical validation when both
+sides share the same equations. A passing build or tangent check also does not
+establish convergence of a boundary-value problem.
+
+## Adding evidence
+
+Add a normal pytest case under `tests/` and keep its claim narrow:
+
+1. state the equations, units, conventions, and supported regime;
+2. identify whether the check is analytic, independent, consistency-based,
+   convergence-based, or an integration check;
+3. use an independent oracle when making a physical-validation claim;
+4. include a broken control when it materially improves discrimination;
+5. state optional tools or user-supplied inputs explicitly; and
+6. update [`../examples/REFERENCES.md`](../examples/REFERENCES.md) when the test
+   changes an example's evidence boundary.
+
+Do not turn a skipped optional path, an unretained run, or agreement between two
+generated backends into a stronger public claim than the evidence supports.

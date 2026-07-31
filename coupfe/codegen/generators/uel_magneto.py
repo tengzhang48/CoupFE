@@ -1,5 +1,4 @@
-"""
-Magneto-mechanical (u-A) hex8 UEL generator — Phase 3 of the MRE plan.
+"""Research magneto-mechanical (u-A) Hex8 UEL generator.
 
 Generates a self-contained Abaqus UEL for the coupled finite-strain
 magneto-mechanical problem of Dorn, Bodelot & Danas (JAM 88:071004,
@@ -34,13 +33,13 @@ and `h_field(self, F, B)` written in the tensor DSL, and a `mu0` prop
 additionally defines `volumetric_PK1(self, F)` carrying the Gp(J-1)^2
 part (stress_PK1 then holds only deviatoric+magnetic+vacuum), and that
 term is integrated at the centroid only — matching the paper's
-quasi-incompressible MRE treatment. Hypergeometric (general-k)
-magnetization is supported through @au.fortran_helper sidecars
-(see examples/MRE/hyp2f1z_pair.for) passed via `extra_fortran_files`.
+quasi-incompressible treatment. Additional material helpers can be supplied as
+``@fortran_helper`` sidecars through ``extra_fortran_files``.
 
-Scope guards (this generator raises rather than mis-generating —
-lesson from the 2026-06-10 audit's prototype-generator findings):
-hex8 only, stateless materials only, exactly the methods above.
+The generator raises outside its scoped support: Hex8 only, stateless
+materials only, and exactly the methods described above. It is not exposed as
+a top-level public generator and has no curated end-to-end example in this
+release.
 
 Translator pitfall worth knowing: Fortran is case-insensitive, so DSL
 material locals must not collide with dummy args up to case (e.g. a

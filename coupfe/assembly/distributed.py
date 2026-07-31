@@ -1,4 +1,4 @@
-"""Production distributed-memory Newton solve (clean-room).
+"""Distributed-memory Newton solve.
 
 The serial operator contract (``assemble_residual``/``assemble_tangent``) is an O(ndof)
 interface: it takes the *global* ``U`` and returns global ``gdofs``. Distributed-memory
@@ -11,12 +11,12 @@ distributed ``Mat``/``Vec`` with **global** indices + ``ADD_VALUES`` (PETSc sums
 off-process contributions), and a PETSc ``KSP`` solves the global system. Load-stepped
 Newton + line search, exactly as the serial driver.
 
-This mirrors the lab's proven ``solve_steps_mpi_local`` for the single-field,
-history-free (hyperelastic) case. Coupled-field FieldSplit, diagonal scaling, and the
-per-element state commit are faithful extensions tracked for follow-up. **petsc4py only.**
+The current entry point uses a caller-supplied batched element evaluator and is
+**petsc4py only**. See ``docs/api.md`` and ``docs/capabilities.md`` for its
+supported scope.
 
-The correctness gate is the **1-vs-N invariant**: gathered to one process, the distributed
-solution equals the serial solve to solver precision, independent of rank count.
+The intended correctness gate is a serial-versus-rank comparison at multiple
+rank counts, with tolerances set by the selected solver and conditioning.
 
     mpirun -n 4 python examples/mpi_smoke/distributed_neohookean.py
 """
@@ -427,10 +427,9 @@ class _DistDeformableContact:
         edges = np.asarray(spec["edges"], dtype=int)
         self.mu = float(spec.get("mu", 0.0))
         owned = sec[(sec * dof_per_node >= rs) & (sec * dof_per_node < re)]   # each pair once
-        # ppf adaptive barrier stiffness s = κ + M/d² needs the per-secondary mass. Without it
-        # the barrier has only a fixed-κ capacity (~κd̂²); when the load exceeds that a pair's gap
-        # collapses to ≤0, CCD floors α to ~0 and the Newton step freezes (the 2026-06-26 stall).
-        # spec["mass"] is the full per-global-node mass; slice it to the owned secondaries.
+        # The adaptive barrier stiffness s = κ + M/d² needs the
+        # per-secondary mass. spec["mass"] is the full per-global-node mass;
+        # slice it to the owned secondaries.
         mass_full = spec.get("mass", None)
         mass_owned = (None if mass_full is None
                       else np.asarray(mass_full, dtype=float)[owned])
@@ -501,7 +500,8 @@ class _DistDeformableContact3D(_DistDeformableContact):
     first node of each pair's first edge (the op's ``owns_edge_pair`` predicate) — so every contact
     pair is assembled by exactly one rank, with global dof indices, PETSc ``ADD_VALUES`` routing the
     off-process stencil nodes. The contact surface (vertices ∪ face nodes ∪ edge nodes) is replicated
-    to every rank. The barrier is always penetration-free (3D is barrier-only). **petsc4py only.**
+    to every rank. The collision-bound path requires a feasible start and a
+    driver that honors the global step bound. **petsc4py only.**
     """
 
     def __init__(self, spec, dof_per_node, ndof, U, comm):
@@ -558,12 +558,12 @@ def solve_dynamics_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, d
     ``u``, warm-started from the **CCD-bounded** inertial predictor ``û = u_prev + dt·v_prev``
     (an unbounded predictor would teleport a node through the barrier band before Newton runs).
 
-    Why dynamics: the deformable barrier does **not** converge quasistatically (the residual-norm
-    line search stalls at the node-to-segment projection flip; ppf has no energy-merit line search,
-    it relies on dynamics + a PSD Hessian). The inertia ``M/dt²`` regularizes the non-smooth
-    stick/slip + active-set transitions and supplies the barrier's gap-dependent capacity; with the
-    load held, backward-Euler's numerical damping (plus optional Rayleigh ``αM``) doubles as dynamic
-    relaxation to a quasistatic equilibrium. See docs/dev/contact_experiments.md.
+    The shipped deformable-barrier examples use dynamics because inertia and
+    damping can regularize non-smooth stick/slip and active-set transitions.
+    With the load held, backward-Euler numerical damping plus optional Rayleigh
+    ``αM`` can be used for a scoped dynamic-relaxation study. A settled state
+    still needs explicit residual, kinetic-energy, and step-size checks. See
+    ``docs/theory/contact_dynamics.md``.
 
     Node-local pieces (each rank, its owned DOFs): inertia (diagonal ``M/dt²`` + Rayleigh ``αM/dt``),
     the predictor, the external ``force`` (e.g. gravity), and the velocity state. Bulk via
@@ -571,8 +571,9 @@ def solve_dynamics_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, d
 
     ``mass`` is the **lumped** mass per global DOF (full length; 0 on non-inertial DOFs). ``dirichlet``
     is a dict (static BCs) or a callable ``t -> {dof: value}``. ``force`` (optional) is the external
-    force per global DOF (full length). Returns ``(U_full, info)``. 1-vs-N invariant: gathered ``U``
-    equals the serial ``solve_dynamics`` to solver precision, independent of rank count. **petsc4py only.**
+    force per global DOF (full length). Returns ``(U_full, info)``. A serial
+    comparison at multiple rank counts is the intended implementation gate;
+    its tolerance depends on the selected solver. **petsc4py only.**
 
     Optional boundary hooks (both default ``None`` → no effect; distributed by OWNED ROWS, so no
     off-process ``ADD_VALUES`` — the residual is gathered collectively each iteration because a

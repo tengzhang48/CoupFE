@@ -13,8 +13,8 @@ obstacle geometric term `g ∂n/∂u` is captured automatically.
 **No Python node-loop:** gap/normal/force and the complex-step tangent are evaluated for
 all contact nodes at once (the obstacle ops use `axis=-1`, so they take a single point or
 an `(n, dim)` batch). The tangent costs `dim` vectorized complex evaluations, not one per
-node. For regular contact that is fast; the irregular *search* (BVH / narrow-phase) is the
-part that later moves to numba or a native manager (see `docs/dev/contact.md`).
+node. Irregular search and narrow-phase work use separate broad-phase and
+compiled helpers; see `skills/contact.md`.
 
 The all-primitive barrier, closest-feature geometry, adaptive barrier scaling,
 and smoothed-friction portions include modified NumPy adaptations of concepts
@@ -638,9 +638,8 @@ class SurfaceContact2D:
     self-forces); the closest penetrated edge applies the node-to-segment penalty (the
     Stage-2 force/tangent: rank-1 PSD ``k d⊗d``, small-sliding).
 
-    The candidate search is brute-force here (every vertex × every edge); the broad-phase
-    (spatial hash / BVH) and the consistent large-sliding tangent are the refinements
-    (vectorized numpy broad-phase, then numba/Rust — `docs/dev/contact.md`). Adjacency
+    Candidate generation uses the spatial-hash broad phase before closest-edge
+    evaluation. Adjacency
     exclusion is the simple "vertex not an endpoint of the edge" rule; k-ring exclusion for
     tight folds is a later refinement. Edge normal = +90° of node0→node1.
     """
@@ -745,8 +744,8 @@ class DeformableContact2D:
     frozen energy — ``R = k g d``, ``K = k d⊗d`` (rank-1 PSD), ``d = [n, -(1-ξ)n, -ξn]``.
 
     Scope: the large-sliding **consistent** tangent (differentiating ``n``/``ξ``) is a later
-    refinement; the closest-edge **search** is brute-force here (numba/Rust at scale —
-    `docs/dev/contact.md`). Edge orientation: the normal is the +90° rotation of
+    refinement; candidate generation uses the spatial-hash broad phase. Edge
+    orientation: the normal is the +90° rotation of
     ``node0→node1``, so the body lies on the −n side (a secondary on the +n side separates).
     """
 
@@ -1091,8 +1090,8 @@ class DeformableBarrierContact2D:
     the search-based sibling. Consistent (complex-step) tangent.
 
     ``dhat`` barrier band, ``kappa`` stiffness, ``eta`` CCD safety fraction, ``mass`` (per secondary
-    node, dynamics only) → adaptive ``s = κ + M/d²``. The closest-edge **search** is brute force here
-    (numba at scale — `docs/dev/contact.md`).
+    node, dynamics only) → adaptive ``s = κ + M/d²``. Candidate generation uses
+    the spatial-hash broad phase before closest-edge selection.
     """
 
     def __init__(self, nodes_ref, secondary_nodes, primary_edges, *, dof_per_node,
@@ -1122,15 +1121,13 @@ class DeformableBarrierContact2D:
         # finite-sliding persistent friction: carry the committed tangential force per secondary across
         # steps (the ε_p analog), re-framed onto the new edge at re-pairing. Requires friction_kt.
         self.friction_persistent = bool(friction_persistent)
-        # PAIRING FREEZE (opt-in): fix each secondary's closest-edge assignment for the whole
-        # Newton solve of a step, re-pairing only at commit(). Re-pairing every iteration lets a
-        # node at a vertex between two edges flip its closest edge each iterate → the residual
-        # oscillates and Newton stalls (the fine-mesh active-set chatter, 2026-06-26). Freezing
-        # the *topology* (positions still update with U; the `active` gap-mask still filters) gives
-        # a well-posed per-step Newton; the small per-step pairing lag is the standard trade-off.
+        # PAIRING FREEZE (opt-in): fix each secondary's closest-edge assignment
+        # for one step, re-pairing only at commit(). This avoids active-pair
+        # chatter near shared vertices. Positions and the active gap mask still
+        # update with U, at the cost of a one-step pairing lag.
         self.freeze_pairing = bool(freeze_pairing)
         self._frozen_topo = None
-        # ALL-PRIMITIVE mode (opt-in): the faithful 2D ppf port. Each secondary node pairs with EVERY
+        # ALL-PRIMITIVE mode (opt-in): the attributed 2D ppf-derived path. Each secondary node pairs with EVERY
         # nearby edge (not just the single closest), each via the unclassified-distance cubic barrier
         # (edge_barrier_eval). No closest-edge choice → no flip → no freeze needed. Default off keeps
         # the node-to-segment model byte-identical.

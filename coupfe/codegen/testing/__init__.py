@@ -1,14 +1,14 @@
 """coupfe.codegen validation harness — backend-agnostic constitutive checks.
 
-Reusable invariants, path generators, and operator gates that test
-*constitutive correctness*, not just consistency.  They operate on raw arrays
-(``F``, ``Fe``, ``Fp``, ``P``, ``M``, ...), so the same checks validate the
-coupfe.codegen reference, the CoupLAM JAX model, and CoupMPM C++ outputs.
+Reusable invariants, path generators, and operator gates test constitutive
+properties rather than only implementation consistency. They operate on raw
+arrays (``F``, ``Fe``, ``Fp``, ``P``, ``M``, ...), so an application can use
+them with another backend after translating its outputs to the documented
+array convention.
 
-Design rule (see VALIDATION_HARNESS_PLAN_2026-06-13.md): a check is only trusted
-once it has a *broken control* — it must FAIL when a known bug is reintroduced.
-See ``tests/test_validation_harness.py`` for the broken controls that gate each
-primitive here.
+For an important claim, add an independent oracle and, where practical, a
+deliberately broken control. See ``skills/testing.md`` for the public evidence
+guidance.
 
 These checks deliberately do NOT cover everything (no objectivity-with-history,
 no property-based fuzzing yet — both deferred).  Each function's docstring states

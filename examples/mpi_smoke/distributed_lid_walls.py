@@ -9,9 +9,9 @@ touches the pack is a **deformable strip under contact**, so there are no rigid
 
   * Disks: F-bar Quad4 bodies (free), gravity + mutual contact.
   * Floor + left wall + right wall: thin Quad4 strips, **Dirichlet-fixed**.
-  * Lid: a thin Quad4 strip, **Dirichlet-driven DOWN** by a ramp. Its motion goes
-    through the CCD-bounded predictor, so it is penetration-free at any step size
-    (a recreated rigid `HalfSpace` lid would tunnel — see the example README).
+  * Lid: a thin Quad4 strip, **Dirichlet-driven down** by a ramp. Its motion is
+    included in the driver's collision-bound path; the reported minimum gap
+    must still be checked for the selected discretization and step size.
 
 Because every wall/lid node is fully Dirichlet-constrained, the strip elements
 have no free DOFs, so their stiffness is irrelevant and ALL elements share one
@@ -23,13 +23,12 @@ the union of all contact edges (disk boundaries + the four wall/lid inner faces)
 The winding rule is the same as for the N-body disk pack: orient every edge so the
 region that holds potential secondaries (the pack interior) is on its LEFT, else
 the signed node-segment gap flips sign and the barrier reads a spurious
-penetration at rest (the 2026-06-25 winding bug). `wall_strip` returns its inner
-edges already wound interior-on-left; `boundary_edges` winds the disks
-outside-on-left.
+penetration at rest. `wall_strip` returns its inner edges already wound
+interior-on-left; `boundary_edges` winds the disks outside-on-left.
 
-Gate: penetration-free (disks above the floor, between the walls, below the lid)
-+ converged. The TEST adds the distributed invariant: **rank-independence**
-(1-vs-N gather of U identical to machine precision).
+The program reports convergence, rigid-boundary gaps, and a serial-versus-rank
+solution comparison. Interpret the comparison at the selected solver tolerance;
+no retained final-revision output is bundled.
 
 The script is a rank-independence and scaling **harness**, not retained
 performance evidence. Historical local timings were not archived with raw

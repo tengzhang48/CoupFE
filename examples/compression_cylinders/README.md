@@ -2,16 +2,15 @@
 
 This CoupFE workflow is inspired by the Abaqus/Explicit **“Compression of
 cylinders with general contact”** example
-(`xpl_2dgencont_compression`). It exercises many-body deformable contact and
-the distributed-contact path, but is not a benchmark reproduction: the
-copyrighted input deck is not distributed, its exact release/hash and raw
-CoupFE result are not retained, and the mesh/material/solver are deliberately
-adapted.
+(`xpl_2dgencont_compression`). The main driver exercises serial many-body
+deformable contact; a companion MPI smoke program exercises the narrower
+distributed-contact path. This is not a benchmark reproduction: the copyrighted
+input deck is not distributed, its exact release/hash and raw CoupFE result are
+not retained, and the mesh/material/solver are deliberately adapted.
 
 > **First-release status: RESEARCH.** Passing primitive and smaller contact
-> gates establish the reusable code paths. The subset/full-pack observations
-> below are historical development notes, not retained release evidence or an
-> Abaqus comparison.
+> gates establish reusable code paths, not this full-pack workflow or an Abaqus
+> comparison.
 
 ---
 
@@ -60,9 +59,8 @@ to a neo-Hookean G = 2(C10+C01) = 17.95, K = 2/D1 = 89.7, i.e. **K/G ≈ 5, ν �
 A fully integrated Quad4 is susceptible to volumetric locking under large
 compaction strains, so this RESEARCH workflow selects the **F-bar
 (mean-dilatation) Quad4** kernel (`neo_fbar_q4.for`,
-`formulation='fbar_mechanics'`). A private development study observed the
-expected stiffness reduction, but that example is withheld for provenance and
-does not establish a public quantitative or general “no locking” claim.
+`formulation='fbar_mechanics'`). The workflow does not establish a public
+quantitative or general “no locking” claim.
 
 > Mooney-Rivlin itself is approximated by the equivalent neo-Hookean here; a true
 > Mooney-Rivlin codegen element is a later refinement if a faithful material
@@ -70,15 +68,18 @@ does not establish a public quantitative or general “no locking” claim.
 
 ## 4. The CoupFE model
 
-- **Mesh:** 58 F-bar Quad4 disks; two `ElementGroup`s (rubber props, steel props).
+- **Mesh:** the command defaults to the eight lowest disks as a bounded
+  demonstration; `n_cyl` may request a larger subset, up to the 58 parsed
+  bodies. Rubber and steel quads use separate `ElementGroup`s.
 - **Container:** 3 rigid `HalfSpace`s (floor y=0, left x=0, right x=90).
 - **Lid:** a rigid `HalfSpace` (normal −y) lowered incrementally — the compaction.
 - **Contact:** one `DeformableBarrierContact2D` over the **union** of all disk
-  boundary nodes/edges (broad-phase + 1-ring incident exclusion; convex disks ⇒
-  a node never contacts its own disk) for **mutual** cylinder contact, plus a
-  `RigidBarrierContact` per wall + the lid. ppf-smoothed friction μ = 0.1.
-- **Driver:** implicit `solve_dynamics` (backward-Euler; inertia regularizes the
-  non-smooth contact — the barrier does not converge quasistatically).
+  boundary nodes/edges. Per-node body identifiers exclude same-cylinder edges;
+  broad-phase and incident-feature rules handle the remaining candidate set.
+  A `RigidBarrierContact` represents each wall and the lid. The study uses
+  ppf-inspired smoothed friction with μ = 0.1.
+- **Driver:** implicit `solve_dynamics` (backward Euler) as a research workflow;
+  this does not establish that a quasistatic formulation cannot converge.
 
 Supply a lawfully obtained deck, then run:
 
@@ -87,55 +88,29 @@ export COUPFE_CYLINDERS_INP=/path/to/xpl_2dgencont_compression.inp.txt
 PYTHONPATH=. python examples/compression_cylinders/run.py [n_cyl]
 ```
 
-The scripts fail with a direct setup message when the environment variable is
-unset and the private developer-only repository-root deck is absent. The deck
-is never bundled in a wheel or source distribution.
+The scripts fail with a direct setup message when neither the environment
+variable nor the backward-compatible repository-root path resolves a file. The
+deck is never bundled in a wheel or source distribution.
 
-## 5. Historical serial-subset observation
+## 5. Verification requirements
 
-A development run of a six-disk subset reported the following console
-summary. The raw output and environment were not retained, so these values are
-illustrative debugging context, not release evidence:
-
-```
-seated: pack top y = 10.18
-lid 10.43 → 7.61   pack top 9.90 → 7.21   (floor/wall gaps stay +)
-compaction: 10.18 → 7.21  = 29% of pack height
-penetration-free throughout: True (min gap +0.22)   -> OK
-```
-
-The intended workflow compacts a mixed rubber/steel pack while the bodies
-deform and slide. A future bounded gate must retain convergence, minimum-gap,
-reaction, and environment records before reporting those outcomes. Two issues
-surfaced during development (see
-`docs/lessons_learned.md`, 2026-06-25):
-
-- **Gravity = a setup/units mistake (not engine physics).** Using an arbitrary
-  nodal mass + a hand-tuned body force "crushed" the soft rubber. The fix is
-  consistent units (real density → lumped mass → `force = mass·g`; with
-  `εg = ρgL/G ≈ 6.5e-5`, real gravity is gentle and just seats the pack).
-- **Lid tunneling = missing physics (a real capability gap).** Non-penetration is
-  guaranteed by **CCD bounding the Newton step**, not by the barrier (which is
-  zero outside `[0,dhat)`). The lid is a *moving rigid obstacle* moved externally
-  (recreating its `HalfSpace`), so its motion **bypasses the CCD**; jump `>dhat`
-  and it lands already-penetrated in the barrier's dead zone → tunnels. The
-  current "steps `< dhat`" is a **breadcrumb**, not a guarantee. The proper fix —
-  give the obstacle a velocity and fold its motion into the gap + `max_step` so a
-  displacement-controlled platen is CCD-bounded at any step — is the next contact
-  item (displacement-controlled rigid tooling is ubiquitous: indentation,
-  compaction, forming; the Hertz indenter uses the same workaround).
+A bounded qualification run must retain convergence, mutual- and rigid-contact
+minimum gaps, reactions, and environment records. Use consistent units to
+derive mass and gravity. Any prescribed obstacle motion must participate in
+CCD; changing an obstacle position outside the time-aware contact update can
+bypass the step bound. The current script recreates the lid at discrete
+positions and therefore remains a demonstration rather than that qualified
+motion-aware workflow. See `skills/contact.md` for the current contract.
 
 ## 6. Serial vs distributed intent
 
-Serial multi-body contact is **iteration-heavy** (~50 Newton iters/step for the
-barrier on a dense pack), so the full 58-cylinder pack is slow serially — which
-is exactly why this example targets the **distributed** path.
+The full pack is intended to exercise the distributed path; this repository
+does not retain a release-grade performance record for it.
 
 `examples/mpi_smoke/distributed_cylinders.py` exercises
 `solve_dynamics_distributed` with cross-rank deformable-barrier assembly and a
 global CCD minimum. Generic public tests cover distributed assembly/contact
-primitives, but the historical eight-disk equality/residual run is not retained
-as first-release evidence. Re-run it at multiple ranks with hashed output
+primitives. Re-run this workflow at multiple ranks with hashed output
 before quoting correctness or scaling for this pack. The walls/lid remain
 outside that distributed path, and self-contact is not part of this distinct
 convex-body setup.

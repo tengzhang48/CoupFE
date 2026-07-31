@@ -5,13 +5,14 @@ the whole contact stack composing through the operator contract:
 
     solve_dynamics([ bulk element group, inertia, deformable barrier contact ], ...)
 
-Two compressible neo-Hookean **F-bar Hex8** blocks (a standard Hex8 would volumetrically lock); the top
+Two compressible neo-Hookean **F-bar Hex8** blocks; the top
 one is given a downward initial velocity and collides with the bottom one. The **cubic-barrier**
 deformable contact across the interface keeps them **penetration-free** (the CCD ``max_step`` bounds
 every step so no node ever crosses), both blocks deform on impact, and backward-Euler damping settles
 them. Vertex-face only (two flat parallel surfaces → edge-edge would be slow + degenerate; vertex-face
 is correct and sufficient here). Contact runs on the **numba** narrow-phase + LBVH broad-phase
-(``contact3d_numba``/``bvh_numba``), with the numpy path as the bit-identical oracle/fallback.
+(``contact3d_numba``/``bvh_numba``), with a NumPy fallback. This example does
+not make a general no-locking or acceleration-parity claim.
 
 Self-check: the blocks **collided** (the minimum interface gap over the trajectory dipped below ``d̂``)
 AND stayed **penetration-free** (it never reached 0), with bounded deformation. Prints ``OK`` / ``FAIL``.
@@ -26,7 +27,7 @@ from coupfe.operators.contact3d import DeformableBarrierContact3D, point_triangl
 from coupfe.operators.element_group import ElementGroup
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
 
-_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # F-bar → locking-free
+_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # scoped F-bar formulation
 NE = 2                                  # NE×NE×NE hexes per block
 G, K_BULK, DENSITY = 1.0, 10.0, 1.0     # K/G = 10 (moderate compressibility)
 DHAT, KAPPA = 0.04, 1.0e2               # κ ~ K_bulk (matched); CCD owns non-penetration

@@ -1,8 +1,9 @@
 """Near-incompressible neo-Hookean with element-local condensed pressure — **mixed u-p Hex8**.
 
-The 3D sibling of `examples/neo_hookean_local_pressure_quad4`. A research **non-F-bar**
-near-incompressible element for the 3D rubber-contact studies (`docs/dev/contact_benchmark_plan.md`):
-F-bar's `(J̄/J)^{1/d}` NaNs at centroid `J̄≤0` under bending — exactly the tire's regime — whereas this
+The 3D analogue of `examples/neo_hookean_local_pressure_quad4`. A research **non-F-bar**
+near-incompressible element used by the 3D rubber-contact studies (see
+`examples/REFERENCES.md`). It avoids relying on the F-bar `(J̄/J)^{1/d}`
+rescaling when centroid `J̄≤0`; instead it
 condenses an element-constant pressure `p` enforcing the **volume-average** constraint
 
     ∫ q (p − K·lnJ) dV = 0,  q,p constant  ⇒  p = K · (1/V)∫ lnJ dV   (mean dilatation / L2 projection),

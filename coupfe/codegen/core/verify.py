@@ -11,7 +11,8 @@ state_vars, the CS perturbation converts state_old to complex with
 zero imaginary part (state is real, never perturbed). The FD
 perturbation uses real state directly.
 
-CS_H = 1e-10: validated across all tangent blocks in prior work.
+``CS_H = 1e-10`` is the package default used by the current generated-kernel
+tests. A model with unusual scales should check sensitivity to this choice.
 """
 
 import numpy as np
@@ -32,9 +33,8 @@ class OperatorSignWarning(UserWarning):
     The generator assembles residual r = storage*eta - flux.grad(eta), so
     the single-field AMATRX block is (ds/df)*M - grad(N).Dflux.grad(N).
     If ds/df and the eigenvalues of -d(flux)/d(grad f) have mixed signs,
-    the gradient term is anti-diffusive (the flipped phase_flux trap,
-    2026-06-12): solves diverge exactly when the field localizes, while
-    verify()'s CS-vs-FD checks stay green. See the phase-flux sign trap in
+    the gradient term can be anti-diffusive while ``verify()``'s CS-vs-FD
+    consistency checks still pass. See the flux-sign discussion in
     ``skills/pitfalls.md``.
     """
     pass
@@ -75,15 +75,10 @@ def _check_operator_signs(material, state, verbose=True):
     Assembles the single-field AMATRX block K = (ds/df)*M - Df*L (the
     package convention r = storage*eta - flux.grad(eta)) at the resolving
     scale h = l_eff/10, l_eff = sqrt(|Df|/|ds/df|), and warns if K is
-    INDEFINITE — the signature of an anti-diffusive gradient term (the
-    flipped-flux trap, 2026-06-12/13). This is the operator-level test
-    (same logic as tests/test_phase_flux_operator.py), assembled rather
-    than inferred from a sign heuristic: the earlier heuristic version
-    used a shared rate-inflated tolerance and a dt->0 evaluation that
-    HID pure-diffusion (rate + gradient, no comparable reaction
-    stiffness) sign errors such as the LCE theta/S equations
-    (2026-06-13). Block assembly at l_eff/10 self-calibrates the two
-    terms, so a single relative tolerance suffices.
+    indefinite, the signature of an anti-diffusive gradient term. This
+    operator-level screen assembles the block rather than inferring it from a
+    sign heuristic. The resolving scale balances the storage and gradient
+    terms so one relative tolerance can be used.
 
     Warns, never fails. A consistently-negated equation (Cui: storage
     AND flux both negated) gives an all-negative block (NOT indefinite)
@@ -97,9 +92,8 @@ def _check_operator_signs(material, state, verbose=True):
     primal field, flux = +kappa*grad(primal), which is CORRECT there)
     can false-warn if the verify state sits at a spinodal (psi'' < 0);
     signatures cannot distinguish that from a degradation-coupled
-    storage. Assess mixed pairs with the coupled dispersion pattern
-    (test_phase_flux_operator.py::test_xue_mixedxi_bulk_phase_stability)
-    and dismiss if the dispersion is stable.
+    storage. Assess mixed pairs with an independently derived coupled
+    dispersion or energy-stability check before dismissing the warning.
     """
     import warnings as _warnings
 

@@ -76,17 +76,9 @@ with `gfortran` when that compiler is available. These gates establish the
 current declaration/code-generation path; they are not an independent
 boundary-value validation.
 
-`reference_result.json` records, but does not claim to reproduce, the
-historical Abaqus/Standard 2022 paper run. That result used an older archived
-generated source together with a node-sharing, mechanically active C3D8
-companion mesh (initial shear modulus 200 versus 800 for the UEL) and an
-Abaqus contact setup. The companion mesh therefore affected equilibrium, and
-its stiffness-sensitivity audit remains pending. The exact submitted source
-also differs from the current generator output.
-
-No Abaqus deck, archived source, mesh, NPZ data, figure, or contact adapter is
-copied into CoupFE. Consequently, neither the recorded `12.5329 mm` displacement
-nor Figure 6 is a current CoupFE reproduction claim. Promotion from
-**RESEARCH** requires a clean current-source boundary-value rerun, a
-companion-mesh sensitivity decision (or removal), and retained quantitative
+`evidence_record.json` lists the current self-contained checks and the excluded
+external artifacts. It intentionally carries no unretained historical result
+number. No Abaqus deck, archived source, external mesh or result data, figure,
+or contact adapter is copied into CoupFE. Promotion from **RESEARCH** requires
+a clean current-source boundary-value rerun and retained quantitative
 acceptance evidence.

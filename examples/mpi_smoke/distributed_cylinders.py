@@ -3,17 +3,17 @@
 The scale question for `examples/compression_cylinders` — does the distributed
 deformable barrier handle MANY mutually-contacting bodies (not just two blocks)?
 Here a subset of the Abaqus pack's disks (regenerated as F-bar Quad4 disks) is
-given an inward velocity so they collide and compact; the load is carried only by
+subjected to sustained radial confinement so contacts engage; the load is carried only by
 the cross-rank node-to-segment cubic barrier over the UNION of all disk
 boundaries (broad-phase + 1-ring incident exclusion ⇒ convex-disk mutual
 contact).  No walls/lid (those are not in the distributed path yet — see the
 example README).  All-rubber (one material group) so `element_partition` is clean.
 
-Gate: penetration-free (cross-disk gap > 0) + converged; the TEST adds the key
-distributed check—rank independence (1-vs-N difference of saved `U`). The
-historical pack results and timings are not retained release evidence. Re-run
-with exact revisions, environment, raw logs, and a rank-1 reference before
-quoting tolerances or time. `build_model.boundary_edges` supplies the
+The program self-checks a positive reported cross-disk gap and solver
+convergence for the invoked rank count. An external qualification can compare
+its saved `U` across rank counts; no such final-revision record is retained in
+this release. Re-run with exact revisions, environment, raw logs, and a rank-1
+reference before quoting tolerances or time. `build_model.boundary_edges` supplies the
 outside-on-left winding needed to avoid spurious rest-state penetration.
 
 `P_TARGET` supplies sustained radial confinement so the barrier can become
@@ -140,7 +140,7 @@ def main():
         penetration_free = min_gap > -1e-3
         engaged = min_gap < DHAT                         # informational: a disk pair in contact
         converged = info["rnorm"] < 1e-6 and not info["ksp_diverged"]
-        ok = penetration_free and converged              # the gate; the TEST adds 1-vs-N
+        ok = penetration_free and converged  # current-run gate; compare saved U externally
         if len(sys.argv) > 1:
             np.save(sys.argv[1], U_par)
         print(f"[size={size}] {n_cyl} disks, {len(nodes)} nodes, my_ne={info['my_ne']} "

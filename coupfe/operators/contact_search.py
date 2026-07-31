@@ -2,10 +2,10 @@
 
 Replaces the brute-force O(N²) "every vertex × every edge" candidate scan in the contact operators
 with an O(N) spatial hash for roughly-uniform feature sizes (FE surfaces). Self-contained — geometry
-in → candidate ``(vertex, edge)`` pairs out, no PETSc/MPI state — so it drops into the serial
-operators now and becomes the local kernel of the distributed spatial layer later. BVH is the
-escalation for highly non-uniform meshes; numba is the acceleration for the hot loop
-(`docs/dev/contact.md` → "Broad-phase search").
+in → candidate ``(vertex, edge)`` pairs out, no PETSc/MPI state — so it can be used by serial
+operators or as a local kernel inside a distributed path. BVH is the
+escalation for highly non-uniform meshes; numba is the acceleration for the hot
+loop. See `skills/contact.md` for integration and verification rules.
 
 **Conservative by construction:** each edge is binned into every cell its ``dhat``-expanded AABB
 overlaps, so a vertex within ``dhat`` of an edge always lands in a cell holding that edge — the

@@ -1,12 +1,11 @@
-"""Distributed dynamics + deformable barrier + smoothed FRICTION: serial == N-rank. Run under mpirun.
+"""Distributed dynamics, deformable barrier, and smoothed-friction smoke. Run under mpirun.
 
 The last cross-rank contact piece: ppf smoothed friction on the distributed deformable barrier, under
 dynamics. Friction rides the same machinery — `_DistDeformableContact` threads `mu` into the
 per-rank `DeformableBarrierContact2D` (so each rank's owned secondaries get the friction
-residual/tangent) and advances the step-start friction reference `_x0` in `commit`. Because the
-per-step displacement is rank-independent (the dynamics 1-vs-N), the path-dependent friction state
-evolves identically on every rank — distribution does not change the answer (same argument as the
-distributed rigid friction).
+residual/tangent) and advances the step-start friction reference `_x0` in
+`commit`. Because that state is path-dependent, saved results should be
+compared across rank counts rather than assuming an identical trajectory.
 
 Setup: two neo-Hookean blocks held in contact by gravity; the top block's top edge is dragged
 sideways (`+x`) while its `y` is free. Friction at the interface resists the relative sliding of the
@@ -15,8 +14,9 @@ bottom row) slides LESS than the frictionless block. (A horizontal *force* would
 blocks off each other's overlap → loss of contact; a bounded prescribed shear keeps them overlapped
 and penetration-free.)
 
-Gates: (1) `μ>0` interface slip < frictionless slip (friction actually acts); (2) converged +
-penetration-free; (3) rank-independent (1-vs-N) — the test diffs the saved `μ>0` U across ranks.
+The current run checks that friction reduces slip, the solver converges, and the
+reported gap stays positive. An optional output path supports an external
+same-revision rank comparison; no retained multi-rank record ships here.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_dynamics_friction.py
 """

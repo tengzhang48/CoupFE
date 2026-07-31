@@ -1,7 +1,7 @@
 """Coupled thermo-mechanical Quad4 example with scalar heat diffusion.
 
-This is the lab's ``scalar_diffusion_uel`` example ported to ``coupfe.codegen``:
-a Quad4 element with displacement DOFs plus one scalar (temperature) DOF per
+This uses ``coupfe.codegen`` to define a Quad4 element with displacement DOFs
+plus one scalar (temperature) DOF per
 node, neo-Hookean mechanics with thermal expansion, and Fourier heat conduction.
 """
 from __future__ import annotations

@@ -1,15 +1,14 @@
-"""Confined compression of cylinders — CoupFE side of the Abaqus general-contact
-example (`xpl_2dgencont_compression`).  See `README.md` / `docs`.
+"""RESEARCH confined-compression workflow inspired by an Abaqus example.
 
-Regenerates A's cylinder pack as clean **F-bar Quad4** disks (rubber is
-near-incompressible ν≈0.40 → full integration would lock), drops them into a
-rigid box (3 `HalfSpace` walls) and compacts with a moving lid `HalfSpace`,
-ppf-smoothed friction μ=0.1, implicit `solve_dynamics`.
+The script regenerates a user-supplied cylinder pack as F-bar Quad4 disks,
+places them in a rigid box, and compacts them with a stepped lid using smoothed
+friction and implicit dynamics. The adapted mesh, material, and solver do not
+constitute an Abaqus reproduction.
 
     PYTHONPATH=. python examples/compression_cylinders/run.py [n_cyl]
 
-Self-reports OK/FAIL on the robust facts: penetration-free (disks never cross
-walls or each other) and the pack compacts under the lid.
+The final check covers finiteness, compaction, and the reported rigid wall/lid
+gaps. It is not a complete mutual-contact or physical-validation certificate.
 """
 from __future__ import annotations
 
@@ -53,19 +52,21 @@ def build_pack(cyls, *, n_disk=3, shrink=0.92):
     Returns dict with nodes, per-material element lists, boundary edges/nodes,
     per-node material id, and the cylinder index of each node.
     """
-    all_nodes, rub_el, ste_el, bedges, bnodes = [], [], [], [], []
+    all_nodes, rub_el, ste_el, bedges, bnodes, body_ids = [], [], [], [], [], []
     off = 0
     for ci, c in enumerate(cyls):
         nd, q = disk_mesh(c["center"], c["R"] * shrink, n=n_disk)
         be = boundary_edges(q, nd) + off
         all_nodes.append(nd)
+        body_ids.extend([ci] * len(nd))
         (rub_el if c["material"] == "RUBBER" else ste_el).extend((q + off).tolist())
         bedges.extend(be.tolist())
         bnodes.extend(sorted(set(be.ravel().tolist())))
         off += len(nd)
     nodes = np.vstack(all_nodes)
     return dict(nodes=nodes, rub=np.array(rub_el, int), ste=np.array(ste_el, int),
-                bedges=np.array(bedges, int), bnodes=np.array(sorted(set(bnodes)), int))
+                bedges=np.array(bedges, int), bnodes=np.array(sorted(set(bnodes)), int),
+                body=np.asarray(body_ids, dtype=int))
 
 
 def min_pair_gap(nodes, cyls, shrink):
@@ -81,7 +82,7 @@ def min_pair_gap(nodes, cyls, shrink):
 
 def main(n_cyl=8):
     cyls_all, box, params = extract_geometry()
-    # Phase-1a subset: the n_cyl lowest disks (densest contact region)
+    # Use the n_cyl lowest disks as a bounded demonstration subset.
     cyls = sorted(cyls_all, key=lambda c: c["center"][1])[:n_cyl]
     xL, xR, yB = box
     shrink = 0.92
@@ -100,7 +101,8 @@ def main(n_cyl=8):
                              dof_per_node=2, n_svars=0, mcrd=2, n_elem=len(pack["ste"]))
         groups.append(ElementGroup(es, nodes, pack["ste"], dof_per_node=2, comps=(0, 1)))
 
-    # lumped mass (rubber density; steel scaled) — relative mass for relaxation
+    # Illustrative relative mass for relaxation; this is not a calibrated
+    # physical density model.
     nodal = np.full(len(nodes), 1.0)
     M = np.repeat(nodal, 2)
     inertia = InertiaOperator(M, ndof, damping=4.0)
@@ -118,7 +120,8 @@ def main(n_cyl=8):
                                     friction_eps=FEPS) for w in walls]
     cyl_contact = DeformableBarrierContact2D(nodes, bnodes, pack["bedges"], dof_per_node=2,
                                              comps=(0, 1), dhat=DHAT, kappa=KAPPA,
-                                             mass=mass_b, mu=MU, friction_eps=FEPS)
+                                             mass=mass_b, mu=MU, friction_eps=FEPS,
+                                             body_id=pack["body"])
 
     base_ops = groups + [inertia, grav, cyl_contact, *wall_ops]
     print(f"{len(cyls)} disks ({len(pack['rub'])} rubber + {len(pack['ste'])} steel quads), "
@@ -155,10 +158,10 @@ def main(n_cyl=8):
               f"{pf:+.2f}/{pl:+.2f}/{pr:+.2f}")
     _, _, _, topf = pen(U)
     compaction = (top0 - topf) / max(top0 - yB, 1e-9)
-    penetration_free = min_pen > -1e-3
-    ok = penetration_free and compaction > 0.10 and np.all(np.isfinite(U))
+    rigid_gap_ok = min_pen > -1e-3
+    ok = rigid_gap_ok and compaction > 0.10 and np.all(np.isfinite(U))
     print(f"  compaction: top {top0:.2f} -> {topf:.2f}  ({100*compaction:.0f}% of pack height)")
-    print(f"  penetration-free throughout: {penetration_free} (min gap {min_pen:+.3f})")
+    print(f"  reported rigid wall/lid gap check: {rigid_gap_ok} (min gap {min_pen:+.3f})")
     print("OK" if ok else "FAIL")
     return ok
 

@@ -2,12 +2,12 @@
 
 These checks operate on raw NumPy(-compatible) arrays — ``F``, ``Fe``, ``Fp``,
 ``P``, ``M``, Cauchy ``sigma`` — NOT on ``coupfe.codegen`` model objects.  The same
-primitives therefore validate the ``coupfe.codegen`` reference, the CoupLAM JAX
-model, and CoupMPM C++ outputs read into arrays.  They are *kinematic invariants
-and stress-mapping identities*, independent of the constitutive law, so they
-catch the bug class that CS-vs-FD / f2py / feacheap structurally cannot: those
-faithfully differentiate, mirror, or integrate the code that exists — even when
-that code encodes the wrong equation.
+primitives can therefore compare ``coupfe.codegen`` with another backend whose
+outputs have been translated into the same convention. They are kinematic invariants
+and stress-mapping identities, independent of the constitutive law. They can
+therefore catch errors that derivative consistency, compilation, or a matching
+element runner cannot: those paths may faithfully exercise code that encodes
+the wrong equation.
 
 What each check PROVES and does NOT prove
 -----------------------------------------
@@ -30,7 +30,7 @@ What each check PROVES and does NOT prove
     stress itself is right (that needs an independent oracle).  The PK1 form
     catches the Anand H1 bug (pulling back with ``Fp_old^-T`` after updating
     ``Fp``); the Cauchy form is the right check for models that return Cauchy
-    stress (CoupLAM/CoupMPM), where H1 is structurally absent.
+    stress, where the corresponding PK1 pull-back term is structurally absent.
 
 Stress-mapping convention (isotropic elasticity)
 ------------------------------------------------
@@ -117,7 +117,7 @@ def assert_cauchy_from_mandel(sigma, Fe, M, *, rtol=1e-8, atol=1e-10,
                               name="Cauchy from Mandel"):
     """Assert ``sigma == det(Fe)^-1 * Re @ M @ Re^T`` (Re from polar(Fe)).
 
-    The right check for models that return **Cauchy** stress (CoupLAM/CoupMPM).
+    The right check for models that return **Cauchy** stress.
     ``M`` is the symmetric intermediate-config Mandel stress.  Returns residual.
     """
     sigma = np.asarray(sigma, dtype=float)

@@ -1,12 +1,11 @@
 # CoupFE model development
 
 Use this skill when adding a new element, material, or coupled-field model to
-CoupFE. It adapts the lab's battle-tested workflow to the CoupFE namespace and
-the new native backend.
+CoupFE through the native or Abaqus-export backend.
 
 ## First moves
 
-1. **Check the worktree:**
+1. **Inspect repository state:**
    ```bash
    git status --short
    ```
@@ -14,9 +13,9 @@ the new native backend.
    them. Stage explicit paths only; never `git add -A`.
 
 2. **Read the live API and guides:**
-   - `docs/API_USAGE.md`
-   - `docs/quickstart.md`
-   - `docs/dev/native_element_abi.md`
+   - `README.md`
+   - `docs/api.md`
+   - `docs/capabilities.md`
    - `skills/pitfalls.md`
    - `skills/testing.md`
 
@@ -59,23 +58,24 @@ production-ready because a generated `.for` file compiles.
    coupling), and **raises `NotImplementedError("unhandled … pattern …")`** if your
    element's coupling hits an unfilled cell — that means "extend the oracle," not
    "your element is wrong." For tangents the table can't cover (and for any
-   **post-processed / hand-written** tangent, e.g. axisymmetric hoop blocks), use a
+   **post-processed / hand-written** tangent), use a
    **generic FD/CS consistency check `K ≈ ∂R/∂U`** instead — it is field-count- and
-   coupling-agnostic. See `skills/testing.md` and
-   `docs/dev/verification_harness_redesign.md`.
+   coupling-agnostic. See `skills/testing.md`.
 5. **Solver run.** Exercise the element through `newton_solve` or
    `solve_increments` on a simple mesh: patch test, uniaxial stretch, or a
    one-step transient.
 6. **Abaqus-UEL export validation (when Abaqus is available).** Generate the
    same element with `generate_uel(...)` and compare the Abaqus run against the
-   native result. This is the strongest external oracle for convention and sign.
+   native result. This is a useful convention and ABI comparison, but it is not
+   an independent physics oracle when both backends share the declaration.
 
 ## Generator-friendly Python for `coupfe.codegen`
 
 Use:
 
-- `coupfe.codegen.core.tensor` helpers: `eye`, `trace`, `det`, `inv`, `log`,
-  `exp`, `sqrt`, `dev`, `eig/eigh`, `logm`, `sqrtm`, `expm`, `dyad`, `sym3`.
+- generator-supported `coupfe.codegen.core.tensor` helpers such as `eye`,
+  `trace`, `det`, `inv`, `log`, `exp`, `sqrt`, `dev`, `eig`, `logm`,
+  `sqrtm`, `expm`, `dyad`, and `sym3`;
 - 3x3 tensor form until the Fortran boundary.
 - bounded `for k in range(N)` loops with optional `break`.
 - explicit scalar/tensor state variables in `state_vars`.
@@ -126,10 +126,11 @@ framework resolves it to the declared field.
 ### Momentum vs pressure vs transport
 
 - **Momentum** (`momentum_equation(v, F, ...) -> P`): returns a 3x3 PK1 stress.
-  The weak residual is `−∫ P : Grad(N) dV`.
+  The native weak residual is `+∫ P : Grad(N) dV`; the Abaqus wrapper
+  returns its negative through `RHS`.
 - **Pressure/constraint** (`pressure_equation(q, F, ...) -> r_p`): returns a
-  scalar. The weak residual is `−∫ r_p N dV`. This is the natural home for an
-  algebraic constraint.
+  scalar. The native weak residual is `+∫ r_p N dV`. This is the natural
+  home for an algebraic constraint.
 - **Transport-like** (`transport_equation(w, F, c, grad_c, c_old, dt)`): returns
   `(storage, flux)`. The weak residual is
   `∫ storage N dV − ∫ flux · Grad(N) dV`.
@@ -158,29 +159,31 @@ Use the standard UEL path for coupled fields. Use F-bar/local-pressure
 formulations only when the element theory justifies them; they are not default
 stabilization switches for gels, diffusion, phase fields, or transport.
 
-For the native backend, `formulation='local_pressure'` is supported as a
-prototype path for `u,mu` gel-style Quad4/Hex8 elements with one condensed
-element-local pressure. Document the `SVARS` layout before writing any deck.
+The scoped local-pressure path emits an Abaqus-style Quad4/Hex8 UEL with one
+condensed element-local pressure; `CompiledElement` can drive that supported
+UEL ABI in standalone tests. It is not a distinct native-kernel implementation.
+Document the `SVARS` layout before writing any deck.
 
-## Independent-oracle requirement
+## Independent-oracle requirement for validation claims
 
-Every new model needs a quantitative comparison to something the code did not
-produce: an analytic limit, a digitized paper point, a hand computation, or a
-cross-backend (Abaqus UEL) run. Consistency checks (`verify()`, CS-vs-FD,
-compile) and code-vs-itself oracles (f2py comparing generated Fortran to the
-Python reference) are not enough — they differentiate the wrong code faithfully.
+A physical-validation claim needs a quantitative comparison to something the
+code did not produce, such as an analytic limit, an authorized published datum,
+or an independent hand computation. A cross-backend run can check
+implementation agreement but is independent physical evidence only when its
+formulation and data do not share the same source. Consistency checks
+(`verify()`, CS-vs-FD, compile) and generated-code parity can faithfully compare
+the wrong equations.
 
-A green suite with only consistency checks certifies almost nothing about
-constitutive correctness. The one gate that breaks that is a quantitative
-comparison to an independent source.
+A code-generation demonstration may intentionally stop at consistency checks,
+but it must be labeled as an implementation proof rather than validation.
 
 ## Broken control
 
-Every regression test must fail if the bug is reintroduced. Before calling a
-new test done, deliberately reintroduce the bug (flip a flux sign, drop a
-tangent block, use `V.T` instead of `inv(V)`, omit a state `_old` argument) and
-confirm the test rejects it. A test that passes on the broken code is asserting
-nothing.
+For a high-value regression, deliberately reintroduce the representative bug
+(for example, flip a flux sign, drop a tangent block, or omit a state argument)
+and confirm the test rejects it. Keep a broken control when it materially
+improves the public evidence; do not require one mechanically for every small
+unit test.
 
 ## When to use native vs Abaqus backend
 
@@ -194,16 +197,17 @@ nothing.
 Keep the physics identical in both backends; only the entry-point wrapper
 changes.
 
-## Done definition
+## Review checklist
 
-A new element/material is not done until it has:
+A public element or material should have evidence appropriate to its stated
+role:
 
 - scoped equations and non-scope documented;
 - properties, units, sign convention, and state layout documented;
 - Python reference checks or material-point tests;
 - generated Fortran compile coverage;
 - f2py, solver, or Abaqus validation appropriate to the model;
-- at least one independent, quantitative oracle;
-- at least one deliberately broken control;
+- an independent quantitative oracle when making a validation claim;
+- a deliberately broken control where it materially improves discrimination;
 - a clear status label: "code implementation complete", "solver stabilization
   open", or "validation complete".

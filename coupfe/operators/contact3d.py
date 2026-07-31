@@ -1,23 +1,18 @@
-"""3D deformable–deformable contact primitives (Stage 5) — PORTED from ppf-contact-solver.
+"""Three-dimensional deformable-contact primitives.
 
-3D needs two primitives where 2D needed one: **point-triangle** (vertex vs face) and **edge-edge**
-(two skew segments — new in 3D). The hard, error-prone part is the *robust closest-feature geometry*
-(a point-triangle contact degenerates to point-edge or point-vertex when the foot leaves the face;
-edge-edge to point-edge), and the **CCD**. Rather than re-derive these, we **port the battle-tested
-implementations from `ppf-contact-solver`** (`contact/distance.hpp`, `contact/accd.hpp`, Apache-2.0)
-— a faithful numpy translation, verified against analytic cases + our gates. Adopt the algorithm,
-not the stack.
-
-These portions were translated and modified for NumPy/CoupFE. The upstream
-provenance and license are recorded in the repository ``NOTICE`` file.
+The implementation includes point-triangle (vertex-face) and edge-edge
+closest-feature geometry, cubic-barrier contributions, and additive continuous
+collision detection. These algorithms were adapted from the Apache-2.0
+`ppf-contact-solver` sources (`contact/distance.hpp`, `contact/accd.hpp`) and
+modified for NumPy/CoupFE.
 
 The contact gap is the **closest-point distance** `gap = |p_a − p_b|` where `p_a, p_b` are the
-closest points on the two features, written via the ported distance *coefficients* (closest-point
+closest points on the two features, written via distance coefficients (closest-point
 weights `w`). The barrier then mirrors 2D: residual `−s(d̂−gap)²·∂gap/∂X`, PSD tangent
 `2s(d̂−gap)·∂gapᵀ∂gap`, with `∂gap/∂X = [n·(weights)]` (the weights are `∂p/∂node`); `n` and the
-weights frozen (the `psd` mode). Penetration-free comes from CCD (ported next), not a signed gap —
-exactly as in ppf. This file: point-edge + point-triangle coeffs + the point-triangle barrier.
-Edge-edge coeffs + ACCD are the next port.
+weights frozen (the `psd` mode). The collision bound, rather than the unsigned
+distance energy alone, is the feasibility mechanism. Upstream provenance and
+license details are recorded in ``NOTICE``.
 """
 
 from __future__ import annotations
@@ -413,7 +408,7 @@ def point_edge_toi(p0, p1, a0, a1, b0, b1, **kw):
 
 # ---------------------------------------------------------------------------- 3D broad-phase
 # AABB-with-margin candidate search (the AABB primitive is ppf's `aabb.hpp`; we use a uniform 3D
-# grid for the structure — BVH is ppf's extreme-scale escalation, `docs/dev/contact.md`). Two pair
+# grid for the structure; provenance for the ppf-derived AABB concept is in `NOTICE`). Two pair
 # types: vertex-face (point-triangle) and edge-edge. Each is a SUPERSET of the true within-d̂ set
 # (a feature's d̂-expanded AABB contains everything within d̂ of it), so no contact is missed; the
 # narrow phase (`tri_barrier_eval` / `edge_edge_barrier_eval`) computes the real gap + active set.
@@ -543,7 +538,7 @@ def edge_edge_candidates(positions, edges, dhat, *, cell=None, exclude_shared=Tr
 # ---------------------------------------------------------------------------- 3D operator
 from coupfe.operators.base import Residual, Tangent      # noqa: E402
 
-try:                                                     # numba production kernels (numpy = oracle)
+try:                                                     # optional numba kernels; NumPy fallback below
     from coupfe.operators.contact3d_numba import (tri_barrier_eval_nb, closest_faces_nb,
                                                   edge_edge_barrier_eval_nb, min_toi_vf_nb, min_toi_ee_nb)
     _HAS_NUMBA = True
@@ -552,8 +547,10 @@ except Exception:                                        # numba absent → nump
 
 
 class DeformableBarrierContact3D:
-    """Penetration-free deformable–deformable contact in 3D (Stage 5) — the analog of
-    :class:`~coupfe.operators.contact.DeformableBarrierContact2D`. Composes the two ported 3D
+    """Deformable–deformable cubic-barrier contact in 3D.
+
+    This is the analog of
+    :class:`~coupfe.operators.contact.DeformableBarrierContact2D`. It composes the two adapted 3D
     primitives over the broad phase: **vertex-face** (closest face per surface vertex) +
     **edge-edge** (all active non-adjacent edge pairs), each a cubic barrier (PSD tangent), and a
     **CCD** ``max_step`` via ACCD (the min time-of-impact over all candidate pairs). ``mass`` (per
@@ -565,15 +562,15 @@ class DeformableBarrierContact3D:
     the **relative** tangential slip ``dx`` of the contact-point pair since the step start, mapped to
     the 12 stencil DOFs by the kinematic Jacobian (barycentric weights for vertex-face, edge weights
     for edge-edge); symmetric-PSD tangent ``λ BᵀP B``. Stateful: the step-start positions ``_x0``
-    are advanced in :meth:`commit`. ``mu=0`` is byte-identical/stateless (frictionless).
+    are advanced in :meth:`commit`. ``mu=0`` selects the stateless
+    frictionless path.
 
-    At exact vertex-vertex / vertex-edge coincidences the vertex-face and edge-edge terms can mildly
-    double-count — but **ppf does the same** (its barrier uses the unclassified closest distance per
-    candidate pair, with no type-classification/dedup and no edge-edge mollifier; the cubic barrier
-    avoids the IPC log-barrier's parallel-edge gradient blowup). It is benign (measure-zero
-    coincidences; the barrier stays penetration-free, CCD-guaranteed), so we match ppf and do not
-    dedup. Edge-edge candidates use the same `i<j` + shared-vertex exclusion ppf does. Faces/edges
-    are the contact surface; broad phase is the grid.
+    At exact vertex-vertex or vertex-edge coincidences the vertex-face and
+    edge-edge candidate sets can double-count a contribution. This follows the
+    current unclassified-distance adaptation and is a documented limitation,
+    not a general deduplication guarantee. Edge-edge candidates use `i<j` and
+    shared-vertex exclusion. The broad phase uses the optional LBVH with a
+    uniform-grid fallback.
     """
 
     def __init__(self, nodes_ref, vertices, faces, edges, *, dof_per_node=3, comps=None,
@@ -628,9 +625,10 @@ class DeformableBarrierContact3D:
 
     def _contributions(self, U, want_ft=False):
         """Yield (global dofs (12,), R (12,), K (12,12)) for every active vertex-face + edge-edge.
-        Vertex-face runs on the **numba** narrow-phase (broad-phase → batched closest-face + barrier);
-        the numpy per-pair path is the bit-identical fallback (and the oracle the numba is gated against),
-        and ALSO the path for the EXACT-STICK return-map friction (``friction_kt`` set). ``want_ft`` (commit
+        Vertex-face can use the optional **numba** narrow phase (broad phase →
+        batched closest-face + barrier). The NumPy per-pair path is the
+        implementation reference and also handles exact-stick return-map
+        friction (``friction_kt`` set). ``want_ft`` (commit
         only) additionally returns the per-vertex committed friction force for the persistent state.
         Edge-edge stays numpy (flat block-on-block uses vertex-face only; numba edge-edge is a follow-up)."""
         pos = self._positions_all(U)

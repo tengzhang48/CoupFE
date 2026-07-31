@@ -1,10 +1,10 @@
-"""Production distributed solve: neo-Hookean block, serial == N-rank. Run under mpirun.
+"""Distributed neo-Hookean smoke program with a serial comparison.
 
-The real production pipeline distributed: each rank owns a block of elements, assembles its
-rows of a distributed PETSc system from the **compiled f2py neo-Hookean kernel** (the same
-`element_rk_batch` the serial `ElementGroup` uses), and a load-stepped Newton with line
-search solves the global finite-strain problem across ranks. Gathered to rank 0 it must equal
-the serial `Model` solve — the **1-vs-N invariant**, the correctness gate for distributed.
+Each rank owns a block of elements and assembles a distributed PETSc system
+from the compiled f2py neo-Hookean batch kernel. A load-stepped Newton solve is
+then compared with the serial ``Model`` result. The comparison checks this
+implementation path in the active PETSc/MPI environment; it is not a retained
+release qualification or a physical benchmark.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_neohookean.py
 

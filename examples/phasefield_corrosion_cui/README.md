@@ -34,16 +34,16 @@ License in
 The complete attribution and source hashes are in that repository’s
 [`CREDITS.md`](https://github.com/tengzhang48/abaqus_ufl/blob/0f525339db1aad70e9f8f4825a02c1164f0da7a0/CREDITS.md).
 
-The original Cui UEL and deck are not copied here. The comparison mesh derives
-from the reference distribution, and its exact BSD notice and redistribution
-status still need to be attached before that artifact can move into CoupFE.
-Use the pinned companion repository for the current paper evidence bundle.
+The original Cui UEL, deck, comparison mesh, and result data are not copied or
+required here. The public checks are self-contained and stop at the implemented
+declaration, assembly, state, generation, and compilation boundary. Any future
+external-data reproduction must establish its own source authority and notice
+before those artifacts are distributed.
 
 ## Evidence boundary
 
 This directory is **RESEARCH**, not an independent reproduction claim. Its
 tests establish the CoupFE declaration, tangent, assembly, state, and code
 generation paths. They do not rerun Abaqus or independently establish the
-published Figure 3 response. The current generated source also need not be
-byte-identical to the archived paper-run source because the generator and
-comparison-tangent choices evolved.
+published Figure 3 response. Deterministic-source checks apply to the current
+retained generator and example only.

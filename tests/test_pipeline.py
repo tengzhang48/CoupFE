@@ -1,11 +1,9 @@
-"""Production-pipeline end-to-end gate: mesh → refine → element → contact → solve.
+"""Serial integration gate: mesh → refine → element → contact → solve.
 
-The closest thing to a real run with the pieces that exist (serial): build a structured
-block as a `KernelMeshView`, **uniformly refine** it (labels propagate), wrap the compiled
-neo-Hookean element via `ElementGroup.from_view`, press it onto a rigid plane
-(`RigidContact`), and solve with **load-stepped Newton**. Verifies the whole stack composes
-and converges. The DISTRIBUTED production solve (wiring this onto MPI / the lab's
-`solve_steps_mpi_local`) is the remaining port.
+The test builds a structured block as a ``KernelMeshView``, refines it while
+propagating labels, wraps a compiled neo-Hookean element, adds rigid contact,
+and solves with load-stepped Newton. Distributed paths have separate scoped
+tests and examples.
 """
 
 import os
@@ -36,7 +34,7 @@ if _HAVE:
     from coupfe.runtime.compiled_element import CompiledElement
 
 
-def test_production_pipeline_refined_block_on_plane():
+def test_serial_pipeline_refined_block_on_plane():
     # 1. mesh as a KernelMeshView, with labelled boundary node sets
     nodes, elems = structured_quad_mesh(4, 4, 1.0, 1.0)
     tol = 1e-9
@@ -69,7 +67,7 @@ def test_production_pipeline_refined_block_on_plane():
     U, nit = solve_increments([group, contact], np.zeros(view.ndof), view.ndof, d,
                               n_steps=4)
 
-    # --- the pipeline produced a converged, physical solution ---
+    # The composed serial path reaches its stated residual/contact checks.
     R, _ = assemble_residual([group, contact], U, None, 1.0, 1.0, view.ndof)
     free = np.ones(view.ndof, dtype=bool)
     free[np.array(sorted(d))] = False

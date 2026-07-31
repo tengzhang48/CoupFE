@@ -1,12 +1,12 @@
-"""numba-native contact narrow-phase kernels — the production path; the numpy versions in
-``contact3d.py`` are the bit-for-bit ORACLE these are gated against.
+"""Optional numba contact narrow-phase kernels.
 
 These are @njit ports (explicit scalar arithmetic — no einsum/column_stack/outer helpers, which numba
 either rejects or compiles poorly) of the per-pair vertex-face cubic barrier + ppf smoothed friction.
-The per-pair loop is the dominant contact cost (~80 µs/pair in numpy is almost all interpreter/dispatch
-overhead); @njit removes it. Semantics MUST match ``contact3d.tri_barrier_eval`` to ~machine precision
-(gate: tests compare bit-for-bit, rtol 1e-12). Written numba-native from the start (no Python prototype
-to re-port). The LBVH broad-phase is the sibling port (ppf lbvh template) — added alongside.
+The per-pair loop is branch-heavy; @njit removes its Python dispatch overhead.
+The NumPy functions in ``contact3d.py`` are the implementation reference.
+Changes should add or run parity checks over representative feature geometry
+and compare within a documented numerical tolerance. The LBVH broad phase is
+implemented separately.
 
 This is a modified numba translation of the corresponding CoupFE NumPy
 adaptation. Upstream provenance and licensing are recorded in ``NOTICE``.
@@ -143,9 +143,12 @@ def tri_barrier_eval_nb(P, A, B, C, dhat, kappa, mass, mu, eps, X0, has_mass, ha
 
 @njit(cache=True)
 def ee_pairs_nb(cand, ptr, edges, emin, emax, dhat, exclude_shared):
-    """Edge-edge candidate pairs ``(i<j)`` from the LBVH CSR query: shared-vertex exclusion + AABB-to-AABB
-    distance prune — the numba form of ``edge_edge_candidates._consider`` (the per-pair Python loop is the
-    contact bottleneck; bit-identical superset to the numpy oracle). Two passes: count, then fill."""
+    """Edge-edge candidate pairs ``(i<j)`` from an LBVH CSR query.
+
+    Applies shared-vertex exclusion and an AABB-distance prune in two passes
+    (count, then fill). Compare changes with the NumPy implementation over
+    representative and degenerate feature geometry.
+    """
     d2 = dhat * dhat
     n = ptr.shape[0] - 1
     cnt = 0

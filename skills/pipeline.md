@@ -1,9 +1,9 @@
 # CoupFE model-setup pipeline (P) skill
 
-Read this before touching `coupfe/model.py` or `coupfe/materials.py`, or before adding a
-problem-setup convenience. `Model` is the **declarative front door** — and the AI-glue
-target (the core philosophy): the concise surface a person or an agent writes a problem
-against. Keep it thin.
+Read this before touching `coupfe/model.py` or `coupfe/materials.py`, or before
+adding a problem-setup convenience. `Model` is the declarative front door: a
+concise surface that a person or AI-assisted workflow can use to define a
+supported problem. Keep it thin.
 
 ## What `Model` is (and is not)
 
@@ -13,16 +13,20 @@ against. Keep it thin.
 - `fix` / `prescribe` → entries in the Dirichlet dict (`gdof → value`);
 - `solve(steps)` → `solve_increments(operators, …)` → a `Result`.
 
-Every behaviour is already in an operator/material. `Model` only *collects operators + builds
-the Dirichlet dict + drives the solver*. If a `Model` method does something no operator could,
-the abstraction has leaked — stop and move it into an operator/material.
+Every behaviour is already in an operator/material. `Model` only collects
+operators, builds the Dirichlet dictionary, and drives the solver. If a `Model`
+method introduces new physics that no operator represents, move that behavior
+into an operator or material and keep `Model` as setup syntax.
 
 ## The one rule for extending it
 
-**Add the capability as an operator/material first; then expose setup convenience on `Model`.
-Never the reverse.**
-- New physics (a coupled field, a constraint, a load) → a new operator (see `SKILL.md`):
-  residual is the source of truth, tangent by complex step, state explicit.
+**Add the numerical capability at its core seam first; then expose setup
+convenience on `Model`.**
+- New composable physics or a load normally becomes an operator (see
+  `SKILL.md`). Smooth generated elements can derive tangents by complex step;
+  analytic and semismooth operator tangents remain valid when tested.
+- Exact affine relations use the separate constraint transform rather than a
+  residual-contributing operator.
 - New material → a spec in `coupfe/materials.py` with an `element_group(view, elem_set, comps)`
   method that builds its (cached) compiled kernel and returns an `ElementGroup`. Import the
   f2py runtime **lazily** inside the method so importing the package needs no Fortran toolchain.
@@ -48,7 +52,8 @@ hand-wired one first.
 
 ## What still belongs in the driver/example layer (not `Model` yet)
 
-Multi-material / mixed-DOF regions (per-region `comps`), loading schedules richer than a linear
-ramp, time integration, and output (VTU — not yet ported) are demand-driven increments. Until a
-real problem needs them, write them in the example/driver and let the harness validate them —
-the same "keep glue out of the core" discipline, one level up.
+Multi-material or mixed-DOF regions (per-region `comps`), loading schedules
+richer than a linear ramp, time integration, and output are demand-driven
+extensions. Until a repeated public need justifies a neutral abstraction, keep
+that application-specific setup in the example or consuming package and test
+it there.

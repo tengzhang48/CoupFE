@@ -1,150 +1,139 @@
 # CoupFE design
 
-## What CoupFE is (and is not)
+## Scope
 
-CoupFE is a **scaffold**, not a general PDE platform. It owns the
-correctness-critical numerical core and a trust layer; it does **not** try to
-own mesh-software integration, domain-specific boundary/loading definitions, or
-format-specific I/O — those are thin, per-problem glue that is now fast to
-write (often AI-assisted) and that the harness validates.
+CoupFE is a compact finite-element scaffold for developing and testing custom
+operators, elements, materials, and contact formulations. It is not a general
+PDE platform or a complete engineering-analysis product.
 
-The product bet has three parts, and the second and third are the moat:
+Mature finite-element frameworks are broad for good reason: they provide
+reusable meshing, boundary-condition, time-integration, I/O, solver, and
+edge-case support. CoupFE chooses a narrower boundary. Core owns reusable
+numerical contracts and algorithms; applications own model setup, domain
+semantics, mesh-tool integration, and output policy.
 
-1. **A small, tested core** — the operator contract + the complex-step kernels.
-2. **A validation harness** — operator-level gates that catch a wrong element
-   from its tangent alone, before any solve (this is what makes written/generated
-   glue safe).
-3. **Codified development knowledge** — `skills/` ships the AI skills, pitfalls,
-   and lessons *as part of the package*, so the next custom operator is built
-   correctly. No other FE package ships this.
+AI coding agents can accelerate development of application code and adapters,
+but that work is not trivial. Units, boundary conditions, state transitions,
+loading protocols, and data mappings remain correctness-critical. Generated or
+AI-assisted code requires domain review, independent evidence, and executable
+tests just like any other contribution.
 
-### Core boundary
+## Core boundary
 
-CoupFE core contains only reusable numerical contracts and algorithms: operator
-composition, assembly and solve drivers, element/runtime contracts, generic
-constraint algebra, contact kernels, validation machinery, and the small
-`KernelMeshView` array interface required by those algorithms.
+Core includes:
 
-Application and tool integration stays outside core. In particular, core does
-not own Gmsh, `meshio`, CAD, DMPlex, or vendor-format adapters; EDA package
-geometry and periodic-mesh provenance; cardiac chamber surfaces and
-fiber/sheet fields; application boundary/material naming; or format-specific
-I/O. EDA and cardiac translate their own data into the core contracts. Shared
-integration code, if it ever becomes substantial, belongs in a separate
-optional package rather than in core.
+- the `Operator` contract and compositional assembly;
+- nonlinear increments and implicit dynamics;
+- explicit compiled-element evaluation and commit interfaces;
+- exact affine-constraint reduction;
+- compact array-level mesh contracts and regular-mesh utilities;
+- serial and PETSc/MPI solve paths;
+- contact operators and search primitives; and
+- build-time UEL/UMAT and native-kernel generation.
 
-## Positioning: lightweight + tailorable, with a *robust core* — and inclusive
+Core does not provide a general Gmsh, CAD, DMPlex, Abaqus-input, or results-file
+adapter. Application packages translate their own geometry, labels, material
+regions, boundary conditions, and file formats into the small core contracts.
+Shared adapters can be factored into optional packages when repeated use
+justifies their maintenance and dependency cost.
 
-CoupFE does **not** set out to beat Abaqus, PERMON, deal.II, or IPC at their own
-game. Those are traditions to **learn from**, not rivals to displace. The aim is a
-**lightweight, tailorable** framework for **method-builders** (researchers /
-specialists) — not a general-purpose product for engineers running CAD parts.
+## Operator contract
 
-**Flexibility over *general* robustness — but a robust core.** General robustness
-("works on any messy geometry without tuning") is decades of edge-case engineering
-plus a product layer (CAD, meshing, GUI, support) — miles a small team won't and
-needn't accumulate. It also isn't the right target: a method *tailored* to a
-problem's structure (smoothness, symmetry, the specific regime) beats a general
-method on that problem, and reaches problems a general tool can't express at all.
-So robustness is **relocated, not abandoned**:
+Every physical contribution implements the same interface:
 
-- **The core is robust** — the small, correctness-critical set: the operator
-  contract, the complex-step / AD tangents, the contact guarantees (non-penetration,
-  PSD descent), reproducibility, and the validation harness. This is held to a high
-  bar; it is the thing we *do* make rock-solid.
-- **The glue is flexible** — meshing, domain BC/load schedules, problem
-  composition, and output: thin, per-problem, fast to (re)write, and **made
-  safe by the core's guarantees surviving composition**.
-
-A robust core is exactly what makes aggressive tailoring trustworthy. Flexibility
-without invariants is a footgun; flexibility + composition-preserving guarantees is a
-power tool — and it delivers *problem-specific* robustness (fit the method to the
-problem) without chasing the *general* robustness we'd never win.
-
-**Inclusive — take the best technique from each tradition (techniques, not territory):**
-
-| Tradition | What we learn / borrow |
-|---|---|
-| Abaqus | engineering maturity; sensible defaults where cheap; the breadth we deliberately *don't* chase |
-| IPC / ppf | **robustness by construction** (barrier + CCD + PSD projection) — adopted as the contact substrate |
-| mortar (dual basis) / FETI / PERMON | **local multiplier condensation + matrix-free** scaling — adopt *if / when* scale demands it |
-| FEniCS / deal.II / PETSc | composable-substrate design — own the core, not the glue |
-| JAX / Warp / differentiable sim | autodiff + differentiability — **our edge**, the thing the others can't express |
-
-Being *complementary* — reaching problems the general tools don't, carrying
-guarantees they don't — is a stronger and more honest position than being marginally
-"better" at what they already do well.
-
-**The scarce asset is the validation methodology, not the flexibility.** A framework
-that can express anything has an unbounded test surface, so the moat is the discipline
-that keeps tailoring trustworthy: operator-level gates, the verification harness, and
-curated validated exemplars (`skills/`, the material-point harness). The robust core
-plus that discipline are what turn flexibility from a liability into the product.
-
-## One element definition, two homes
-
-A single residual definition compiles to a complex-step kernel that runs **inside
-Abaqus as a UEL** and **standalone here** (f2py → PETSc/MPI) — the same kernel
-in two ABIs. Deliver a custom element to a client on Abaqus; run the identical
-element standalone at scale when they outgrow it. Cross-backend parity is a
-code-generation/ABI regression check, not an independent physics oracle; each
-model needs its own physical evidence.
-
-## The spine: everything is an Operator
-
-```
-Operator:  residual(U, state, t, dt) -> Residual
-           tangent (U, state, t, dt) -> Tangent      # COO triplets
-           commit  (U, state, t, dt) -> new_state
+```text
+residual(U, state, t, dt) -> Residual
+tangent(U, state, t, dt)  -> Tangent
+commit(U, state, t, dt)   -> new_state
 ```
 
-A bulk element group, a contact set, and a load all implement this one
-contract. The driver composes them and knows nothing about elements, materials,
-or contact. Exact affine constraints are the one deliberate exception: they
-transform the global solution space as `U=Pq+U0`, while every physical operator
-still assembles and commits in full space. Mesh matching and domain semantics
-stay in consuming packages. Materials/parts are **compositional groups**
-(LAMMPS/CoupMPM style: per-group operators), not an Abaqus
-parts/instances/sections hierarchy.
+Bulk element groups, contact sets, inertia, and loads compose through this
+contract. The global driver does not need application-specific knowledge of
+their physics.
 
-Two disciplines carry most of the weight:
+For smooth residuals, complex-step differentiation can derive consistent
+tangents without maintaining a second hand-written formulation. Discrete
+choices such as active sets, search results, and branch decisions must be held
+fixed or handled by an appropriate nonsmooth method during differentiation.
 
-- **One residual is the source of truth.** The tangent is *derived* from it by
-  complex step — exact, no hand-coded stiffness (`complex_step_tangent`).
-- **Operators are pure; state is transactional.** `state_committed` →
-  `state_trial` (never committed implicitly) → recompute-and-commit only after the
-  global solve accepts the step. This is what makes complex-step columns, line
-  searches, and matrix-free products correct.
+Stateful operators are designed around a transactional rule: trial residual
+and tangent evaluations start from committed state and do not modify it, while
+commit is a separate operation. The compiled-element interface follows that
+separation. Generic driver orchestration does not yet enforce accepted-step
+history in every failure and multi-increment path; the exact boundary is
+documented in [`capabilities.md`](capabilities.md).
 
-## Configuration
+## Constraints
 
-**Reference / total-Lagrangian (PK1) by default** — fixed reference geometry,
-quadrature precomputed once, and complex-step differentiates the reference
-residual cleanly. Contact lives in the **current** configuration regardless; a
-current-config contact operator coexists with reference-config bulk (the bulk is
-never converted).
+Exact affine constraints use a separate transformation,
 
-## Materials — and why there is no UMAT *runtime*
+```text
+U = P q + U0,
+```
 
-In CoupFE a material is **just a function called inside an element operator's
-residual**. Its tangent comes from complex-stepping the whole element residual, so
-the UMAT's reason to exist (the hand-coded `DDSDDE` spatial tangent, the Jaumann
-rate, the Abaqus state-var ABI) is moot. There is therefore **no UMAT runtime
-path** in CoupFE — no `STRESS`/`DDSDDE` interface to host.
+so physical operators continue to assemble and commit in full coordinates.
+Core compiles scalar relations and performs the algebraic reduction. An
+application remains responsible for constructing meaningful relations from its
+mesh and boundary semantics. The current qualified path is serial quasistatic
+solve; fixed and adaptive dynamics reject affine constraints explicitly, and
+the MPI drivers do not consume the transform.
 
-UMAT survives only as an **Abaqus-backend output**: if a client wants a custom
-*material* inside their existing Abaqus model built from standard elements, the
-same material function can be *emitted* as a UMAT. (Optionally, later, a legacy
-compiled UMAT could be *hosted* via f2py inside an element operator — a "run your
-Abaqus material standalone" convenience — but that is not core.) The native path
-is materials-as-functions.
+## One formulation, two backends
 
-## Solver
+A supported element declaration can generate Fortran for two execution
+environments:
 
-Assembled tangent + direct (MUMPS) / FieldSplit-Schur for coupled multiphysics —
-robust and problem-agnostic. **Field-wise convergence** (gate each field on its
-own characteristic scale, as Abaqus does by default) is mandatory for coupled
-problems; a single global ‖R‖ is dominated by the strong field and silently
-under-resolves the weak one. Matrix-free `Jv` and GPU are a **later** lever, gated
-on a problem that both outgrows assembled/direct memory *and* has a known good
-preconditioner (for coupled physics, finding `P` is a per-problem research project).
+- an Abaqus UEL; and
+- a native kernel loaded by the standalone CoupFE runtime.
+
+Supported material declarations can also generate Abaqus UMAT source.
+
+Using one formulation helps detect code-generation, sign, ordering,
+state-transfer, and ABI drift across backends. Backend agreement is an
+implementation check, not an independent physical oracle. Each model still
+needs evidence appropriate to its claims, such as an analytic limit, a
+separately implemented invariant, a convergence study, or a properly sourced
+reference result.
+
+Code generation is a build-time facility. The runtime consumes generated
+kernels and does not require SymPy during a normal solve. A generated Abaqus
+UMAT is an output target; CoupFE does not currently host arbitrary compiled
+UMATs as its material runtime.
+
+## Mesh and application integration
+
+`KernelMeshView` is the neutral bridge into core. It carries zero-based NumPy
+coordinates and connectivity plus named sets and geometry classification.
+Regular Quad4 generation, uniform refinement, and deterministic owned/ghost
+partitioning are provided. More general mesh topology, CAD association,
+periodic node matching, mixed cell blocks, and vendor-format translation remain
+application responsibilities.
+
+This division is architectural, not a statement that integration work is
+unimportant. Application adapters should be small where possible, but they
+must make their assumptions explicit and be tested against the authoritative
+geometry and model definition.
+
+## Validation discipline
+
+The public test suite combines several evidence types:
+
+- analytic or independently implemented checks;
+- discretization and convergence checks;
+- finite-difference or complex-step consistency checks;
+- generated-source compilation and deterministic regeneration;
+- native/UEL implementation parity; and
+- deliberately broken controls for selected failure modes.
+
+These categories answer different questions and must not be conflated.
+Consistency between two implementations that share a formulation does not by
+itself validate that formulation. Example-specific evidence and provenance are
+recorded in [`examples/REFERENCES.md`](../examples/REFERENCES.md), and the exact
+support boundary is summarized in [`capabilities.md`](capabilities.md).
+
+## Maturity
+
+CoupFE is alpha research software. It has useful tested building blocks, but it
+does not claim complete element coverage, general geometry support, broad
+engineering validation, or production-scale performance. No retained
+large-scale benchmark or release-grade scaling record is currently published.

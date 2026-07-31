@@ -1,23 +1,18 @@
-"""Distributed rigid contact WITH friction — rank-independent. Run under mpirun.
+"""Distributed rigid contact with friction — rerunnable MPI smoke. Run under mpirun.
 
 A neo-Hookean block pressed onto a frictional rigid plane and dragged sideways, solved
 across ranks: the bulk via the compiled element batch, the contact as a **node-local**
 per-rank contribution (each contact node handled by the rank owning it; the Coulomb stick
-state lives on that rank). The gate is **rank independence** — the gathered solution is
-identical at any rank count.
+state lives on that rank). The program exercises that ownership path at the
+invoked rank count.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_friction.py [out.npy]
 
-With an output path, rank 0 saves the gathered U (the test compares 1-rank vs N-rank).
-
-Default regime is a real mixed **stick/slip** drag, solved with the **reproducible**
-``superlu_dist`` direct solver → rank-independent AND run-to-run repeatable to machine
-precision (1e-16). IMPORTANT: switching the solver to MUMPS (``CF_SOLVER=mumps``) makes it
-**non-reproducible** at >1 rank — MUMPS's parallel pivoting varies run-to-run, and the
-ill-conditioned slip mode amplifies that ~1e-12 noise to ~1e-3. That is a *solver* property,
-not a contact-physics one (MUMPS handles the asymmetric tangent correctly; superlu_dist on
-the same problem is exact). See docs/lessons_learned.md. Override with CF_MU / CF_DRAG /
-CF_PRESS / CF_NSTEPS / CF_SOLVER.
+With an output path, rank 0 saves the gathered `U` for an external
+same-revision comparison across rank counts. Backend availability and numerical
+reproducibility depend on the PETSc build and solver configuration; this release
+does not retain a final multi-rank record. Override with `CF_MU`, `CF_DRAG`,
+`CF_PRESS`, `CF_NSTEPS`, or `CF_SOLVER`.
 """
 
 from __future__ import annotations

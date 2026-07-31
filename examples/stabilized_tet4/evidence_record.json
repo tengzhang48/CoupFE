@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "status": "RESEARCH",
+  "source": {
+    "repository": "https://github.com/tengzhang48/abaqus_ufl",
+    "commit": "0f525339db1aad70e9f8f4825a02c1164f0da7a0",
+    "declaration": "paper_examples/stabilized_tet4/scovazzi_block.py",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 Teng Zhang"
+  },
+  "current_evidence": [
+    "independent constitutive derivative and homogeneous-state checks",
+    "declaration-level tangent verification at distorted states",
+    "Tet4 UEL deterministic generation",
+    "Fortran object compilation when a compiler is available"
+  ],
+  "not_established": [
+    "Abaqus boundary-value execution",
+    "published Figure 14 reproduction",
+    "mesh or pressure sensitivity",
+    "current-source structural validation"
+  ],
+  "excluded_artifacts": [
+    "Abaqus deck and ODB",
+    "external mesh and result data",
+    "figure assets"
+  ]
+}

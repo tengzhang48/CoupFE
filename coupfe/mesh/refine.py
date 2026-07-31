@@ -24,8 +24,9 @@ def _quad4_dN(xi, eta):
 def check_positive_jacobian(view: KernelMeshView):
     """Return the indices of elements with a non-positive Jacobian at any corner.
 
-    Empty ⇒ every element is valid. Boundary projection can invert a cell, so this
-    must pass before a refined level is used (plan §26.8)."""
+    Empty ⇒ every element passed this check. Boundary projection can invert a
+    cell, so applications should run the check before using a refined level.
+    """
     bad = []
     for e in range(view.n_elem):
         X = view.nodes[view.elems[e]]

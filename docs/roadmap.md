@@ -1,48 +1,42 @@
 # CoupFE roadmap
 
-> **Historical roadmap.** Completed and superseded steps are intentionally
-> retained as engineering provenance. See [`capabilities.md`](capabilities.md)
-> for the current inventory and known limitations.
+This roadmap describes direction, not shipped capability. The current support
+boundary is authoritative in [`capabilities.md`](capabilities.md).
 
-`docs/standalone_gpu_plan.md` is the full engineering plan (Revision 3.0 is the
-current, reality-aligned direction). This file is the short near-term sequence.
+## Near term
 
-## Now — seed (this commit)
-- The operator contract (`coupfe/operators/base.py`) + the composing driver
-  (`coupfe/assembly/assemble.py`).
-- A working, tested vertical slice (`examples/linear_bar/`, `tests/`).
-- Codified development knowledge (`skills/`) — first-class, evolves with the code.
+1. **Keep the public surface internally consistent.** Maintain API,
+   capability, example, provenance, and packaging checks together as behavior
+   changes.
+2. **Retain reproducible distributed evidence.** Qualify representative MPI
+   bulk, dynamics, and contact paths on the exact release revision, with the
+   environment and raw output recorded.
+3. **Strengthen example evidence.** Add independent oracles, convergence checks,
+   and broken controls where a shipped research demonstration is promoted to a
+   stronger claim.
+4. **Harden application boundaries.** Keep mesh and domain adapters outside
+   core while improving the small `KernelMeshView`, geometry, and constraint
+   contracts they consume.
 
-## Near-term workstreams (each builds against the operator contract)
-- **B — Operator contract + compositional groups.** Generalize beyond the bar:
-  field/DOF masks per group, per-group state, interfaces (tie/cohesive/contact)
-  as operators between groups. Migrate the batched f2py element runtime
-  (`CompiledAbaqusElement`/`drive_uel`) into an `ElementGroup` operator.
-  - *Done (first slice):* the batched f2py runtime is ported clean-room as
-    `coupfe.runtime.CompiledElement` + `build_element_kernel` (no `abaqus_ufl`
-    import), and `coupfe.operators.ElementGroup` wraps it on the contract with the
-    uniform-DOF + per-group `comps` mask (multi-material composition).  One real
-    compiled element runs end-to-end: a neo-Hookean Quad4 block
-    (`examples/neo_hookean_block/`) solved through `newton_solve`.
-- **P — Model-setup pipeline.** The concise, AI-targetable front door: declare
-  groups+materials, BCs, loading, time integration, output. The thing AI writes
-  glue against; the harness validates it.
-- **C — Contact operator.** Rigid analytical SDF (Stage-1, port from RetroMech)
-  into the contract → deformable point-to-surface (learn from ppf-contact-solver).
-- **D — Validation harness.** Migrate the backend-agnostic gates (block-definite,
-  diffusive-flux, coupled-scale balance, field-wise convergence) and the
-  `RegimeManifest`; wire cross-backend (Abaqus) parity.
-  - *Seeded:* `validation/` is the internal "test broadly, release narrowly"
-    registry (separate from the curated `examples/`); each model pairs a problem
-    with an independent oracle and runs under `tests/test_validation_models.py`.
-    The neo-Hookean model is wired; hooks/notes for gel, plasticity, phase-field,
-    and Abaqus-parity are in `validation/README.md`.
+## Subsequent priorities
 
-Migrate from the research lab deliberately (clean, tested) — do not fork it.
+- distributed state commit for path-dependent elements;
+- broader coupled-field preconditioning and distributed qualification;
+- deeper self-contact and friction qualification, including bounded
+  end-to-end tests;
+- additional native element geometries where public examples require them;
+- clearer interoperability packages when independently maintained applications
+  demonstrate repeated adapter needs; and
+- benchmark artifacts that report convergence, hardware, software versions,
+  memory, and solver settings together.
 
-## Later (gated)
-- The form→`.for` codegen + the Abaqus-UEL emitter (dual-backend from one
-  definition).
-- Matrix-free `Jv` + GPU — only when a problem outgrows assembled/direct memory
-  *and* has a known good preconditioner.
-- Geometry-aware distributed meshing to ~10M DOF.
+## Gated work
+
+GPU kernels, matrix-free Jacobian actions, very-large-mesh workflows, and more
+general geometry backends remain gated by a demonstrated application need and a
+credible solver or preconditioning plan. They should not be presented as
+current capabilities until an implementation and reproducible evidence ship.
+
+AI-assisted development may speed implementation and review, but does not
+change the acceptance standard: domain assumptions, provenance, independent
+validation, and executable tests remain required.

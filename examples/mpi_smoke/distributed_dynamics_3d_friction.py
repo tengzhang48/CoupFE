@@ -1,4 +1,4 @@
-"""3D distributed dynamics + deformable barrier + smoothed FRICTION: serial == N-rank. Run under mpirun.
+"""3D distributed dynamics, deformable barrier, and friction smoke. Run under mpirun.
 
 The 3D analog of `distributed_dynamics_friction.py` (2D) and the frictional sibling of the 3D
 collision capstone `distributed_dynamics_3d_blocks.py`. Two F-bar Hex8 blocks are pressed into light
@@ -6,23 +6,20 @@ contact and the top block is sheared sideways (`+x`); ppf smoothed friction on t
 (`P = I − n⊗n`) at the cross-rank interface resists the relative sliding of the top block's bottom
 over the bottom block's top. Friction rides the same machinery as 2D — `_DistDeformableContact3D`
 threads `mu` into each rank's owned `DeformableBarrierContact3D` (vertex-face friction on the owned
-secondary vertices) and advances the step-start reference `_x0` in `commit`. Because the per-step
-displacement is rank-independent (the dynamics 1-vs-N), the path-dependent friction `_x0` evolves
-identically on every rank — distribution does not change the answer (same argument as 2D).
+secondary vertices) and advances the step-start reference `_x0` in `commit`.
+Because that state is path-dependent, saved results should be compared across
+rank counts rather than assuming distribution leaves the trajectory unchanged.
 
-Setup choice (deliberate, see docs/dev/contact_experiments.md): **modest gravity** seats the top
-block onto the bottom one (a sustained downward load → a sustained normal force `λ_n ≈ weight` at the
-contact, which friction `μ λ_n` resists). A *held-top + overlap* alternative does NOT work — a
-repulsive-only barrier with a held top just relaxes to `gap = d̂` where the force vanishes (measured:
-no sustained `λ_n`, no friction). Gravity must stay MODEST: the dimensionless gravitational strain
-`εg = ρgL/G` must be ≲ 0.4–0.5 or the soft block has no converged equilibrium (the 3D-blocks crush
-lesson); but `μ·λ_n = μ·ρgV` must also exceed the elastic shear drive `~G·γ·A` for friction to bite —
-`GRAV=0.5` (εg=0.5) threads both. Vertex-face ONLY (the two interface
-surfaces are flat & parallel → O(N²) near-coplanar edge-edge pairs are slow + degenerate; vertex-face
-is correct and sufficient for flat block-on-block — the capstone's measured perf fix).
+Modest gravity supplies the sustained normal load needed for friction. A held
+overlap under a purely repulsive barrier relaxes toward the activation boundary
+and does not provide the same load. Parameters keep the dimensionless
+gravitational strain moderate. This flat, parallel interface uses vertex-face
+contact only, avoiding redundant coplanar edge-edge candidates. See
+`docs/theory/contact_dynamics.md`.
 
-Gates: (1) `μ>0` interface slip < frictionless slip (friction actually acts); (2) converged +
-penetration-free; (3) rank-independent (1-vs-N) — the test diffs the saved `μ>0` U across rank counts.
+The current run checks that friction reduces slip, the solver converges, and the
+reported gap stays positive. An optional output path supports an external
+same-revision rank comparison; no retained multi-rank record ships here.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_dynamics_3d_friction.py
 """
@@ -39,17 +36,15 @@ from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact3d import point_triangle_coeff_unclassified
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
 
-_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # F-bar → locking-free
+_HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # scoped F-bar formulation
 NE = 2                                  # NE×NE×NE hexes per block
 G, K_BULK, DENSITY = 1.0, 10.0, 1.0     # K/G = 10 (moderate compressibility)
 DENSITY, GRAV = 1.0, 0.4                # modest gravity: εg = ρgL/G = 0.4 (seats + sustains λ_n, converges)
 DHAT, KAPPA = 0.04, 2.0e3              # stiff barrier (inertia regularizes under dynamics)
 GAP0 = 0.5 * DHAT                       # top block starts INSIDE the band → gravity seats it immediately
 MU, SHEAR = 0.8, 0.05                   # friction coefficient; total +x drive (gentle → secondaries stay on the face)
-FRICTION_EPS = 2.0e-3                   # smoothing length ABOVE the interface slip → near-stick regime where the
-                                        # ppf Gauss-Newton friction tangent (drops dλ) is near-exact → Newton converges
-                                        # tightly (in the slip plateau ut≫eps the dropped dλ term floors |R| ~1e-4)
-DT, N_STEPS, DAMP = 0.02, 50, 3.0      # more steps + damping → each friction step converges
+FRICTION_EPS = 2.0e-3                   # smoothing length for this near-stick study
+DT, N_STEPS, DAMP = 0.02, 50, 3.0      # example time-step and damping choices
 
 
 def hex8_block(ne, z0):

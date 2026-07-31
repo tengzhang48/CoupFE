@@ -1,101 +1,102 @@
-# Porting guide — bringing `abaqus_ufl` models into CoupFE
+# Extending CoupFE from existing formulations
 
-This is a historical recipe for the porting workstream (bucket 2 in
-`status.md`). Public release adds a stricter rule: do not copy source or
-generated output from a private research repository unless the copyright owner,
-license, adaptation lineage, and authority to redistribute are recorded.
-Prefer an independent implementation from a citable public method source.
-Passing implementation-consistency tests do not resolve provenance.
+CoupFE grew from the maintainer's
+[`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) work and from later
+research experiments. This page records the reusable porting method without
+publishing an inventory of unreleased directories or implying that every
+historical experiment is a supported CoupFE capability.
 
-Maintainer source: the private `abaqus_ufl_lab` research repository. In internal
-porting sessions, refer to its checkout as `$COUPFE_LAB_ROOT`; it is not a
-runtime or public-install dependency. Names below are an internal inventory,
-not a list of public-release examples; the authoritative per-example boundary
-is [`examples/REFERENCES.md`](../examples/REFERENCES.md).
+The authoritative public boundary is:
 
-## Recipe: port one element into the validation registry
+- [`../examples/README.md`](../examples/README.md) for runnable entry points;
+- [`../examples/REFERENCES.md`](../examples/REFERENCES.md) for attribution and
+  evidence; and
+- [`capabilities.md`](capabilities.md) for implemented support and limitations.
 
-1. **Establish authority before touching code.** Record the public formulation
-   source, original/generated-source ownership, applicable license, changes,
-   and redistribution basis. Only then import an authorized self-contained
-   kernel; otherwise reimplement from the public method description or keep the
-   work private.
-2. **Wrap it.** Build a `CompiledElement` and an `ElementGroup` (see
-   `examples/neo_hookean_block/block.py`). Pass the element shape *explicitly*
-   (`props`, `dof_per_node`, `n_svars`, `mcrd`) — no lab `WeakForm` introspection.
-3. **State.** If the element is **history-free** (hyperelastic), `n_svars=0` and the
-   seed driver is enough. If it is **stateful/coupled** (gel µ, plasticity `svars`,
-   phase-field), it needs the per-operator committed-state path — coordinate with the
-   B workstream before porting; do not fake it.
-4. **Add a validation entry, with an INDEPENDENT oracle.** In
-   `validation/models/<name>.py`, `@register` a function that builds a problem,
-   solves through `coupfe.solve_increments`/`newton_solve`, and compares a measured
-   quantity to a reference derived *independently* of the kernel (analytic solution,
-   patch test, manufactured solution, or energy/work balance). Add a **broken
-   control**. If two backends are generated from the same residual, test their
-   ABI/result parity separately; that catches implementation drift but does not
-   independently validate the physics.
-   See `skills/testing.md` (non-negotiable) and `validation/models/neo_hookean.py`.
-5. **Run it.** `PYTHONPATH=. pytest -q`. A static port that "looks right" is not
-   done — the neo-Hookean port passed review but hit a runtime singular matrix.
-6. **Curate.** Only promote a clean, illustrative few to public `examples/`; the rest
-   stay in `validation/` (test broadly, release narrowly).
+## What the history suggests
 
-## Recipe: port a solver / harness module
+The research lineage has explored more formulations than the curated examples
+currently show, including finite-strain and inelastic materials, mixed and
+pressure-based elements, gels and swelling, phase-field models, diffusion and
+electrochemical coupling, and thermo- and magneto-mechanical systems. That
+breadth is useful evidence that the architecture can be extended; it is not a
+claim that those models are all shipped, validated, or ready for use.
 
-- **Distributed solver** (`fe/petsc_backend.py`, `fe/petsc_mpi.py`): port
-  `solve_steps_mpi_local` & friends as a PETSc-backed alternative to the seed
-  scipy driver, behind the same operator-composition interface. Keep petsc4py-only
-  (never import mpi4py). Validate with a 1-rank == N-rank differential test.
-- **Harness** (`testing/`): the gates already operate on raw arrays, so they port
-  almost verbatim — rename `abaqus_ufl.testing` → `coupfe.testing`, keep the broken
-  controls in `tests/`.
-- **Codegen** (`generators/`): the form→`.for` compiler is **separate, build-time,
-  and NOT ported into the runtime** (see `status.md` → "The compiler is separate").
-  For now use `abaqus_ufl` as the build-time generator and vendor its `.for` output
-  into `coupfe/runtime/elements/`. The later **B** option — re-home it as a clean
-  `coupfe-gen` package — is a *mechanical copy + rename* (not a rewrite): copy
-  `abaqus_ufl/generators` + the `core` it depends on, rename `abaqus_ufl` →
-  `coupfe_gen`, fix imports, green the existing test suite. Do **not** rewrite it.
+An additional model belongs in the public tree only when its formulation,
+source authority, license, adaptation history, tests, and limitations can be
+stated clearly. Detailed experimental inventories remain research history.
 
-## The element backlog (38 examples)
+## How AI agents help
 
-Group by what they exercise, so porting builds coverage deliberately:
+An AI coding agent can accelerate source review, API adaptation, generator
+scaffolding, test construction, documentation, and repetitive cross-backend
+checks. It does not supply redistribution rights, choose a physically correct
+formulation, or turn implementation parity into validation. A useful agent
+workflow therefore makes provenance and independent evidence explicit before
+optimizing the code.
 
-- **Hyperelastic (history-free, easiest):** `neo_hookean_mixed`, `neo_hookean_umat`,
-  `mooney_rivlin_umat`, `Fbar_uel`, `visco_hyperelastic_umat`.
-- **Plasticity (stateful `svars`):** `J2_FeFp`, `small_strain_j2_umat`,
-  `anand_2025_rock`/`Anand_2025`, `small_strain_crystal_plasticity_umat`,
-  `small_strain_drucker_prager_umat`, `*_mcc_umat`, `small_strain_norsand_umat`,
-  `zhang_soga_2025`, `strain_gradient_plasticity_msg`, `small_strain_smp_umat`.
-- **Gels (coupled u-µ, stateful):** `gel_chester_anand`, `gel_three_field`,
-  `simple_gel_quad4`.
-- **Phase-field / damage (staggered):** `phasefield_fracture_uel`,
-  `phasefield_corrosion_cui`.
-- **Coupled multiphysics:** `MRE` (u-A magneto), `Hussein_2026` (u-c-φ hydrogen),
-  `Wang_2026` (lymph node), `thermo_mechanics_quad8`, `Li_2026_battery`,
-  `scalar_diffusion_uel`, `LCE`.
-- **Other / scaffolds:** `Ukidwe_2023`, `Jiao_2026`, `Xue_2025`,
-  `uel_scaffold_quad4`, `uel_scaffold_mixed_quad8`.
+## Porting an element or material
 
-Suggested order: hyperelastic first (proves the path, no state), then one stateful
-plasticity and one coupled gel (these force the state protocol + field-wise
-convergence to be correct), then breadth. Each gel/coupled port should also wire the
-`assert_coupled_field_scale_balance` gate (catches the scale disparity before a
-multi-day under-resolution hunt — see `skills/pitfalls.md`).
+1. **Establish authority and provenance.** Record the formulation source,
+   copyright and license, permission to redistribute original or generated
+   source, modifications, and any external data requirements. If that record is
+   incomplete, reimplement from an authorized public method description or keep
+   the experiment outside the public tree.
+2. **Classify the interface.** Decide whether the source is a full element, a
+   material-point law, a coupled form, or only a solver/input workflow. These
+   map to different CoupFE seams and should not be presented as equivalent.
+3. **Express one residual.** For a supported form, use `coupfe.codegen` to emit
+   a native element kernel and, where useful, an Abaqus UEL from the same
+   definition. Keep application-specific mesh, loading, and output code outside
+   the kernel.
+4. **Declare state explicitly.** History-free models may use no state variables.
+   Path-dependent models must distinguish committed and trial state and update
+   state only after an accepted increment. Verify the chosen driver explicitly:
+   generic `solve_increments` is history-free, and `newton_solve` does not
+   expose a convergence flag before calling commit.
+5. **Wrap the element.** Load a compiled kernel with `CompiledElement`, passing
+   explicit `props`, `dof_per_node`, `n_svars`, `mcrd`, and `n_elem`, plus the
+   generated `state_schema` when applicable. Then place it in an
+   `ElementGroup`, using `comps` when the element fields occupy only part of the
+   global node-major layout.
+6. **Add independent evidence.** Prefer an analytic solution, manufactured
+   solution, patch/objectivity test, energy or work balance, or a published
+   dataset with clear provenance. Native-versus-UEL or generated-versus-reference
+   parity catches implementation drift but does not independently validate the
+   model.
+7. **Add a broken control.** Deliberately change a sign, state transition,
+   ordering, or boundary condition and confirm that the proposed test fails.
+8. **Test the distributed and packaged paths that you claim.** A source-tree
+   import, a one-rank run, and an installed wheel are different environments.
+   Check only the ones needed for the stated capability, but state the boundary.
+9. **Document a narrow claim.** Say whether the result is an implementation
+   proof, analytic validation, research demonstration, or external
+   reproduction. Avoid turning a successful compile into a physics claim.
 
-### `*_umat` vs `*_uel` — CoupFE has no UMAT *host* yet (OK for now)
-A `*_uel` example is a *full element* (geometry + quadrature + physics) — `ElementGroup`
-drives it directly. A `*_umat` example is only a *material* (PK1/Cauchy + tangent at a
-point). CoupFE drives full elements; it does **not** yet have a generic **UMAT host**
-(a standard isoparametric element that loops Gauss points, calls a material, and
-assembles). So a `*_umat` model is ported by either:
-- **(a) generate it as a UEL** via the codegen (material baked into the element) — the
-  path for now; or
-- **(b)** wait for the planned generic **material-element operator** — a standard
-  Quad4/Hex8 that takes a material *function* `F → PK1` and complex-steps the element
-  (the "materials are functions in operators" design made concrete; no Abaqus UMAT ABI).
+See [`../skills/model_development.md`](../skills/model_development.md) and
+[`../skills/testing.md`](../skills/testing.md) for the detailed development and
+verification checklists.
 
-So the `*_umat` rows in the backlog (j2_umat, mcc, drucker_prager, norsand, …) wait on
-(a) or the material-element operator; start the porting with the `*_uel` / coupled
-elements (`Fbar_uel`, gels, phase-field, MRE, …).
+## Code generation and runtime boundary
+
+`coupfe.codegen` is a build-time subsystem. Public entry points include
+`Material`, `SmallStrainMaterial`, `WeakForm`, the field declarations,
+`coupfe.codegen.generators.uel_gen.generate_element(..., backend="native")`,
+`generate_uel(...)`,
+`generate_umat(...)`, and `generate_small_strain_umat(...)`. The runtime
+consumes generated kernels without importing SymPy.
+
+CoupFE does not currently provide a generic host that takes an arbitrary
+compiled Abaqus UMAT and turns it into a standalone structural element. The
+material examples exercise declarations, generation, state updates, and
+material-point oracles. A structural use still needs an element operator that
+owns geometry, quadrature, assembly, and state layout.
+
+The current distributed bulk path is a separate implementation and does not
+provide generic committed-history or coupled-field support. Passing a serial
+element test therefore does not establish distributed support.
+
+Similarly, Core does not absorb every mesh or file-format adapter used during a
+port. Application packages translate their own meshes, boundary semantics, and
+tool outputs into the small Core contracts. Reusable integration code can later
+become an optional package if multiple applications genuinely share it.

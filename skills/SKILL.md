@@ -1,44 +1,46 @@
 # CoupFE development skill
 
 Read this before adding an operator, a material, or a solver feature. It ships
-**with** the code on purpose: the pitfalls below are hard-won, and codifying them
-is what lets a custom operator be built correctly the first time. Pair it with
+**with** the code so contributors and AI coding agents can reuse the project's
+current engineering guidance. It reduces avoidable mistakes but does not replace
+formulation review or model-specific verification. Pair it with
 `skills/pitfalls.md`.
 
 ## How to add an element/material operator
 
-1. **Write the residual — it is the only source of truth.** Put the entire
-   physics (including the material/constitutive response) in one pure function
-   `residual(U, state, t, dt)`. No physics anywhere else.
-2. **Do not write a tangent.** Derive it from the residual by complex step
-   (`complex_step_tangent`). A hand-coded stiffness is a second source of truth
-   that will drift from the residual.
+1. **Write the residual first.** For a supported generated element, put the
+   physical statement in one residual definition rather than duplicating it in
+   a separately maintained stiffness routine.
+2. **Derive or independently check the tangent.** Use complex step
+   (`complex_step_tangent`) for analytic residuals. Analytic and semismooth
+   tangents are also valid when their consistency and branch assumptions are
+   tested explicitly.
 3. **Declare state explicitly.** Return `state_trial`; never mutate committed
    state. Implement `commit` to recompute-and-return the accepted state.
-4. **Make the residual complex-analytic** (see `pitfalls.md`). This is the one
-   real constraint complex step imposes.
+4. **Make the differentiated path complex-analytic** (see `pitfalls.md`).
+   Discrete choices need a separately stated treatment.
 5. **Add a harness check, not just a smoke test.** Cross-check the complex-step
    tangent against an analytic reference (as `tests/test_operator_contract.py`
-   does), run patch/energy tests, and — for coupled fields — the operator gates
-   (block-definiteness, the coupled-scale balance). Consistency (CS-vs-FD) is
-   **not** correctness; you need an independent oracle.
+   does), run patch/energy tests, and use field-scale and sign checks appropriate
+   to coupled equations. Consistency (CS-vs-FD) is **not** correctness; use an
+   independent oracle for a physical claim.
 
 ## How to debug a coupled solver that "converges but is wrong"
 
-This is common and almost never the physics. The fingerprint and the fix live in
-`pitfalls.md` ("coupled convergence gate"). Short version: split ‖R‖ by field,
-divide each by its block scale to get the *solution* error, check whether the
-error compounds over time (→ it's the convergence gate, not the model), and gate
-each field on its own scale (field-wise convergence). Count Newton iters/step:
-3–5 means the tangent is fine and the gate is the bug.
+The fingerprint and diagnostic workflow live in `pitfalls.md` ("coupled
+convergence gate"). Split ‖R‖ by field, scale each block meaningfully, and check
+whether error compounds over time. Treat this as a way to distinguish possible
+convergence and scaling defects from formulation or boundary-condition defects,
+not as a substitute for investigating either.
 
-## Companion skills (read the relevant one before working in that area)
-- `skills/preflight.md` — **READ FIRST for any new simulation**: dimensionless analysis
-  (timescales via `eigsh(K, M)`, derive ramp/damping/dt/penalty from the groups) + a dry
-  run that tests the BCs, loading protocol, and material scales BEFORE the production run;
-  no "method limitation" conclusion without the pre-flight artifacts.
-- `skills/pipeline.md` — the model-setup pipeline `Model` (the declarative front door / AI-glue
-  target): keep it a thin no-physics layer; extend via operator/material then expose sugar.
+## Companion skills
+
+- `skills/preflight.md` — use before a substantial new simulation: analyze
+  dimensionless groups and timescales, then dry-run boundary conditions,
+  loading, and material scales before drawing a method-limitation conclusion.
+- `skills/pipeline.md` — the model-setup pipeline `Model` (a declarative front
+  door suitable for human- or AI-assisted application setup): keep it a thin
+  no-physics layer; extend via an operator/material, then expose convenience.
 - `skills/pitfalls.md` — codified failure modes (complex-step safety, state protocol, the
   coupled convergence gate, contact gotchas).
 - `skills/testing.md` — how to write tests that catch bugs (independent oracle + broken
@@ -59,19 +61,22 @@ The math behind it all is in `docs/theory/` (`contact_dynamics.md`, `framework.m
    interface, return a `FrictionResult` with `(U, p, stick, N, iters, residual,
    converged)`. A new solver should be a drop-in replacement.
 2. **Keep alternative research solvers outside core.** Validate them on a
-   dedicated private research line; promote only a reusable, mainstream method
-   with an explicit product decision.
+   clearly labeled research branch or repository; promote only a reusable,
+   maintainable method with an explicit scope decision.
 3. **Validate with a sweep, not a spot check.** See `skills/testing.md`. Gate
    physical invariants, load/friction sweeps, and any adjoint against finite
    differences.
 
-## What NOT to add to the core
+## What stays application-specific
 
-Meshing, BC application, loading schedules, time integration, output — these are
-per-problem glue. Write them in the example/driver layer (AI-assisted is fine),
-and let the harness validate them. Keeping them out of the core is the point.
+Core may provide generic solvers, time-integration algorithms, affine-constraint
+algebra, and compact mesh operations. Domain geometry acquisition, mesh-format
+translation, selection of physical boundary conditions, model-specific loading
+schedules, and result presentation remain application responsibilities. Keep
+those policies in the application or example layer (with AI assistance where
+useful) and test their assumptions there.
 
-The canonical home for that glue is **`Model`** (`coupfe/model.py`) — the declarative
+The canonical home for simple model setup is **`Model`** (`coupfe/model.py`) — the declarative
 front door (`Model.structured(...).material(...).fix(...).prescribe(...).contact(...).solve()`).
 It is a *thin layer over the operator contract* (collect operators + build the Dirichlet
 dict + drive `solve_increments`); it contains **no physics**. Add a new physics capability

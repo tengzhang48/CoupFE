@@ -30,10 +30,9 @@ minus sign required by CoupFE's `storage*N - flux.Grad(N)` convention.
 4. `c_tau_theta = 0.1`
 5. `h_elem = 0.0625 mm`
 
-No Gmsh pipeline, Abaqus deck, solver adapter, ODB result, or figure asset is
-included here. In the historical n=16 run, the element-size property was
-assigned in volume-based bins; the single `h_elem` above is the declaration's
-default/target value and is not a replacement for that deck setup.
+No Gmsh pipeline, Abaqus deck, solver adapter, ODB result, external mesh, or
+figure asset is included here. The single `h_elem` value above belongs to the
+declaration and is not evidence for a reproduced mesh-dependent setup.
 
 ## Build and checks
 
@@ -59,12 +58,12 @@ These checks validate the implemented residual and current generated source.
 They do not exercise boundary conditions, follower pressure, mesh sensitivity,
 nonlinear solution controls, or reproduce the published curve.
 
-## Historical evidence and provenance
+## Evidence record and provenance
 
-`reference_result.json` records reduced metadata from a completed historical
-Abaqus run: final center displacement `u3 = -0.6962435841560364 mm`, compared
-with the approximately `0.7 mm` published n=16 value. That file is comparison
-metadata, not output from the present CoupFE tree.
+`evidence_record.json` lists the current self-contained checks and the external
+artifacts that are not included. It intentionally carries no unretained
+historical result number and does not represent output from a CoupFE structural
+solve.
 
 The declaration was adapted from project-authored MIT code in
 [`tengzhang48/abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl), commit

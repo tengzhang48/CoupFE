@@ -29,7 +29,7 @@ def test_box_on_floor_friction_vs_frictionless():
     slip_stick, gap_stick = ex.run(20.0, 2.0, n_steps=100)   # μ=2.0 ≫ tan20 → stick
     slip_slide, gap_slide = ex.run(20.0, 0.0, n_steps=100)   # frictionless → slide
 
-    # (1) non-penetration in BOTH configs (the core contact guarantee)
+    # (1) positive reported gaps in both scoped configurations
     assert gap_stick > 0.0, f"penetration with friction: gap={gap_stick}"
     assert gap_slide > 0.0, f"penetration frictionless: gap={gap_slide}"
 

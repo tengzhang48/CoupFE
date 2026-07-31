@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "status": "RESEARCH",
+  "source": {
+    "repository": "https://github.com/tengzhang48/abaqus_ufl",
+    "commit": "0f525339db1aad70e9f8f4825a02c1164f0da7a0",
+    "declaration": "paper_examples/morphing_hex8/pipeline_hex8.py",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 Teng Zhang"
+  },
+  "current_evidence": [
+    "independent NumPy material-response oracle",
+    "flux-direction invariant with a reversed-sign control",
+    "declaration-level tangent verification",
+    "Hex8 local-pressure UEL deterministic regeneration",
+    "Fortran object compilation when a compiler is available"
+  ],
+  "not_established": [
+    "Abaqus boundary-value execution",
+    "contact behavior",
+    "paper Figure 6 reproduction",
+    "current-source real-device validation"
+  ],
+  "excluded_artifacts": [
+    "Abaqus decks",
+    "archived submitted Fortran",
+    "external meshes and result data",
+    "figures",
+    "contact adapter"
+  ]
+}

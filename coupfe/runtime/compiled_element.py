@@ -8,10 +8,9 @@ drives it: one batched call evaluates every element in the group and returns
 per-element ``(R, K)`` plus the updated state, so a state commit is a direct write
 (no separate recover step).
 
-This is a clean-room port of the research lab's compiled-element backend.  The lab
-derived element shape/DOF/state sizes by introspecting a ``WeakForm``; CoupFE has no
-weak-form layer at runtime, so those sizes are passed **explicitly** — the kernel is
-just compiled Fortran with a known ABI.  CoupFE never imports the lab.
+The runtime receives element shape, DOF, and state sizes **explicitly**; it does
+not import the build-time weak-form layer. The kernel is compiled Fortran behind
+a documented ABI.
 
 Sign convention: kernels may be emitted as Abaqus UELs or as CoupFE native kernels.
 The Abaqus UEL convention is ``RHS = -R`` and ``AMATRX = -dRHS/dU``; the native
@@ -55,8 +54,8 @@ def _initial_svars_from_schema(n_elem, n_gp, svars_size, schema):
                     svars[e, off:off + entry['size']] = init.ravel()
     return svars
 
-# f2py wrappers that adapt each backend ABI to a flat callable.  Vendored into
-# CoupFE so the runtime has no path dependency on the research lab.
+# f2py wrappers that adapt each backend ABI to a flat callable. They are shipped
+# with CoupFE so the runtime has no external source-tree dependency.
 _DRIVE_UEL = os.path.abspath(os.path.join(os.path.dirname(__file__), "drive_uel.f90"))
 _DRIVE_NATIVE = os.path.abspath(os.path.join(os.path.dirname(__file__), "drive_native.f90"))
 

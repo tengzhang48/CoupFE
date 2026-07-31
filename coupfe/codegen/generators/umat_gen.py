@@ -2353,13 +2353,9 @@ def _generate_pk1_to_cauchy_jaumann():
     delta-sigma term that is present for every constitutive law
     generated through this push-forward path. The "-delta_ik*sigma_jl"
     in the formula below is the bookkeeping correction required by (*).
-    Without it, DDSDDE is wrong by a stress-linear term that is invisible
-    to F=I, stress-free-rotation, and uniaxial-bar tests but is ~40%
-    relative on finite multi-axial deformation.
-
-    See docs/JAUMANN_RESOLUTION.md for the derivation and a 50-line
-    NumPy reference that catches the entire class of "tangent looks
-    right at F=I but is silently wrong at finite stress" bugs.
+    Without it, DDSDDE has a stress-linear error that can remain invisible at
+    F=I and in stress-free rotation checks. Include a finite, multiaxial state
+    in the independent tangent oracle.
 
     References:
         Bonet, Gil & Wood (2016), Nonlinear Solid Mechanics for FEA.

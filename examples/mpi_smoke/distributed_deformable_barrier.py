@@ -14,10 +14,10 @@ computes them — decoupled from the (orthogonal, serial) barrier merit-function
      via a 1-entry-per-rank ``Vec.min()``, never mpi4py) equals the serial full-surface ``max_step``,
      and is < 1 (the CCD actually constrains this step).
 
-Both are rank-independent (identical at 1/2/4 ranks). This is the distributed infrastructure the
-production penetration-free solve rides on; full barrier *convergence* needs an energy-merit line
-search (a serial contact-solver follow-up — the residual-norm line search stalls at the
-node-to-segment projection flip even at one rank). See docs/dev/contact.md.
+This script exercises the distributed primitives independently of the nonlinear
+driver. The shipped distributed penetration-free demonstration uses
+`solve_dynamics_distributed`; see `docs/api.md` and
+`docs/theory/contact_dynamics.md`.
 
     OMP_NUM_THREADS=1 mpirun -n 4 python examples/mpi_smoke/distributed_deformable_barrier.py
 """

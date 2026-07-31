@@ -1,125 +1,136 @@
 # CoupFE
 
-A small, well-tested **finite-element scaffold** — not a general PDE platform.
+CoupFE is a small, well-tested **finite-element scaffold**. It is not intended
+to replace a general PDE or engineering-analysis platform.
 
-The open FE frameworks are large because they own meshing, boundary conditions,
-time integration, and I/O — exactly the tedious, per-problem glue that is now
-quick to (re)write. CoupFE owns only the **correctness-critical core** and a
-**validation harness** that makes the generated/written glue trustworthy.
+Mature open finite-element frameworks are large for good reason: they provide
+broad, reusable support for meshing, boundary conditions, time integration,
+I/O, solver integration, and many difficult edge cases. CoupFE explores a
+narrower boundary. It keeps a compact, correctness-critical numerical core and
+lets each application own its model setup and software adapters.
+
+With the aid of AI coding agents, that application layer can often be developed
+and revised quickly. It is still substantive engineering work: assumptions,
+units, state transitions, boundary conditions, and data mappings require domain
+review and independent tests. CoupFE's validation tools make those checks more
+systematic; they do not make generated code correct automatically.
 
 ## The idea
 
-> **One element definition → two homes.** A single weak-form/residual definition
-> compiles to a complex-step kernel that runs **(i) inside Abaqus as a UEL** and
-> **(ii) standalone here** on PETSc/MPI — the same kernel in two ABIs.
+> **One element definition, two homes.** A supported residual definition can
+> generate a complex-step kernel for both an Abaqus UEL and the standalone
+> CoupFE runtime, preserving the same numerical formulation across two ABIs.
 
-So you can deliver a custom element to a client who keeps using Abaqus, and run
-the identical element standalone at scale when they want to grow beyond it.
-Backend parity catches code-generation/ABI drift; confidence in the model still
-depends on its independent physical evidence.
+This lets a custom element remain usable in an existing Abaqus workflow while
+also running through an open Python/PETSc path. Backend parity is valuable for
+detecting code-generation and ABI drift, but it is not independent validation
+of the physical model.
 
-## The spine
+## Architecture
 
-Every physical contribution to the global nonlinear system — a bulk element
-group, a contact set, or a load — is an **`Operator`** with one contract:
-`residual`, `tangent`, `commit` (see `coupfe/operators/base.py`). The driver
-(`coupfe/assembly/assemble.py`) composes operators and knows nothing about
-elements, materials, or contact. Exact affine constraints use a separate,
-mesh-agnostic `U=Pq+U0` transform; mesh matching and application policy stay in
-the consuming package.
+Every physical contribution to the global nonlinear system—a bulk element
+group, contact set, or load—is an **`Operator`** with one contract:
+`residual`, `tangent`, and `commit`. The assembly driver composes operators and
+does not need to know their application-specific meaning.
 
-Two principles do a lot of work:
+Two disciplines carry most of the design:
 
-- **One residual is the source of truth.** The tangent is *derived* from the
-  residual by **complex step** (exact, no hand-coded stiffness). See
-  `complex_step_tangent`.
-- **Operators are pure and never commit state implicitly** — what makes
-  complex-step columns, line searches, and matrix-free products safe.
+- **One residual is the source of truth for supported generated elements.**
+  Their smooth tangents are derived with complex-step differentiation. Other
+  operators provide separately tested analytic or semismooth tangents.
+- **State evaluation and commit are separate operations.** Compiled elements do
+  not mutate internal state during residual/tangent evaluation. Generic
+  accepted-step orchestration is not yet complete for every driver; the exact
+  boundary is recorded in the capability table.
 
-## Quick look
+Exact affine constraints use a separate, mesh-agnostic `U = Pq + U0`
+transformation. Core provides the numerical contracts and array-level mesh
+view; mesh matching, CAD semantics, vendor formats, and application policy stay
+in packages such as CoupFE-EDA and CoupFE-Cardiac.
 
-> **Environments / PETSc:** use one consistent conda-forge PETSc/MPI stack for
-> PETSc/MPI/f2py work; do not mix pip-built PETSc with conda MPI libraries.
-> See the portable setup in [`docs/install.md`](docs/install.md).
+## What is available
+
+The current alpha release includes:
+
+- operator composition, nonlinear increments, implicit dynamics, and reusable
+  linear-solver policy;
+- native-element and Abaqus UEL/UMAT build-time code generation, plus a
+  compiled f2py element runtime;
+- explicit compiled-element state/commit interfaces and compositional element
+  groups;
+- serial and PETSc/MPI assembly and solve paths, with the exact support boundary
+  recorded in [`docs/capabilities.md`](docs/capabilities.md);
+- mesh refinement and distribution primitives over compact array contracts;
+- two- and three-dimensional contact building blocks, including barrier search,
+  finite-sliding friction, semismooth exact-stick studies, and passing 3-D
+  collision/friction examples; and
+- a public test and validation approach built around analytic checks, independent oracles,
+  broken controls, and clearly labeled implementation-parity tests.
+
+The examples deliberately include both small introductory cases and scoped
+research demonstrations. They cover nonlinear elasticity, coupled forms,
+inelastic material declarations, curved geometry, contact, and distributed
+execution. Affine constraints are covered by the public tests rather than a
+standalone example. See [`examples/README.md`](examples/README.md) for
+entry points and [`examples/REFERENCES.md`](examples/REFERENCES.md) for the
+evidence and attribution boundary.
+
+No mesh-software dependency or general-purpose mesh adapter is part of Core.
+For example, the morphing case contains a narrow, read-only extractor for a
+user-supplied Abaqus mesh; it is not a general Abaqus input translator.
+
+## Quick start
+
+> Use one consistent conda-forge PETSc/MPI stack for PETSc, MPI, and f2py work;
+> do not mix unrelated PETSc and MPI installations. See
+> [`docs/install.md`](docs/install.md).
 
 ```bash
 pip install -e ".[dev,runtime,codegen,performance]"
-python -m pytest -q -m "not slow"          # required serial/codegen/compiled/mesh gates
-python examples/linear_bar/run.py          # a nonlinear bar through the contract (pure Python)
-python examples/neo_hookean_block/run.py   # a compiled neo-Hookean element through the contract
-python examples/curved_annulus/run.py      # curved-boundary convergence (~h²) on a refined mesh
-python examples/hertz_contact/run.py       # quantitative normal-contact gate
+python -m pytest -q -m "not slow"
+
+python examples/linear_bar/run.py
+python examples/neo_hookean_block/run.py
+python examples/curved_annulus/run.py
+python examples/hertz_contact/run.py
 ```
 
-The public source also keeps four scoped **RESEARCH** forms from the
-`abaqus_ufl` paper instead of reducing the release to toy elements:
-phase-field corrosion (Quad8R), mixed `u-p-mu` gel (Quad8), stabilized
-`u-theta` elasticity (Tet4), and pressure-gel morphing (local-pressure Hex8).
-Each directory regenerates a UEL from `coupfe.codegen` and states the precise
-boundary between current implementation gates and historical Abaqus/paper
-evidence. A separate four-example material gallery exercises the finite-strain
-and small-strain UMAT backends with Neo-Hookean, Ogden, J2 plasticity, and
-standard-linear-solid viscoelasticity declarations. Those examples use
-independent material-point oracles plus regeneration and compiler gates; they
-do not claim standalone structural solves.
-
-No mesh-software dependency or installed mesh adapter was added to Core. The
-morphing directory contains only a read-only, example-local extractor for the
-U3 and companion C3D8 blocks in a user-supplied pasta deck; it deliberately
-does not translate Abaqus contact or analysis-step semantics. Full evidence
-bundles remain in the pinned public companion repository.
-
-The source archive carries a curated 30-file public test partition. Its
-base-dependency tier currently passes 57 tests without skips. In the current
-base environment, the entire partition reports 95 passed and five module-level
-skips because SymPy is not installed; the complete optional-dependency tier
-must be rerun in the final release environment. The larger development checkout
-has additional private, expected-failure, MPI, and provenance-blocked gates; see
-[`validation/README.md`](validation/README.md) for the exact boundary.
-
-The MPI smoke tests additionally require the matched conda-forge PETSc/MPI
-environment described in [`docs/install.md`](docs/install.md):
+MPI examples additionally require the matched PETSc/MPI environment:
 
 ```bash
 mpirun -n 4 python examples/mpi_smoke/distributed_solve.py
 ```
 
-Opt-in long reproductions use `python -m pytest -q -ra -m slow`. The
-self-contact hairpin E2E case is excluded from the first public example set
-because its accelerated subprocess exceeds the 600-second gate; smaller
-incident-exclusion and contact-operator tests remain useful development
-evidence.
+Long reproductions are opt-in with `python -m pytest -q -ra -m slow` and may
+need external software or user-supplied data. The references ledger identifies
+which results are analytic validation, implementation consistency, research
+demonstrations, or external reproduction workflows.
 
-The bar (`examples/linear_bar/`) is the smallest operator (one residual,
-complex-step tangent); the neo-Hookean block runs a real compiled element; the
-curved annulus shows refinement + geometry re-embedding converging at the
-Quad4 rate. The MPI smoke is a rerunnable harness for a memory-local
-distributed solve and serial-vs-rank comparison; its final-revision retained
-MPI rerun is still pending.
-The contact examples intentionally remain prominent: Hertz normal contact,
-finite-sliding and capstan friction, exact-stick and semismooth friction, and
-the passing 3-D collision/friction drivers show distinct parts of the contact
-stack rather than one showcase script standing in for the whole capability.
+## AI-assisted development
 
-The [`examples/README.md`](examples/README.md) index gives the correct entry
-point and test status for every example family. Check the accompanying
-[`examples/REFERENCES.md`](examples/REFERENCES.md) ledger before treating a
-research study, backend-parity check, or external-solver comparison as an
-independently validated result.
+The [`skills/`](skills/) directory contains project-specific guidance that an
+AI coding agent or human contributor can use when adding an operator, material,
+solver path, or example. It emphasizes provenance, independent oracles, broken
+controls, transactional state, and reproducible verification. The intended
+workflow is collaborative: an agent can accelerate implementation and review,
+while domain experts remain responsible for the formulation and the meaning of
+the evidence.
 
-Development knowledge ships with the code in `skills/` (SKILL, pitfalls, testing,
-distributed) — the codified "how to build this correctly" that, with the harness, makes
-AI-assisted custom development trustworthy.
+## Project status and history
 
-## Status
+CoupFE is an active alpha project and a first public demonstration of this
+architecture, not a claim of complete FE coverage or real-device validation.
+The current, claim-bounded inventory is
+[`docs/capabilities.md`](docs/capabilities.md); the design and public API are in
+[`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/api.md`](docs/api.md).
 
-The operator spine, build-time form→Fortran compiler, compiled-element runtime,
-validation harness, regular-mesh path, PETSc/MPI assembly, and serial and
-distributed contact lines are present and tested. Development remains active;
-the most precise support/limitation inventory is
-[`docs/capabilities.md`](docs/capabilities.md). The dated planning and research
-record remains in `docs/status.md`, `docs/roadmap.md`, `docs/lessons_learned.md`,
-and `docs/dev/`.
+CoupFE grew from the maintainer's
+[`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) research and from
+subsequent experiments with a wider range of formulations. The public tree
+keeps a curated set whose provenance and tests are documented. The broader
+research direction is summarized in [`docs/porting.md`](docs/porting.md) and
+[`docs/roadmap.md`](docs/roadmap.md); detailed dated plans remain available in
+Git history without being presented as current capability.
 
 Part of **CoupMech Lab** (Coupled Mechanics Lab).
 
@@ -128,11 +139,8 @@ Part of **CoupMech Lab** (Coupled Mechanics Lab).
 Source code, generated source, examples, and configuration are licensed under
 the [Apache License 2.0](LICENSE), except for the identified paper-example
 ports retained under their
-[MIT license](LICENSE-ABAQUS-UFL-EXAMPLES). Documentation prose and figures
-are licensed under
+[MIT license](LICENSE-ABAQUS-UFL-EXAMPLES). Documentation prose and figures are
+licensed under
 [Creative Commons Attribution 4.0 International](LICENSE-DOCS.md); code
 snippets embedded in the documentation may also be used under Apache-2.0. See
 [NOTICE](NOTICE) for attribution, third-party provenance, and trademark notes.
-
-Supported capabilities and known limitations are maintained in
-[`docs/capabilities.md`](docs/capabilities.md).

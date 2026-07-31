@@ -1,11 +1,10 @@
 """Lumped-mass inertia operator for implicit (backward-Euler) dynamics.
 
-Contact is robust under *dynamics* (inertia regularizes the non-smooth stick/slip + active-set
-transitions, and supplies the barrier's gap-dependent capacity), and with the load held,
-backward-Euler's numerical damping doubles as **dynamic relaxation** to a quasistatic
-equilibrium. This operator is the inertia term; it plugs into the same `(residual, tangent,
-commit)` contract, so the existing element/contact/load operators compose with it unchanged —
-the only new machinery is the time-stepping driver (`solve_dynamics`).
+Implicit dynamics can regularize difficult stick/slip and active-set
+transitions. With a staged ramp, hold, and explicit residual/kinetic-energy
+checks, backward-Euler damping can also support a scoped dynamic-relaxation
+study. This operator supplies the inertia term through the same
+`(residual, tangent, commit)` contract; `solve_dynamics` provides the driver.
 """
 
 from __future__ import annotations
