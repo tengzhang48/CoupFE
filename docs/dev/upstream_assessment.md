@@ -1,4 +1,4 @@
-# Upstream assessment — CoupFE-EDA & CoupFE-cardiac vs the core (2026-06-28)
+# Upstream assessment — CoupFE-EDA & CoupFE-Cardiac vs the core (2026-06-28)
 
 Decision record. Question: *which of the updates in the application repos should come into the
 CoupFE core (`coupfe/`)?* Lens: **keep the core lightweight + robust** — only correctness/robustness
@@ -7,7 +7,7 @@ fixes or genuinely reusable, domain-agnostic capability go up; everything else s
 **Conclusion up front: almost nothing comes up. The real cleanup runs the *other* direction —
 update the apps to depend on the lean core.**
 
-## CoupFE-cardiac-elastodynamics → core: NOTHING to upstream
+## CoupFE-Cardiac (formerly CoupFE-cardiac-elastodynamics) → core: NOTHING to upstream
 Cardiac carries a **forked `coupfe/` copy** that is **purely behind** main, not divergent:
 - Only 4 files differ (`codegen/core/defs.py`, `material.py`, `generators/uel_gen.py`,
   `generators/uel_local_pressure.py`). For 3 of them cardiac adds **zero** lines (it only *lacks*

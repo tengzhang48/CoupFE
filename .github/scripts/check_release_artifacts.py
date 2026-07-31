@@ -71,6 +71,7 @@ PUBLIC_BASE_TEST_FILES = {
         "test_contact_search.py",
         "test_distribute.py",
         "test_dynamics.py",
+        "test_element_group.py",
         "test_mesh.py",
         "test_multibody_contact.py",
         "test_operator_contract.py",

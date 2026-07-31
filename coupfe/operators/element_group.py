@@ -125,11 +125,13 @@ class ElementGroup:
     def _rk(self, U, state):
         """Evaluate the kernel once, returning ``(R_all, K_all)``.
 
-        ``element_rk_batch`` computes BOTH the residual and the complex-step
-        tangent in one pass (K is nearly free once R is formed), and Newton
-        assembles the residual then the tangent at the SAME ``U`` — so without
-        fusion the kernel runs TWICE per iteration and half the work is
-        discarded (measured ~40% of a compiled-element solve's runtime).
+        ``element_rk_batch`` returns BOTH the residual and the complex-step
+        tangent in one call.  Forming K entails repeated residual evaluations,
+        so R is inexpensive alongside K; the converse is not true, and a true
+        residual-only entry can be much cheaper.  Newton assembles the residual
+        then the tangent at the SAME ``U`` — so without fusion the joint kernel
+        runs TWICE per iteration and half the returned work is discarded
+        (measured ~40% of a compiled-element solve's runtime).
 
         When ``fuse_rk`` is on, cache the pair so the paired residual/tangent
         share one evaluation.  The key is ``(U_g, DU_g, props)`` — it must

@@ -65,7 +65,7 @@ The applications are separate repos that depend on the CoupFE core:
   conda-forge `petsc4py` for the distributed PDN) + a `Dockerfile`. Its `setup.sh` clones CoupFE
   over public HTTPS, verifies that the configured public branch contains the pinned commit, checks
   out that commit detached, and installs the resulting local checkout.
-- **`CoupFE-cardiac-elastodynamics`** uses the same single-stack conda-forge approach.
+- **`CoupFE-Cardiac`** uses the same single-stack conda-forge approach.
 
 **Principle for the whole CoupFE family:** every repo uses **conda-forge `petsc4py`**
 (superlu_dist); pip-PETSc is only for the JAX side; **never mix the two in one env.**

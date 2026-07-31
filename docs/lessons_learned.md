@@ -13,8 +13,9 @@ record. Newest first.
 
 **Serious performance regression, now fixed.** The compiled element kernel
 (`element_rk_batch`, driving the generated Fortran `SUBROUTINE UEL`) returns the residual
-`R` (Abaqus `RHS`) and the tangent `K` (Abaqus `AMATRX`) TOGETHER in one element call — the
-complex-step tangent is nearly free once R is formed. But CoupFE's `Operator` contract
+`R` (Abaqus `RHS`) and the tangent `K` (Abaqus `AMATRX`) TOGETHER in one element call.
+Because `K` is obtained through complex-step residual evaluations, `R` is inexpensive once
+`K` has been formed; `K` is not inexpensive when only `R` is needed. CoupFE's `Operator` contract
 splits evaluation into two methods, `ElementGroup.residual()` and `.tangent()`, and Newton
 calls both at the SAME `U`. Each re-ran the full kernel and discarded half its output, so
 **every Newton iteration evaluated the element kernel twice.** Measured share of a
