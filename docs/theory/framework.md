@@ -29,13 +29,18 @@ stress measure is the first Piola–Kirchhoff `P`. For a hyperelastic material `
 `Rₑ`. When the complete residual path is analytic, this includes the material
 and geometric dependence without maintaining a separate hand-coded tangent.
 
-**Compiled + dual-home.** The element is a fixed-format Fortran `.for` (`neo_hookean_q4.for`)
-that runs *both* as an Abaqus UEL and standalone here via f2py + the `drive_uel` wrapper.
-`CompiledElement.element_rk_batch(coords, U, DU) → (R, K)` evaluates a whole element group
-in one f2py call. This batched evaluator is the unit `ElementGroup` scatters to
-global COO and the unit used by the distributed bulk path. Abaqus
-sign convention (`RHS = −R`, `AMATRX = K`) is handled in the wrapper so the operator sees the
-standard `(R, K)`.
+**Compiled, parallel targets.** A supported element declaration can generate a
+CoupFE-native kernel (`coupfe_element_rk`, plus an optional
+`coupfe_element_r`) and an Abaqus UEL. They implement the same declared weak
+form through different solver interfaces; the native ABI does not carry
+Abaqus procedure flags. `CompiledElement.element_rk_batch(coords, U, DU) →
+(R, K)` evaluates a whole native element group in one f2py call. This batched
+evaluator is the unit `ElementGroup` scatters to global COO and the unit used
+by the distributed bulk path. The in-process UEL wrapper remains a narrow
+normal-static compatibility adapter for focused parity checks and selected
+research examples. It converts Abaqus's `RHS = −R` convention so callers see
+the standard `(R, K)`; Abaqus itself supplies its UEL procedure flags in an
+Abaqus analysis.
 
 ## 3. The Newton driver — basin control
 

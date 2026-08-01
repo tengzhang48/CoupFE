@@ -25,12 +25,15 @@ include tests/test_abaqus_ufl_inelastic_umats.py
 include tests/test_abaqus_ufl_paper_examples.py
 include tests/test_all_primitive_barrier_2d.py
 include tests/test_chester_anand_upmu_quad8.py
+include tests/test_compiled_element_boundary.py
+include tests/test_codegen_native_residual_entry.py
 include tests/test_contact_3d_persistent_friction.py
 include tests/test_contact_finite_sliding_repairing.py
 include tests/test_contact_persistent_friction.py
 include tests/test_contact_return_map_friction.py
 include tests/test_contact_search.py
 include tests/test_distribute.py
+include tests/test_distributed_residual_split.py
 include tests/test_dynamics.py
 include tests/test_element_group.py
 include tests/test_mesh.py

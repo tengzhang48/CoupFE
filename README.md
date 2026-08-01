@@ -55,7 +55,8 @@ The current alpha release includes:
 - operator composition, nonlinear increments, implicit dynamics, and reusable
   linear-solver policy;
 - native-element and Abaqus UEL/UMAT build-time code generation, plus a
-  compiled f2py element runtime;
+  compiled f2py element runtime with explicit joint or residual-only native
+  evaluation;
 - explicit compiled-element state/commit interfaces and compositional element
   groups;
 - serial and PETSc/MPI assembly and solve paths, with the exact support boundary

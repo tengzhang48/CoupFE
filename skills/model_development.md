@@ -155,7 +155,7 @@ quantity returned by that equation.
 
 ### F-bar and local-pressure only when justified
 
-Use the standard UEL path for coupled fields. Use F-bar/local-pressure
+Use the standard element path for coupled fields. Use F-bar/local-pressure
 formulations only when the element theory justifies them; they are not default
 stabilization switches for gels, diffusion, phase fields, or transport.
 
@@ -188,14 +188,16 @@ unit test.
 ## When to use native vs Abaqus backend
 
 - **Native** (`generate_element(..., backend='native')`): use for standalone
-  CoupFE. The emitted `coupfe_element_rk` returns the weak-form residual directly,
-  `CompiledElement` consumes it by default, and the sign convention is the weak
-  form.
+  CoupFE. The emitted `coupfe_element_rk` returns the weak-form residual
+  directly; current standard and F-bar sources also expose
+  `coupfe_element_r` for explicit residual-only callbacks. Joint evaluation
+  remains the default.
 - **Abaqus UEL** (`generate_uel(...)`): use for Abaqus export and validation.
   The wrapper applies the Abaqus `RHS = −R` / `AMATRX = −dRHS/dU` convention.
+  Keep procedure claims within the documented normal implicit/static scope.
 
-Keep the physics identical in both backends; only the entry-point wrapper
-changes.
+Keep the declared physics identical across the parallel backends while testing
+each interface and state contract independently.
 
 ## Review checklist
 

@@ -35,6 +35,7 @@ from run import lateral_stretch_analytic  # noqa: E402
 
 from coupfe import (  # noqa: E402
     assemble_residual, assemble_tangent, newton_solve, solve_increments)
+from coupfe.operators.element_group import ElementGroup  # noqa: E402
 
 
 # A compiled kernel is required; skip cleanly if the Fortran toolchain is absent.
@@ -216,6 +217,116 @@ def test_rk_fusion_invalidates_on_prop_change():
     group.element.props = props0.copy()
     K_base = group.tangent(U, None, 0.0, 1.0).values
     assert not np.allclose(K_pert, K_base)
+
+
+def test_explicit_split_mode_uses_residual_only_then_joint_tangent(monkeypatch):
+    nodes, elems = structured_quad_mesh(2, 2)
+    joint_group = make_group(nodes, elems)
+    element = joint_group.element
+    assert element.has_element_r_batch
+    group = ElementGroup(
+        element,
+        nodes,
+        elems,
+        dof_per_node=2,
+        evaluation_mode="split",
+    )
+    calls = {"r": 0, "rk": 0}
+    original_r = element.element_r_batch
+    original_rk = element.element_rk_batch
+
+    def counted_r(*args, **kwargs):
+        calls["r"] += 1
+        return original_r(*args, **kwargs)
+
+    def counted_rk(*args, **kwargs):
+        calls["rk"] += 1
+        return original_rk(*args, **kwargs)
+
+    monkeypatch.setattr(element, "element_r_batch", counted_r)
+    monkeypatch.setattr(element, "element_rk_batch", counted_rk)
+    U = np.zeros(len(nodes) * 2)
+
+    residual = group.residual(U, None, 0.0, 1.0)
+    assert calls == {"r": 1, "rk": 0}
+    tangent = group.tangent(U, None, 0.0, 1.0)
+    assert calls == {"r": 1, "rk": 1}
+    assert residual.values.shape == (len(elems) * 8,)
+    assert tangent.values.shape == (len(elems) * 64,)
+
+
+def test_element_group_rejects_implicit_auto_selection():
+    nodes, elems = structured_quad_mesh(1, 1)
+    with pytest.raises(ValueError, match="must be 'joint' or 'split'"):
+        ElementGroup(
+            make_group(nodes, elems).element,
+            nodes,
+            elems,
+            dof_per_node=2,
+            evaluation_mode="auto",
+        )
+
+
+def test_joint_mode_retains_one_cached_call_per_paired_iterate(monkeypatch):
+    nodes, elems = structured_quad_mesh(2, 2)
+    group = make_group(nodes, elems)
+    calls = {"rk": 0}
+    original = group.element.element_rk_batch
+
+    def counted(*args, **kwargs):
+        calls["rk"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(group.element, "element_rk_batch", counted)
+    U = np.zeros(len(nodes) * 2)
+    group.residual(U, None, 0.0, 1.0)
+    group.tangent(U, None, 0.0, 1.0)
+    assert calls["rk"] == 1
+
+
+class _StatefulElementProbe:
+    """Minimal stateful batch whose trial state identifies its last iterate."""
+
+    props = np.array([1.0])
+    has_element_r_batch = True
+
+    def __init__(self):
+        self.svars = np.zeros((1, 1))
+        self.svars_trial = self.svars.copy()
+        self.evaluated = []
+
+    def element_r_batch(self, coordinates, displacement, increment):
+        value = float(displacement[0, 0])
+        self.evaluated.append(value)
+        self.svars_trial[0, 0] = value
+        return np.array([[value]])
+
+    def element_rk_batch(self, coordinates, displacement, increment):
+        return self.element_r_batch(coordinates, displacement, increment), np.ones(
+            (1, 1, 1)
+        )
+
+    def commit(self):
+        self.svars = self.svars_trial.copy()
+
+
+def test_stateful_commit_recomputes_trial_at_accepted_iterate():
+    element = _StatefulElementProbe()
+    group = ElementGroup(
+        element,
+        np.array([[0.0]]),
+        np.array([[0]]),
+        dof_per_node=1,
+        evaluation_mode="split",
+    )
+    group.residual(np.array([9.0]), None, 0.0, 1.0)
+    assert element.svars[0, 0] == 0.0
+    assert element.svars_trial[0, 0] == 9.0
+
+    state = group.commit(np.array([2.0]), None, 0.0, 1.0)
+    assert element.evaluated[-1] == 2.0
+    assert element.svars[0, 0] == 2.0
+    np.testing.assert_array_equal(state.U_prev, [2.0])
 
 
 def test_two_groups_compose_multimaterial_layout():

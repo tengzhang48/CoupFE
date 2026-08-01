@@ -40,11 +40,13 @@ K = assemble_tangent(operators, U, state, t, dt, ndof)
 residual. Discrete search, active-set, or branch decisions must be treated
 separately rather than differentiated as though they were smooth.
 
-`ElementGroup(element, nodes, elems, dof_per_node, comps=None, *, fuse_rk=None)`
-wraps a batched compiled element as an operator. Its residual/tangent fusion is
-enabled by default because the native element call returns both quantities;
-disable it for a custom algorithm that intentionally changes properties or
-state between the paired evaluations.
+`ElementGroup(element, nodes, elems, dof_per_node, comps=None, *,
+fuse_rk=None, evaluation_mode="joint")` wraps a batched compiled element as an
+operator. ``evaluation_mode="joint"`` preserves the default cached R/K call.
+``"split"`` uses a native residual-only entry for residual callbacks and the
+joint entry for tangents; it raises if the kernel predates that entry.
+The modes are numerically gated, but the faster choice depends on callback
+order and the number of residual-only trials in the consuming solver.
 
 ## Serial drivers
 
@@ -166,6 +168,29 @@ The runtime recognizes native and Abaqus-UEL-style generated element entry
 points. It compiles a supplied Fortran source once through f2py; a compatible
 Fortran compiler, Meson, and Ninja must be available for that build step.
 
+The two backends are parallel. Native calls use CoupFE's own ABI and never
+receive Abaqus ``LFLAGS``. The UEL route is a normal-static joint-call
+compatibility adapter for focused parity checks and selected research examples,
+not a general Abaqus procedure simulator; Abaqus supplies the real call context
+when it runs an exported UEL.
+
+The generated UELs in this release are scoped to their documented normal
+implicit/static use. Mass-, damping-, perturbation-, and general dynamic-request
+handling is not qualified by this package; those Abaqus procedures require
+dedicated request and state-sequencing work before they can be claimed.
+
+Current standard and F-bar native generation emits both
+``coupfe_element_rk`` and a ``coupfe_element_r`` twin. ``CompiledElement`` exposes
+``element_rk``/``element_rk_batch`` and ``element_r``/``element_r_batch``;
+``has_element_r`` and ``has_element_r_batch`` report the optional entries.
+For older native sources and Abaqus UELs, the residual calls fall back to the
+joint path without changing signs or state semantics.
+
+The generated ``coupfe_element_rk`` signature is unchanged. The low-level
+f2py ``drive_native*`` wrapper now takes only the seven native inputs
+``(svars, coords, u, du, props, time, dtime)``; rebuild cached compiled modules
+created with an earlier wrapper.
+
 ## Linear solvers
 
 The following calls live in `coupfe.assembly.factored`:
@@ -196,6 +221,11 @@ cross-rank deformable-contact specifications. `solve_dynamics_distributed`
 accepts optional force, Robin, pressure, and deformable-contact specifications.
 See the function signatures and `examples/mpi_smoke/` for the complete argument
 shape.
+
+For quasistatic Newton, pass
+``residual_batch_fn=element.element_r_batch`` with
+``evaluation_mode="split"`` to use residual-only assembly for convergence and
+line-search callbacks. ``evaluation_mode="joint"`` remains the default.
 
 These implementations ship, but the current public release does not include a
 retained final-revision multi-rank qualification record. Distributed stateful

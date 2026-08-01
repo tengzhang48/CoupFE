@@ -70,9 +70,9 @@ subroutine drive_uel_batch(rhs, amatrx, svars, coords, u, du, props, jprops, &
                            time, dtime, pnewdt, lflags, params, jtype, &
                            kstep, kinc, period, nelem, ndofel, nsvars, &
                            mcrd, nnode, nprops, njprop)
-  ! Batched driver: one f2py call evaluates ALL nelem elements (the per-element
-  ! marshalling across the f2py boundary -- ~70% of assembly time -- is the cost
-  ! this removes).  Same UEL, looped in Fortran.  jelem = element index (1-based).
+  ! Batched driver: one f2py call evaluates all nelem elements, avoiding one
+  ! Python/f2py transition per element. The impact is workload-dependent.
+  ! Same UEL, looped in Fortran. jelem = element index (1-based).
   implicit none
   integer, intent(in) :: nelem, ndofel, nsvars, mcrd, nnode, nprops, njprop
   integer, intent(in) :: jtype, kstep, kinc

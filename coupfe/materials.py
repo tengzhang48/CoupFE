@@ -23,14 +23,18 @@ def _build(for_path, module_name):
 class NeoHookean:
     """Compressible neo-Hookean, ``P = G(F - F⁻ᵀ) + K ln(J) F⁻ᵀ`` (2D, stateless).
 
-    Maps to the vendored ``neo_hookean_q4.for`` element kernel.
+    Maps to the vendored CoupFE-native ``neo_hookean_q4_fbar_native.for``
+    kernel, preserving the F-bar formulation used by this convenience material
+    before the native backend was introduced.
+    The parallel ``neo_hookean_q4.for`` Abaqus UEL is retained for export and
+    backend-parity checks, not used as the default standalone runtime.
     """
 
     def __init__(self, G, K):
         self.props = (float(G), float(K))
         self.n_svars = 0
         self.mcrd = 2
-        self._for = os.path.join(_ELEM_DIR, "neo_hookean_q4.for")
+        self._for = os.path.join(_ELEM_DIR, "neo_hookean_q4_fbar_native.for")
         self._module = "coupfe_pipeline_neo_q4"
 
     def element_group(self, view, elem_set, comps):

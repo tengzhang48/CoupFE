@@ -58,8 +58,8 @@ Issues = "https://github.com/tengzhang48/CoupFE/issues"
 include = ["coupfe*"]
 
 [tool.setuptools.package-data]
-# Ship the vendored Fortran sources (element kernels + the drive_uel wrapper) so the
-# runtime can compile them from an installed package.
+# Ship the vendored Fortran sources (element kernels plus native and UEL driver
+# wrappers) so the runtime can compile them from an installed package.
 "coupfe.runtime" = ["*.f90", "elements/*.for"]
 # Ship the codegen Fortran templates (tensor_ops.for, etc.) so the generator works installed.
 "coupfe.codegen.generators" = ["templates/*.for"]

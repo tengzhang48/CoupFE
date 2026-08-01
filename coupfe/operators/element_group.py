@@ -56,7 +56,8 @@ class ElementGroup:
     Parameters
     ----------
     element : CompiledElement
-        The compiled kernel; supplies ``element_rk_batch`` and ``commit_group``.
+        The compiled kernel; supplies joint and optional residual-only batch
+        evaluation plus explicit trial-state commit.
     nodes : (Nnode, ndim) array
         Reference coordinates (total-Lagrangian; fixed).
     elems : (Nelem, nne) int array
@@ -66,10 +67,16 @@ class ElementGroup:
     comps : sequence of int, optional
         Per-node component indices this element writes.  Defaults to
         ``range(dof_per_node)`` (a single-field group filling every component).
+    evaluation_mode : {"joint", "split"}, optional
+        ``"joint"`` preserves one cached R/K kernel evaluation per paired
+        residual/tangent iterate. ``"split"`` uses the native residual-only
+        entry for residual callbacks and the joint entry for tangents.
+        The default remains ``"joint"`` for backward-compatible solver cost.
     """
 
     def __init__(self, element: CompiledElement, nodes, elems, dof_per_node,
-                 comps: Optional[Sequence[int]] = None, *, fuse_rk=None):
+                 comps: Optional[Sequence[int]] = None, *, fuse_rk=None,
+                 evaluation_mode="joint"):
         self.element = element
         self.nodes = np.asarray(nodes, dtype=float)
         self.elems = np.asarray(elems, dtype=int)
@@ -84,6 +91,23 @@ class ElementGroup:
         # tangent, matrix-free/residual-only loops, or debugging.
         self.fuse_rk = (os.environ.get("COUPFE_FUSE_RK", "1") != "0"
                         if fuse_rk is None else bool(fuse_rk))
+        if evaluation_mode not in ("joint", "split"):
+            raise ValueError(
+                "evaluation_mode must be 'joint' or 'split'"
+            )
+        residual_only_available = bool(
+            getattr(
+                self.element,
+                "has_element_r_batch",
+                getattr(self.element, "has_residual_only", False),
+            )
+        )
+        if evaluation_mode == "split" and not residual_only_available:
+            raise ValueError(
+                "evaluation_mode='split' requires a native kernel with "
+                "coupfe_element_r"
+            )
+        self.evaluation_mode = evaluation_mode
         self._rk_cache = None
         self.comps = (np.arange(self.dof_per_node, dtype=int) if comps is None
                       else np.asarray(comps, dtype=int))
@@ -100,7 +124,16 @@ class ElementGroup:
             self.gm[:, None, :], (self.nelem, self.ndofel, self.ndofel)).ravel()
 
     @classmethod
-    def from_view(cls, view, element, comps=None, elem_set=None):
+    def from_view(
+        cls,
+        view,
+        element,
+        comps=None,
+        elem_set=None,
+        *,
+        fuse_rk=None,
+        evaluation_mode="joint",
+    ):
         """Build an :class:`ElementGroup` over a ``KernelMeshView``.
 
         ``elem_set`` selects a named element subset (a material region) for the
@@ -109,7 +142,15 @@ class ElementGroup:
         """
         elems = (view.elems if elem_set is None
                  else view.elems[view.elem_sets[elem_set]])
-        return cls(element, view.nodes, elems, view.dof_per_node, comps)
+        return cls(
+            element,
+            view.nodes,
+            elems,
+            view.dof_per_node,
+            comps,
+            fuse_rk=fuse_rk,
+            evaluation_mode=evaluation_mode,
+        )
 
     # -- helpers -------------------------------------------------------- #
     def _coords(self):
@@ -158,7 +199,14 @@ class ElementGroup:
 
     def residual(self, U, state, t, dt) -> Residual:
         """Group residual contribution, scattered to global DOFs ``gm``."""
-        R_all, _K_all = self._rk(U, state)
+        if self.evaluation_mode == "split":
+            U_g, DU_g = self._gather(U, state)
+            R_all = self.element.element_r_batch(self._coords(), U_g, DU_g)
+            # A prior joint cache may belong to an earlier callback ordering.
+            # The tangent callback will repopulate it at the requested iterate.
+            self._rk_cache = None
+        else:
+            R_all, _K_all = self._rk(U, state)
         return Residual(
             gdofs=self.gm.ravel(),
             values=np.asarray(R_all, dtype=float).ravel(),
@@ -178,8 +226,14 @@ class ElementGroup:
     def commit(self, U, state, t, dt) -> GroupState:
         """Commit the kernel trial state after the caller accepts ``U``.
 
-        The accepted ``U`` becomes the next step's ``U_prev``.
+        Stateful kernels are first reevaluated at the accepted ``U``.  This
+        prevents a rejected line-search trial from being promoted merely
+        because it happened to be the last callback.  The accepted ``U`` then
+        becomes the next step's ``U_prev``.
         """
+        if getattr(self.element, "svars", None) is not None:
+            U_g, DU_g = self._gather(U, state)
+            self.element.element_r_batch(self._coords(), U_g, DU_g)
         self.element.commit()
         self._rk_cache = None          # committed state changed -> invalidate
         return GroupState(U_prev=np.asarray(U, dtype=float).copy())

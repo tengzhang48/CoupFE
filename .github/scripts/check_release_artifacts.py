@@ -15,9 +15,11 @@ from pathlib import Path, PurePosixPath
 
 RUNTIME_ASSETS = {
     "coupfe/runtime/drive_native.f90",
+    "coupfe/runtime/drive_native_r.f90",
     "coupfe/runtime/drive_uel.f90",
     "coupfe/runtime/elements/neo_hookean_hex8_fbar.for",
     "coupfe/runtime/elements/neo_hookean_q4.for",
+    "coupfe/runtime/elements/neo_hookean_q4_fbar_native.for",
     "coupfe/runtime/elements/neo_hookean_q4_native.for",
 }
 
@@ -158,7 +160,9 @@ PUBLIC_BASE_TEST_FILES = {
         "test_contact_persistent_friction.py",
         "test_contact_return_map_friction.py",
         "test_contact_search.py",
+        "test_compiled_element_boundary.py",
         "test_distribute.py",
+        "test_distributed_residual_split.py",
         "test_dynamics.py",
         "test_element_group.py",
         "test_mesh.py",
@@ -174,6 +178,7 @@ PUBLIC_OPTIONAL_TEST_FILES = {
         "test_abaqus_ufl_inelastic_umats.py",
         "test_abaqus_ufl_paper_examples.py",
         "test_chester_anand_upmu_quad8.py",
+        "test_codegen_native_residual_entry.py",
         "test_curved_convergence.py",
         "test_contact_semismooth_friction.py",
         "test_contact_vs_ppf.py",

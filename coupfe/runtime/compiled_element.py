@@ -5,8 +5,10 @@ A single residual definition is emitted once as a self-contained Fortran ``.for`
 derived tangent).  :func:`build_element_kernel` f2py-compiles that ``.for`` together
 with a thin driver wrapper into an importable module; :class:`CompiledElement`
 drives it: one batched call evaluates every element in the group and returns
-per-element ``(R, K)`` plus the updated state, so a state commit is a direct write
-(no separate recover step).
+per-element ``(R, K)`` plus the updated state. Current native sources also carry
+a residual-only twin for callbacks that do not need ``K``; older sources and
+Abaqus UELs fall back to the joint path. A state commit is a direct write after
+the caller has refreshed trial state at the accepted iterate.
 
 The runtime receives element shape, DOF, and state sizes **explicitly**; it does
 not import the build-time weak-form layer. The kernel is compiled Fortran behind
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -58,6 +61,19 @@ def _initial_svars_from_schema(n_elem, n_gp, svars_size, schema):
 # with CoupFE so the runtime has no external source-tree dependency.
 _DRIVE_UEL = os.path.abspath(os.path.join(os.path.dirname(__file__), "drive_uel.f90"))
 _DRIVE_NATIVE = os.path.abspath(os.path.join(os.path.dirname(__file__), "drive_native.f90"))
+_DRIVE_NATIVE_R = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "drive_native_r.f90")
+)
+_NATIVE_R_ENTRY_RE = re.compile(
+    r"^\s*SUBROUTINE\s+COUPFE_ELEMENT_R\s*\(",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# The UEL backend below is a narrow compatibility adapter, not an Abaqus
+# procedure simulator. It makes one normal nonlinear-static joint request for
+# focused parity checks and selected research examples. Abaqus itself supplies
+# LFLAGS when it runs the exported UEL.
+_UEL_STATIC_JOINT_LFLAGS = (1, 1, 1, 0, 0, 0)
 
 
 def build_element_kernel(for_path, module_name, workdir=None, backend=None):
@@ -67,15 +83,22 @@ def build_element_kernel(for_path, module_name, workdir=None, backend=None):
     backend is auto-detected from the source if not supplied:
     ``SUBROUTINE coupfe_element_rk`` → native, ``SUBROUTINE UEL`` → Abaqus UEL.
     The returned module exposes ``drive_native`` / ``drive_native_batch`` or
-    ``drive_uel`` / ``drive_uel_batch`` accordingly.
+    ``drive_uel`` / ``drive_uel_batch`` accordingly.  A native source that
+    also contains ``coupfe_element_r`` gains ``drive_native_r`` and
+    ``drive_native_batch_r`` without changing the generated
+    ``coupfe_element_rk`` entry. The f2py ``drive_native*`` wrappers use the
+    compact seven-input native ABI shipped with this release, so cached modules
+    built with an older wrapper must be rebuilt from source.
     """
     workdir = workdir or tempfile.mkdtemp(prefix="coupfe_uel_")
     os.makedirs(workdir, exist_ok=True)
     forname = os.path.basename(for_path)
 
+    with open(for_path, encoding="utf-8", errors="replace") as f:
+        src = f.read()
+
     if backend is None:
-        with open(for_path, encoding="utf-8", errors="replace") as f:
-            src_head = f.read(4096)
+        src_head = src[:4096]
         src_upper = src_head.upper()
         if "SUBROUTINE COUPFE_ELEMENT_RK" in src_upper:
             backend = "native"
@@ -87,21 +110,23 @@ def build_element_kernel(for_path, module_name, workdir=None, backend=None):
                 "subroutine signature. Pass backend='native' or 'abaqus_uel'.")
 
     if backend == "native":
-        driver = _DRIVE_NATIVE
-        entry_points = ("drive_native", "drive_native_batch")
+        drivers = [_DRIVE_NATIVE]
+        entry_points = ["drive_native", "drive_native_batch"]
+        if _NATIVE_R_ENTRY_RE.search(src):
+            drivers.append(_DRIVE_NATIVE_R)
+            entry_points.extend(("drive_native_r", "drive_native_batch_r"))
     elif backend == "abaqus_uel":
-        driver = _DRIVE_UEL
-        entry_points = ("drive_uel", "drive_uel_batch")
+        drivers = [_DRIVE_UEL]
+        entry_points = ["drive_uel", "drive_uel_batch"]
     else:
         raise ValueError(f"Unknown backend '{backend}'. Use 'native' or 'abaqus_uel'.")
 
-    shutil.copy(driver, workdir)
+    for driver in drivers:
+        shutil.copy(driver, workdir)
     # Sanitize the generated .for to pure ASCII: its comments can contain a non-ASCII
     # char (e.g. a UTF-8 em-dash), which f2py's crackfortran fails to decode under a
     # C/ascii locale (as inside mpiexec).  Non-ASCII appears only in comments, so
     # replacing it is harmless and makes the build locale-independent.
-    with open(for_path, encoding="utf-8", errors="replace") as f:
-        src = f.read()
     with open(os.path.join(workdir, forname), "w",
               encoding="ascii", errors="replace") as f:
         f.write(src)
@@ -116,7 +141,8 @@ def build_element_kernel(for_path, module_name, workdir=None, backend=None):
     # the backend just makes the build identical and locale-independent across versions.
     subprocess.run(
         [sys.executable, "-m", "numpy.f2py", "-c", "--backend", "meson",
-         os.path.basename(driver), forname, "-m", module_name] + only,
+         *[os.path.basename(driver) for driver in drivers], forname,
+         "-m", module_name] + only,
         cwd=workdir, check=True, capture_output=True, text=True,
         encoding="utf-8", errors="replace", env=env)
     if workdir not in sys.path:
@@ -137,10 +163,14 @@ class CompiledElement:
     * ``mcrd``: spatial coordinate dimension (2 or 3).
     * ``n_elem``: number of elements (allocates the persistent ``svars`` buffer).
 
-    ``element_rk_batch`` is the fast assembly path (one f2py call for the whole
-    group); ``commit_group`` recomputes-and-commits the group's state at a
-    converged ``U``.  The backend (``native`` or ``abaqus_uel``) is inferred from
-    the module's entry points.
+    ``element_rk_batch`` is the joint assembly path (one f2py call for the whole
+    group); ``element_r_batch`` uses the optional residual-only native entry.
+    ``commit_group`` recomputes-and-commits the group's state at a converged
+    ``U``. The backend (``native`` or ``abaqus_uel``) is inferred from the
+    module's entry points. The native ABI contains no Abaqus ``LFLAGS`` or
+    procedure data. The UEL backend is a narrow normal-static joint-call
+    compatibility adapter; it is not a replacement for an Abaqus analysis or
+    a general Abaqus procedure host.
     """
 
     def __init__(self, module, props, dof_per_node, n_svars=0, mcrd=2,
@@ -172,9 +202,6 @@ class CompiledElement:
         # backend it is the in-place-mutated copy returned by drive_uel.
         self.svars_trial = (self.svars.copy() if self.svars is not None
                             else None)
-        self._jprops = np.array([0], dtype=np.int32)
-        self._lflags = np.array([1, 0, 0, 0, 0, 0], dtype=np.int32)
-        self._params = np.zeros(3)
         self._time = np.array([dt, dt])
 
         if backend is None:
@@ -191,9 +218,38 @@ class CompiledElement:
         if self.backend == "native":
             self._drive = self.m.drive_native
             self._drive_batch = self.m.drive_native_batch
-        else:
+            self._drive_r = getattr(self.m, "drive_native_r", None)
+            self._drive_batch_r = getattr(self.m, "drive_native_batch_r", None)
+        elif self.backend == "abaqus_uel":
             self._drive = self.m.drive_uel
             self._drive_batch = self.m.drive_uel_batch
+            self._drive_r = None
+            self._drive_batch_r = None
+            self._uel_jprops = np.array([0], dtype=np.int32)
+            self._uel_lflags = np.array(
+                _UEL_STATIC_JOINT_LFLAGS, dtype=np.int32
+            )
+            self._uel_params = np.zeros(3)
+        else:
+            raise ValueError(
+                f"Unknown backend '{self.backend}'. Use 'native' or "
+                "'abaqus_uel'."
+            )
+
+    @property
+    def has_residual_only(self):
+        """Whether both single and batched R-only ABI entries are available."""
+        return self.has_element_r and self.has_element_r_batch
+
+    @property
+    def has_element_r(self):
+        """Whether the single-element R-only ABI entry is available."""
+        return self._drive_r is not None
+
+    @property
+    def has_element_r_batch(self):
+        """Whether the batched R-only ABI entry is available."""
+        return self._drive_batch_r is not None
 
     # ------------------------------------------------------------------ #
     # Single element (used for finite-difference / per-element checks).
@@ -203,21 +259,20 @@ class CompiledElement:
             return self._drive(
                 sv, np.asarray(coords, dtype=float).T[:self.mcrd],
                 np.asarray(U_e, dtype=float), np.asarray(DU_e, dtype=float),
-                self.props, self._jprops, self._time, self.dt, 1.0,
-                self._lflags, self._params, 1, 1, 1, ei + 1, 1.0)
-        # Abaqus UEL path
+                self.props, self._time, self.dt)
+        # Narrow UEL compatibility path: normal static joint request only.
         return self._drive(
             sv, np.asarray(coords, dtype=float).T[:self.mcrd],
             np.asarray(U_e, dtype=float), np.asarray(DU_e, dtype=float),
-            self.props, self._jprops, self._time, self.dt, 1.0,
-            self._lflags, self._params, 1, 1, 1, ei + 1, 1.0)
+            self.props, self._uel_jprops, self._time, self.dt, 1.0,
+            self._uel_lflags, self._uel_params, 1, 1, 1, ei + 1, 1.0)
 
     def element_rk(self, ei, coords, U_e, DU_e):
         """One element's ``(R_e, K_e)`` with the standard sign convention."""
         sv = (self.svars[ei].copy() if self.svars is not None
               else np.zeros(self.svars_size))
         if self.backend == "native":
-            R, K, sv_new, _pn = self._call(ei, coords, U_e, DU_e, sv)
+            R, K, sv_new = self._call(ei, coords, U_e, DU_e, sv)
             if self.svars_trial is not None:
                 self.svars_trial[ei] = np.asarray(sv_new, dtype=float).ravel()
             return (np.ascontiguousarray(R, dtype=float),
@@ -227,6 +282,24 @@ class CompiledElement:
             self.svars_trial[ei] = np.asarray(sv_new, dtype=float).ravel()
         return (-np.ascontiguousarray(rhs, dtype=float),
                 np.ascontiguousarray(amatrx, dtype=float))
+
+    def element_r(self, ei, coords, U_e, DU_e):
+        """One element residual, skipping tangent work when the kernel permits.
+
+        Native kernels generated before the residual-only ABI, and Abaqus UEL
+        kernels, fall back to :meth:`element_rk` for compatibility.
+        """
+        if not self.has_element_r:
+            return self.element_rk(ei, coords, U_e, DU_e)[0]
+        sv = (self.svars[ei].copy() if self.svars is not None
+              else np.zeros(self.svars_size))
+        R, sv_new = self._drive_r(
+            sv, np.asarray(coords, dtype=float).T[:self.mcrd],
+            np.asarray(U_e, dtype=float), np.asarray(DU_e, dtype=float),
+            self.props, self._time, self.dt)
+        if self.svars_trial is not None:
+            self.svars_trial[ei] = np.asarray(sv_new, dtype=float).ravel()
+        return np.ascontiguousarray(R, dtype=float)
 
     # ------------------------------------------------------------------ #
     # Whole-group batched call (the fast path).
@@ -239,14 +312,13 @@ class CompiledElement:
                 np.asfortranarray(sv_all.T), crd,
                 np.asfortranarray(np.asarray(U_all, float).T),
                 np.asfortranarray(np.asarray(DU_all, float).T),
-                self.props, self._jprops, self._time, self.dt, 1.0,
-                self._lflags, self._params, 1, 1, 1, 1.0)
+                self.props, self._time, self.dt)
         return self._drive_batch(
             np.asfortranarray(sv_all.T), crd,
             np.asfortranarray(np.asarray(U_all, float).T),
             np.asfortranarray(np.asarray(DU_all, float).T),
-            self.props, self._jprops, self._time, self.dt, 1.0,
-            self._lflags, self._params, 1, 1, 1, 1.0)
+            self.props, self._uel_jprops, self._time, self.dt, 1.0,
+            self._uel_lflags, self._uel_params, 1, 1, 1, 1.0)
 
     def element_rk_batch(self, coords_all, U_all, DU_all):
         """Batched ``(R_all, K_all)`` for the whole group (the fast assembly path).
@@ -262,7 +334,7 @@ class CompiledElement:
         sv = (self.svars.copy() if self.svars is not None
               else np.zeros((nelem, self.svars_size)))
         if self.backend == "native":
-            R, K, sv_new, _pn = self._call_batch(coords_all, U_all, DU_all, sv)
+            R, K, sv_new = self._call_batch(coords_all, U_all, DU_all, sv)
             if self.svars_trial is not None:
                 self.svars_trial = np.ascontiguousarray(
                     np.asarray(sv_new, float).T)
@@ -274,6 +346,31 @@ class CompiledElement:
                 np.asarray(sv_new, float).T)
         return (-np.asarray(rhs, float).T,
                 np.ascontiguousarray(np.transpose(np.asarray(amatrx, float), (2, 0, 1))))
+
+    def element_r_batch(self, coords_all, U_all, DU_all):
+        """Batched residuals, using ``coupfe_element_r`` when available.
+
+        The returned array has shape ``(nelem, ndofel)``.  Trial state is
+        refreshed exactly as in :meth:`element_rk_batch`, so a residual-only
+        accepted-state check can safely precede :meth:`commit`.  Older native
+        kernels and Abaqus UELs retain their joint-R/K fallback.
+        """
+        if not self.has_element_r_batch:
+            return self.element_rk_batch(coords_all, U_all, DU_all)[0]
+        nelem = len(U_all)
+        sv = (self.svars.copy() if self.svars is not None
+              else np.zeros((nelem, self.svars_size)))
+        crd = np.asfortranarray(
+            np.transpose(np.asarray(coords_all, float), (2, 1, 0))[:self.mcrd])
+        R, sv_new = self._drive_batch_r(
+            np.asfortranarray(sv.T), crd,
+            np.asfortranarray(np.asarray(U_all, float).T),
+            np.asfortranarray(np.asarray(DU_all, float).T),
+            self.props, self._time, self.dt)
+        if self.svars_trial is not None:
+            self.svars_trial = np.ascontiguousarray(
+                np.asarray(sv_new, float).T)
+        return np.asarray(R, float).T
 
     def commit(self):
         """Promote the trial state from the last evaluation to committed state.
@@ -296,7 +393,5 @@ class CompiledElement:
         """
         if self.svars is None:
             return
-        _r, _a, sv_new, _pn = self._call_batch(coords_all, U_g, DU_g, self.svars.copy())
-        self.svars = np.ascontiguousarray(np.asarray(sv_new, float).T)
-        if self.svars_trial is not None:
-            self.svars_trial = self.svars.copy()
+        self.element_r_batch(coords_all, U_g, DU_g)
+        self.commit()

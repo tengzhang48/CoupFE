@@ -28,12 +28,17 @@ so you can select an implementation per operator without changing the public con
 - **The contract isolates acceleration.** Each operator's residual/tangent can be
   numpy / vectorized / numba / f2py / Rust **independently** — speed up the bottleneck
   operator and leave the rest. No global rewrite.
-- **Compile the hot / regular / dual-home; keep dynamic / non-smooth / orchestration in
+- **Compile the hot / regular / parallel-backend work; keep dynamic / non-smooth / orchestration in
   Python** until the loop is the measured bottleneck. (Bulk elements → Fortran; contact force
   → vectorized numpy; contact *search* → numba; everything else → Python.)
 - **For large 3D direct solves, distinguish assembly from factorization.** A
   sparse factorization may dominate batched element assembly. Before
   shrinking a mesh or rewriting assembly, time one assembled matrix with the intended linear solver.
+- **Match element evaluation to callback intent.** Generated native kernels
+  expose a joint R/K path and, for current sources, a residual-only path.
+  Joint caching avoids duplicate tangents at paired callbacks; split evaluation
+  avoids constructing tangents for line-search and acceptance-only residuals.
+  Compare both with identical thread/rank settings and retain call counts.
 
 ## Linear-solver policy
 

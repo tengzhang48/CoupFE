@@ -83,8 +83,17 @@ the MPI drivers do not consume the transform.
 A supported element declaration can generate Fortran for two execution
 environments:
 
-- an Abaqus UEL; and
-- a native kernel loaded by the standalone CoupFE runtime.
+- an Abaqus UEL, called by Abaqus with Abaqus-owned procedure data such as
+  ``LFLAGS``; and
+- a native kernel loaded by the standalone CoupFE runtime, called through
+  CoupFE's residual/tangent interfaces without Abaqus procedure flags.
+
+These are parallel backends, not a call chain. The native ABI exposes the
+quantities CoupFE needs directly: a joint residual/tangent entry and, where
+generated, an optional residual-only entry. The in-process UEL wrapper is a
+narrow normal-static compatibility path for focused implementation-parity
+tests and selected research examples; it does not emulate general Abaqus
+procedure sequencing.
 
 Supported material declarations can also generate Abaqus UMAT source.
 

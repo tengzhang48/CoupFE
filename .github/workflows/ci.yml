@@ -61,6 +61,9 @@ jobs:
           runtime = files("coupfe.runtime")
           assert runtime.joinpath("drive_uel.f90").is_file()
           assert runtime.joinpath("elements", "neo_hookean_q4.for").is_file()
+          assert runtime.joinpath(
+              "elements", "neo_hookean_q4_fbar_native.for"
+          ).is_file()
           assert (
               files("coupfe.codegen.generators.templates")
               .joinpath("tensor_ops.for")

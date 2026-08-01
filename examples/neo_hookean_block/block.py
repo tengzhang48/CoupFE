@@ -1,8 +1,8 @@
 """A 2D compressible neo-Hookean block — one real compiled element, end to end.
 
 This is the smallest *compiled-kernel* CoupFE operator (the bar example is the
-smallest pure-Python one).  It wires the vendored neo-Hookean Quad4 kernel
-(``coupfe/runtime/elements/neo_hookean_q4.for``,
+smallest pure-Python one).  It wires the vendored native neo-Hookean Quad4
+kernel (``coupfe/runtime/elements/neo_hookean_q4_native.for``,
 ``P = G(F - F^-T) + K ln(J) F^-T``) into an :class:`ElementGroup` and solves a
 small block/patch through ``newton_solve`` — the same contract as every other
 operator.

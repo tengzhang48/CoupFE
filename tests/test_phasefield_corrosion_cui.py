@@ -176,7 +176,31 @@ def test_native_vs_uel_sign_convention(tmp_path):
     native_elem.svars[0, :] = svars
     uel_elem.svars[0, :] = svars
 
+    assert native_elem.has_residual_only
     R, K = native_elem.element_rk(0, Q8R_NODES, U, DU)
+    state_from_joint = native_elem.svars_trial.copy()
+    R_only = native_elem.element_r(0, Q8R_NODES, U, DU)
+    state_from_residual = native_elem.svars_trial.copy()
+
+    # Both native entries start from the same committed state. The residual
+    # and trial state must therefore be identical, including for this
+    # time-dependent, stateful Quad8R material.
+    np.testing.assert_array_equal(R_only, R)
+    np.testing.assert_array_equal(state_from_residual, state_from_joint)
+
+    R_batch, _ = native_elem.element_rk_batch(
+        Q8R_NODES[None, :, :], U[None, :], DU[None, :]
+    )
+    state_from_joint_batch = native_elem.svars_trial.copy()
+    R_only_batch = native_elem.element_r_batch(
+        Q8R_NODES[None, :, :], U[None, :], DU[None, :]
+    )
+    state_from_residual_batch = native_elem.svars_trial.copy()
+    np.testing.assert_array_equal(R_only_batch, R_batch)
+    np.testing.assert_array_equal(
+        state_from_residual_batch, state_from_joint_batch
+    )
+
     rhs, amatrx = uel_elem.element_rk(0, Q8R_NODES, U, DU)
 
     assert np.allclose(R, rhs, atol=1e-9, rtol=0.0)

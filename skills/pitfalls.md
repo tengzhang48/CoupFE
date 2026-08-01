@@ -193,10 +193,18 @@ methods. `ElementGroup` can reuse a paired evaluation through its one-entry
 cache. The cache key and invalidation rules matter when properties or committed
 state change.
 
-Disable fusion for algorithms that intentionally mutate inputs between the two
-calls, for residual-only/matrix-free loops, or while diagnosing cache behavior.
-New drivers that own the evaluation sequence should prefer a joint `(R, K)`
-evaluation when the underlying kernel provides one.
+Current native generators also emit a residual-only twin. Use explicit
+``evaluation_mode="split"`` when residual-only callbacks (line-search trials,
+acceptance checks, matrix-free loops) are common; keep ``"joint"`` when paired
+residual/tangent requests dominate. Require the caller to choose explicitly;
+do not switch evaluation policy merely because an R-only symbol is present.
+Disable fusion only for algorithms that intentionally
+mutate inputs between paired calls or while diagnosing cache behavior.
+
+Residual-only and joint entries must start from the same committed state and
+produce identical residual/trial state. Reevaluate a stateful element at the
+accepted iterate before commit; the most recent callback may have been a
+rejected line-search trial.
 
 ## Validation principle
 

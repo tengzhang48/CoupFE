@@ -53,7 +53,9 @@ barrier/dynamics path.
 | Capability | Status |
 |---|---|
 | Python declaration to Abaqus UEL | **yes** for the element/formulation combinations exposed by `coupfe.codegen` |
+| Abaqus UEL procedure coverage | **normal implicit/static scope**; mass, damping, perturbation, and general dynamic request handling is not qualified |
 | Python declaration to native element kernel | **yes**, with narrower geometry coverage than the Abaqus UEL generator |
+| Native residual-only evaluation | **yes** — standard and F-bar generators emit an R-only twin; runtime and serial/distributed callers expose explicit joint/split selection |
 | Abaqus UMAT generation | **yes**; four public material-point/codegen examples cover Neo-Hookean, Ogden, small-strain J2, and standard-linear-solid viscoelasticity |
 | Hosting an arbitrary compiled UMAT inside CoupFE | **no** |
 | Deterministic regeneration and generated-source compilation | **yes** for the examples whose tests state that scope |

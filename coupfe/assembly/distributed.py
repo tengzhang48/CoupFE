@@ -4,8 +4,8 @@ The serial operator contract (``assemble_residual``/``assemble_tangent``) is an 
 interface: it takes the *global* ``U`` and returns global ``gdofs``. Distributed-memory
 can't use that — each rank must hold only its partition. So the distributed unit is the
 **batched element evaluator** an :class:`~coupfe.runtime.compiled_element.CompiledElement`
-exposes (``element_rk_batch(coords, U, DU) -> (R, K)``, the same f2py call the
-``ElementGroup`` scatters serially). Each rank owns a block of elements, ghosts the ``U``
+exposes (``element_rk_batch(coords, U, DU) -> (R, K)`` and the optional
+``element_r_batch(coords, U, DU) -> R``). Each rank owns a block of elements, ghosts the ``U``
 values it needs via a PETSc ``VecScatter`` (no all-gather), assembles its rows of the
 distributed ``Mat``/``Vec`` with **global** indices + ``ADD_VALUES`` (PETSc sums
 off-process contributions), and a PETSc ``KSP`` solves the global system. Load-stepped
@@ -55,7 +55,9 @@ def element_partition(view, rank, size, comps=None):
 
 
 def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_fn,
-                      n_steps, *, max_newton=60, tol=1e-7, line_search=True,
+                      n_steps, *, residual_batch_fn=None,
+                      evaluation_mode="joint", max_newton=60, tol=1e-7,
+                      line_search=True,
                       pc="gamg", ksp_type="gmres", solver="superlu_dist", rtol=1e-10,
                       forcing=True, local_ndof=None, u0=None, contact=None,
                       deformable_contact=None, verbose=False):
@@ -63,6 +65,10 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
 
     ``batch_fn(coords, U, DU) -> (R_all (ne, ndofel), K_all (ne, ndofel, ndofel))`` is a
     rank-local batched element evaluator (e.g. ``CompiledElement.element_rk_batch``).
+    ``residual_batch_fn(coords, U, DU) -> R_all`` may be supplied with
+    ``evaluation_mode="split"`` to use a residual-only native entry for
+    convergence checks and line-search trials. ``"joint"`` preserves the
+    historical fused R/K path. The default is unchanged at ``"joint"``.
     ``dirichlet_fn(frac) -> {global_dof: value}`` returns the prescribed DOFs at load
     fraction ``frac = step/n_steps`` (scale inside it to ramp). ``pc="lu"`` with ``solver``
     gives an exact (direct) linear solve; ``"gamg"`` + ``ksp_type="gmres"`` is the iterative
@@ -97,6 +103,12 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
     """
     from petsc4py import PETSc                       # petsc4py only — never mpi4py
 
+    if evaluation_mode not in ("joint", "split"):
+        raise ValueError("evaluation_mode must be 'joint' or 'split'")
+    if evaluation_mode == "split" and residual_batch_fn is None:
+        raise ValueError(
+            "evaluation_mode='split' requires residual_batch_fn"
+        )
     comm = PETSc.COMM_WORLD
     rank, size = comm.getRank(), comm.getSize()
     my_gm = np.asarray(my_gm)
@@ -218,20 +230,32 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
             red.destroy()
             return a_glob
 
-    def assemble(Uvec, Upvec):
+    def assemble(Uvec, Upvec, *, tangent):
         Ua = ghost(Uvec, U_loc)
         Upa = ghost(Upvec, Up_loc)
-        A = PETSc.Mat().createAIJ(msize, comm=comm)
-        A.setPreallocationNNZ(dof_per_node * 18)
-        A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
+        A = None
+        if tangent:
+            A = PETSc.Mat().createAIJ(msize, comm=comm)
+            A.setPreallocationNNZ(dof_per_node * 18)
+            A.setOption(PETSc.Mat.Option.NEW_NONZERO_ALLOCATION_ERR, False)
         R = PETSc.Vec().createMPI(vsize, comm=comm)
         R.set(0.0)
         if my_ne:
             U_all = Ua[my_gm_local]
-            R_all, K_all = batch_fn(my_coords, U_all, U_all - Upa[my_gm_local])
+            DU_all = U_all - Upa[my_gm_local]
+            if tangent or evaluation_mode == "joint":
+                R_all, K_all = batch_fn(my_coords, U_all, DU_all)
+            else:
+                R_all = residual_batch_fn(my_coords, U_all, DU_all)
+                K_all = None
             for li in range(my_ne):
-                A.setValues(rows_all[li], rows_all[li], np.asarray(K_all[li], float),
-                            addv=ADD)
+                if tangent:
+                    A.setValues(
+                        rows_all[li],
+                        rows_all[li],
+                        np.asarray(K_all[li], float),
+                        addv=ADD,
+                    )
                 R.setValues(rows_all[li], np.asarray(R_all[li], float), addv=ADD)
         if c_on:                                                # node-local contact rows
             # NB: c_positions() does a COLLECTIVE VecScatter — every rank must call it,
@@ -241,7 +265,13 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
                                                   k_t=c_kt, x_prev=c_state["stick"],
                                                   ft=c_state["ftc"])
             for i in np.nonzero(act)[0]:
-                A.setValues(c_gd_m[i], c_gd_m[i], np.asarray(Kc[i], float), addv=ADD)
+                if tangent:
+                    A.setValues(
+                        c_gd_m[i],
+                        c_gd_m[i],
+                        np.asarray(Kc[i], float),
+                        addv=ADD,
+                    )
                 R.setValues(c_gd_m[i], np.asarray(Rc[i], float), addv=ADD)
         if dc_on:                                               # cross-rank deformable contact
             # NB: dc_surface_U() is a COLLECTIVE VecScatter — every rank must call it (even one
@@ -252,10 +282,12 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
             if Rdc.gdofs.size:
                 R.setValues(np.asarray(Rdc.gdofs, PETSc.IntType),
                             np.asarray(Rdc.values, float), addv=ADD)
-            Tdc = dc_op.tangent(Uf, None, 0, 0)
-            for r_, c_, val in zip(Tdc.rows, Tdc.cols, Tdc.values):
-                A.setValue(int(r_), int(c_), float(val), addv=ADD)
-        A.assemble()
+            if tangent:
+                Tdc = dc_op.tangent(Uf, None, 0, 0)
+                for r_, c_, val in zip(Tdc.rows, Tdc.cols, Tdc.values):
+                    A.setValue(int(r_), int(c_), float(val), addv=ADD)
+        if tangent:
+            A.assemble()
         R.assemble()
         return A, R
 
@@ -283,16 +315,27 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
         z_owned = np.zeros(len(bc_owned))
         rnorm_prev = 0.0
         for _it in range(max_newton):
-            A, R = assemble(U, Uprev)
+            A, R = assemble(
+                U,
+                Uprev,
+                tangent=(evaluation_mode == "joint"),
+            )
             if len(bc_owned):
                 R.setValues(bc_owned, z_owned, addv=INS)
             R.assemble()
             rnorm = R.norm()
             n_newton_last, rnorm_last = _it + 1, rnorm
             if rnorm < tol:
-                A.destroy()
+                if A is not None:
+                    A.destroy()
                 R.destroy()
                 break
+            if evaluation_mode == "split":
+                R.destroy()
+                A, R = assemble(U, Uprev, tangent=True)
+                if len(bc_owned):
+                    R.setValues(bc_owned, z_owned, addv=INS)
+                R.assemble()
             A.zeroRows(bc_all, diag=1.0)
             negR = R.copy()
             negR.scale(-1.0)
@@ -327,12 +370,17 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
                 for _ls in range(30):
                     U.copy(Ut)
                     Ut.axpy(alpha, du)
-                    A2, Rt = assemble(Ut, Uprev)
+                    A2, Rt = assemble(
+                        Ut,
+                        Uprev,
+                        tangent=(evaluation_mode == "joint"),
+                    )
                     if len(bc_owned):
                         Rt.setValues(bc_owned, z_owned, addv=INS)
                     Rt.assemble()
                     ok = Rt.norm() < rnorm
-                    A2.destroy()
+                    if A2 is not None:
+                        A2.destroy()
                     Rt.destroy()
                     if ok:
                         break
@@ -400,7 +448,8 @@ def solve_distributed(ndof, my_gm, my_coords, dof_per_node, batch_fn, dirichlet_
     return gather_full(U), dict(rank=rank, size=size, my_ne=my_ne, n_owned=re - rs,
                                 n_ghost=n_ghost, ksp_its=ksp_its_last,
                                 ksp_diverged=ksp_diverged, n_newton=n_newton_last,
-                                rnorm=rnorm_last, contact=contact_info)
+                                rnorm=rnorm_last, contact=contact_info,
+                                evaluation_mode=evaluation_mode)
 
 
 class _DistDeformableContact:

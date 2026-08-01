@@ -5,7 +5,8 @@ radius 10) compressed between two rigid flat plates, then the top plate is slid
 horizontally.
 
 CoupFE model choices:
-- 2D F-bar Quad4 element (``neo_hookean_q4.for``) for the ring.
+- 2D F-bar Quad4 native element (``neo_hookean_q4_fbar_native.for``) for the
+  ring.
 - ``RigidContact`` with ``HalfSpace`` obstacles for the rigid plates. The
   penalty and friction values are study settings that require sensitivity and
   penetration checks for any claimed result.
@@ -35,7 +36,7 @@ from coupfe.runtime.compiled_element import CompiledElement, build_element_kerne
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INP = Path(os.environ.get("COUPFE_RING_INP", _REPO_ROOT / "ring_compress.inp")).expanduser()
-_Q4_FOR = "coupfe/runtime/elements/neo_hookean_q4.for"
+_Q4_FOR = "coupfe/runtime/elements/neo_hookean_q4_fbar_native.for"
 
 # Abaqus neo-Hookean: C10=1.0, D1=0.1  =>  G=mu=2*C10=2,  K=2/D1=20
 G_RING = 2.0

@@ -42,6 +42,22 @@ quantity such as stress, because agreement in one does not prove the other path.
 Serial state support does not automatically extend to MPI. Distributed state
 needs explicit ownership, ghosting, commit, restart, and rank-invariance tests.
 
+## Separate residual-only work from tangent work deliberately
+
+A generated tangent can dominate element cost because it evaluates multiple
+complex-step directions and assembles a dense local block. Caching a joint R/K
+result is still the right choice when a solver requests residual and tangent at
+the same iterate. It is wasteful for rejected line-search trials, independent
+acceptance checks, and exact-equilibrium steps that request only a residual.
+
+Native generation therefore keeps two entries from the same residual source:
+the established joint R/K entry and a residual-only twin with tangent work
+removed. Callers select ``joint`` or ``split`` explicitly; ``joint`` remains
+the default. Do not infer a universal speedup: retain call counts and
+representative timings, and test residual plus trial-state parity. Before
+committing a path-dependent state, reevaluate at the accepted iterate so the
+last rejected trial cannot be promoted.
+
 ## Separate consistency from validation
 
 Useful consistency checks include:
