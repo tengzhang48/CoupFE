@@ -10,11 +10,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # A failure on one interpreter must not hide the other compatibility
+      # results. This also leaves enough public evidence to distinguish a
+      # version-specific regression from a runner-wide failure.
+      fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       # gfortran (+ ninja on PATH) so the compiled-element kernel actually compiles
@@ -33,14 +37,37 @@ jobs:
         run: python .github/scripts/check_site.py
       # Long-running reproductions have their own opt-in workflow. Keep this
       # required matrix focused on deterministic unit/integration gates.
-      - run: python -m pytest -q -m "not slow"
+      - name: Run the default test tier
+        run: |
+          set +e
+          python -m pytest -q -m "not slow" 2>&1 | tee "$RUNNER_TEMP/coupfe-pytest.log"
+          coupfe_pytest_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$coupfe_pytest_status" -ne 0 ]; then
+            python - "$RUNNER_TEMP/coupfe-pytest.log" <<'PY'
+          from pathlib import Path
+          import sys
+
+          lines = Path(sys.argv[1]).read_text(
+              encoding="utf-8", errors="replace"
+          ).splitlines()
+          tail = "\n".join(lines[-120:])
+          escaped = (
+              tail.replace("%", "%25")
+              .replace("\r", "%0D")
+              .replace("\n", "%0A")
+          )
+          print(f"::error title=pytest failure summary::{escaped}")
+          PY
+          fi
+          exit "$coupfe_pytest_status"
 
   package:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip build twine
@@ -73,7 +100,7 @@ jobs:
               .is_file()
           )
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coupfe-distributions
           path: dist/*
