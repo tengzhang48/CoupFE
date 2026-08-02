@@ -59,6 +59,17 @@ def test_exact_zero_slip_stick_and_coulomb_cap():
         assert vt > 0.0
         assert Ff == pytest.approx(ex.MU * ex.P, abs=1e-12)
 
+    # The closed cone includes its boundary.  A few ULPs of sparse-solver
+    # roundoff must not make the active-set state Python/SciPy dependent.
+    regime, vt, Ff = iface.step(dstar)
+    assert Ff == pytest.approx(ex.MU * ex.P, abs=1e-12)
+    assert regime == "stick" and vt == 0.0
+
+    # The roundoff guard must not blur a genuinely supercritical load.
+    regime, vt, Ff = iface.step((1.0 + 1.0e-10) * dstar)
+    assert regime == "slip" and vt > 0.0
+    assert Ff == pytest.approx(ex.MU * ex.P, abs=1e-12)
+
 
 def test_broken_control_zero_friction_loses_cap():
     """With μ→0 the cone collapses: the interface can never stick under any shear (no cap)."""

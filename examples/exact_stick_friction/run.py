@@ -21,7 +21,7 @@ geometry; see `docs/api.md` and `docs/capabilities.md`).
 
 Self-check (prints ``OK`` / ``FAIL``):
   * EXACT stick: interface slip ``v_t = 0`` to machine precision for every ``δ < δ*``;
-  * Coulomb cap:  friction force locks at ``μP`` exactly once sliding (``δ ≥ δ*``);
+  * Coulomb cap:  friction force locks at ``μP`` exactly once sliding (``δ > δ*``);
   * transition:  the stick→slip onset matches the analytic incipient shear ``δ* = μP / k_shear``.
 """
 from __future__ import annotations
@@ -90,7 +90,9 @@ class ExactStickInterface:
                           np.concatenate([np.full(len(self.tx), delta), np.zeros(len(self.by) + len(self.bx))]))
         Fs = float(np.sum(R[self.bx]))                      # total tangential force demanded by stick
         N = np.maximum(R[self.by], 0.0)                     # per-node normal reactions (compressive)
-        if abs(Fs) <= MU * P:                               # utilization η ≤ 1 → stick admissible
+        cap = MU * P
+        cone_tol = 128.0 * np.finfo(float).eps * max(abs(Fs), cap)
+        if abs(Fs) <= cap + cone_tol:                       # closed cone: η ≤ 1 → stick admissible
             return "stick", 0.0, abs(Fs)                    # v_t = 0 EXACTLY (a constraint)
         # SLIP: multiplier on the cone (|p_t| = μN), interface free → it slides.
         sgn = -np.sign(Fs)                                  # friction opposes the slip tendency
@@ -114,6 +116,10 @@ def main():
         print(f"{ratio:>6.2f} {regime:>7} {Ff:>8.4f} {Ff / (MU * P):>7.3f} {vt:>12.2e}")
         if ratio < 1.0:
             ok &= regime == "stick" and vt == 0.0 and Ff < MU * P     # exact stick, below cone
+        elif ratio == 1.0:
+            # The Coulomb cone is closed: use a small roundoff tolerance so
+            # δ=δ* deterministically selects the zero-slip boundary state.
+            ok &= regime == "stick" and vt == 0.0 and abs(Ff - MU * P) < 1e-12
         else:
             ok &= regime == "slip" and vt > 0.0 and abs(Ff - MU * P) < 1e-12  # exact Coulomb cap, sliding
 
