@@ -16,6 +16,24 @@ agreement, and native/UEL parity primarily check implementation. Agreement
 between backends generated from the same form is not an independent oracle for
 the equations or parameters.
 
+## Shared software and method references
+
+[`../CREDITS.md`](../CREDITS.md) is the project-level citation record. In
+particular, it identifies:
+
+- the submitted `abaqus_ufl` manuscript for the UEL declaration approach and
+  paper-form cases, plus the public software and pinned source revision for the
+  UEL and UMAT ports;
+- the Abaqus UEL/UMAT interface references, while keeping Abaqus distinct from
+  CoupFE's parallel standalone runtime;
+- UFL/FEniCSx as conceptual context, not a CoupFE dependency or compatibility
+  claim; and
+- the `ppf-contact-solver` software and cubic-barrier paper for the adapted
+  contact paths.
+
+The inventory below adds the formulation, benchmark, data, and evidence source
+specific to each example.
+
 ## Complete shipped inventory
 
 | Example | Status | Evidence and reference boundary |

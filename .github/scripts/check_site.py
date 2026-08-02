@@ -256,6 +256,8 @@ def main() -> None:
         "No general mesh-software adapter",
         "No retained final-revision multi-rank qualification or scaling record",
         "does not run CoupFE in the browser",
+        "CITATION.cff",
+        "CREDITS.md",
         str(project["version"]),
         author,
         "1.598",

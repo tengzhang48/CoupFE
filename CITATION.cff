@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: >-
+  If you use CoupFE, please cite the exact software version or commit below.
+  For generated-element functionality or the ppf-derived contact paths, also
+  cite the role-specific related work in CREDITS.md.
+title: "CoupFE: a compact finite-element scaffold for custom operators and generated elements"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Teng
+    affiliation: "Syracuse University"
+    email: tzhang48@syr.edu
+version: 0.0.1
+repository-code: "https://github.com/tengzhang48/CoupFE"
+url: "https://tengzhang48.github.io/CoupFE/"
+license: Apache-2.0
+keywords:
+  - finite element method
+  - multiphysics
+  - generated elements
+  - Abaqus UEL
+  - PETSc
+  - contact mechanics

@@ -1,10 +1,13 @@
 # Extending CoupFE from existing formulations
 
-CoupFE grew from the maintainer's
-[`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) work and from later
-research experiments. This page records the reusable porting method without
-publishing an inventory of unreleased directories or implying that every
-historical experiment is a supported CoupFE capability.
+CoupFE's build-time `coupfe.codegen` subsystem was mechanically ported from the
+maintainer's [`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) project
+and subsequently extended for native CoupFE execution. The declaration style
+is conceptually inspired by UFL, but CoupFE does not depend on, implement, or
+claim compatibility with UFL or FEniCSx. [`../CREDITS.md`](../CREDITS.md)
+records the exact citation roles. This page records the reusable porting method
+without publishing an inventory of unreleased directories or implying that
+every historical experiment is a supported CoupFE capability.
 
 The authoritative public boundary is:
 

@@ -101,7 +101,13 @@ normal loading, and the problem. Exact-stick questions belong to the separately
 scoped return-map or semismooth studies.
 
 The relevant ppf-contact-solver source lineage is Apache-2.0 and identified in
-`NOTICE`; CoupFE adapts the algorithms rather than claiming backend identity.
+[`NOTICE`](../../NOTICE). The corresponding software and method-paper
+citations, including Ryoichi Ando's cubic-barrier paper (DOI
+[`10.1145/3687908`](https://doi.org/10.1145/3687908)) and Li et al.'s
+Incremental Potential Contact paper (DOI
+[`10.1145/3386569.3392425`](https://doi.org/10.1145/3386569.3392425)), are in
+[`CREDITS.md`](../../CREDITS.md). CoupFE adapts selected algorithms rather than
+claiming backend identity.
 
 ## Cubic barrier and collision bound
 

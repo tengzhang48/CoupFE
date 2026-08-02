@@ -402,6 +402,8 @@ REQUIRED_SDIST_FILES = (
         "LICENSE-ABAQUS-UFL-EXAMPLES",
         "NOTICE",
         "README.md",
+        "CITATION.cff",
+        "CREDITS.md",
         "MANIFEST.in",
         "pyproject.toml",
         "examples/README.md",
@@ -528,6 +530,7 @@ IMAGE_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"}
 DOCUMENTATION_IMAGE_DIRS = {"_static", "assets", "figures", "images"}
 TEXT_SUFFIXES = {
     "",
+    ".cff",
     ".cfg",
     ".csv",
     ".css",
@@ -545,6 +548,11 @@ TEXT_SUFFIXES = {
     ".yaml",
     ".yml",
 }
+
+# This address is deliberately published in package and citation metadata. The
+# exact allowlist keeps the private-material scan useful for every other
+# personal address.
+PUBLIC_CONTACT_EMAILS = {"tzhang48@syr.edu"}
 
 
 def _validate_names(names: list[str], artifact: Path) -> None:
@@ -708,12 +716,87 @@ def _validate_text(name: str, payload: bytes, artifact: Path) -> None:
         raise SystemExit(f"{artifact.name}:{name} is not valid UTF-8 text") from exc
 
     hits = [fragment for fragment in _sensitive_fragments() if fragment in text]
-    if re.search(r"[\w.+-]+@(?:gmail\.com|syr\.edu)\b", text, flags=re.IGNORECASE):
+    personal_emails = {
+        email.casefold()
+        for email in re.findall(
+            r"[\w.+-]+@(?:gmail\.com|syr\.edu)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+    }
+    if personal_emails - PUBLIC_CONTACT_EMAILS:
         hits.append("personal-email-address")
     if hits:
         raise SystemExit(
             f"{artifact.name}:{name} contains private-path/credential material: "
             f"{sorted(hits)}"
+        )
+
+
+def _validate_citation_records(
+    citation: str, project: str, credits: str, artifact: Path
+) -> None:
+    """Keep public citation metadata and role-specific references synchronized."""
+
+    project_version = re.search(r'^version\s*=\s*"([^"]+)"', project, re.MULTILINE)
+    cff_version = re.search(r"^version:\s*['\"]?([^'\"\s]+)", citation, re.MULTILINE)
+    project_author = re.search(
+        r'^authors\s*=\s*\[\{\s*name\s*=\s*"([^"]+)"'
+        r'(?:,\s*email\s*=\s*"([^"]+)")?',
+        project,
+        re.MULTILINE,
+    )
+    given_name = re.search(r"^\s+given-names:\s*([^\n]+)", citation, re.MULTILINE)
+    family_name = re.search(
+        r"^\s+-?\s*family-names:\s*([^\n]+)", citation, re.MULTILINE
+    )
+    cff_email = re.search(r"^\s+email:\s*([^\s]+)", citation, re.MULTILINE)
+
+    required_matches = {
+        "project version": project_version,
+        "CFF version": cff_version,
+        "project author": project_author,
+        "CFF given name": given_name,
+        "CFF family name": family_name,
+        "CFF email": cff_email,
+    }
+    missing = sorted(name for name, match in required_matches.items() if match is None)
+    if missing:
+        raise SystemExit(f"{artifact.name} citation metadata is incomplete: {missing}")
+
+    assert project_version is not None and cff_version is not None
+    assert project_author is not None and given_name is not None and family_name is not None
+    assert cff_email is not None
+    cff_author = " ".join(
+        value.group(1).strip().strip("'\"") for value in (given_name, family_name)
+    )
+    project_email = project_author.group(2)
+    cff_email_value = cff_email.group(1).strip().strip("'\"")
+    if project_version.group(1) != cff_version.group(1):
+        raise SystemExit(f"{artifact.name} CFF and package versions disagree")
+    if project_author.group(1) != cff_author:
+        raise SystemExit(f"{artifact.name} CFF and package authors disagree")
+    if project_email != cff_email_value:
+        raise SystemExit(f"{artifact.name} CFF and package author emails disagree")
+
+    required_credits = {
+        "Making coupled-field Abaqus user elements simple",
+        "manuscript submitted for publication",
+        "https://github.com/tengzhang48/abaqus_ufl",
+        "10.1145/2566630",
+        "10.5281/zenodo.10447666",
+        "https://github.com/st-tech/ppf-contact-solver",
+        "8b7740b032131aeeb46f51d882c96e09b171acc8",
+        "10.1145/3687908",
+        "10.1145/3386569.3392425",
+    }
+    normalized_credits = " ".join(credits.split())
+    absent = sorted(
+        reference for reference in required_credits if reference not in normalized_credits
+    )
+    if absent:
+        raise SystemExit(
+            f"{artifact.name} role-specific citation record is incomplete: {absent}"
         )
 
 
@@ -906,6 +989,12 @@ def _validate_source_tree(
         path = source_root / PurePosixPath(name)
         if path.is_file():
             _validate_text(name, path.read_bytes(), source_root)
+    _validate_citation_records(
+        (source_root / "CITATION.cff").read_text(encoding="utf-8"),
+        (source_root / "pyproject.toml").read_text(encoding="utf-8"),
+        (source_root / "CREDITS.md").read_text(encoding="utf-8"),
+        source_root,
+    )
     _validate_example_policy(source_root)
     return len(files)
 
@@ -994,6 +1083,7 @@ def _validate_sdist(sdist: Path) -> int:
     _reject_private_harness(files, sdist)
     _validate_artifact_example_dirs(files, sdist, require_complete=True)
     with tarfile.open(sdist, mode="r:gz") as archive:
+        citation_payloads: dict[str, str] = {}
         for member in archive.getmembers():
             if member.isfile():
                 stream = archive.extractfile(member)
@@ -1002,7 +1092,16 @@ def _validate_sdist(sdist: Path) -> int:
                 relative = PurePosixPath(
                     *PurePosixPath(member.name).parts[1:]
                 ).as_posix()
-                _validate_text(relative, stream.read(), sdist)
+                payload = stream.read()
+                _validate_text(relative, payload, sdist)
+                if relative in {"CITATION.cff", "CREDITS.md", "pyproject.toml"}:
+                    citation_payloads[relative] = payload.decode("utf-8")
+    _validate_citation_records(
+        citation_payloads["CITATION.cff"],
+        citation_payloads["pyproject.toml"],
+        citation_payloads["CREDITS.md"],
+        sdist,
+    )
     return len(files)
 
 

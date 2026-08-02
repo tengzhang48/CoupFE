@@ -139,15 +139,28 @@ The current, claim-bounded inventory is
 [`docs/capabilities.md`](docs/capabilities.md); the design and public API are in
 [`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/api.md`](docs/api.md).
 
-CoupFE grew from the maintainer's
-[`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) research and from
-subsequent experiments with a wider range of formulations. The public tree
-keeps a curated set whose provenance and tests are documented. The broader
-research direction is summarized in [`docs/porting.md`](docs/porting.md) and
-[`docs/roadmap.md`](docs/roadmap.md); detailed dated plans remain available in
-Git history without being presented as current capability.
+CoupFE's build-time `coupfe.codegen` subsystem was mechanically ported from the
+maintainer's [`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) project
+and subsequently extended for native CoupFE execution. Its declaration style
+inherits conceptual inspiration from UFL, but CoupFE neither depends on nor
+implements UFL. The public tree keeps a curated set whose provenance and tests
+are documented. The broader research direction is summarized in
+[`docs/porting.md`](docs/porting.md) and [`docs/roadmap.md`](docs/roadmap.md);
+detailed dated plans remain available in Git history without being presented
+as current capability.
 
-Part of **CoupMech Lab** (Coupled Mechanics Lab).
+Maintained by Teng Zhang and contributors.
+
+## Citation and credits
+
+Cite CoupFE itself using [`CITATION.cff`](CITATION.cff), including the exact
+version or commit used. CoupFE does not currently have a dedicated paper. Work
+that materially uses the generated-element path should additionally cite the
+submitted `abaqus_ufl` manuscript and public software; work using the
+ppf-derived contact paths should additionally cite `ppf-contact-solver` and
+the relevant method paper. [`CREDITS.md`](CREDITS.md) gives the complete role-specific references
+and makes the Abaqus, UFL/FEniCSx, `abaqus_ufl`, and contact boundaries
+explicit.
 
 ## License
 
@@ -158,4 +171,5 @@ ports retained under their
 licensed under
 [Creative Commons Attribution 4.0 International](LICENSE-DOCS.md); code
 snippets embedded in the documentation may also be used under Apache-2.0. See
-[NOTICE](NOTICE) for attribution, third-party provenance, and trademark notes.
+[NOTICE](NOTICE) for legal attribution, third-party provenance, and trademark
+notes; see [`CREDITS.md`](CREDITS.md) for scientific and software citations.

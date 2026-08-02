@@ -3,6 +3,8 @@ include LICENSE-DOCS.md
 include LICENSE-ABAQUS-UFL-EXAMPLES
 include NOTICE
 include README.md
+include CITATION.cff
+include CREDITS.md
 include .github/scripts/check_release_artifacts.py
 include .github/scripts/check_site.py
 recursive-include coupfe *.py *.for *.f90

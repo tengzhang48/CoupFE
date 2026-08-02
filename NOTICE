@@ -19,6 +19,14 @@ CoupFE's adaptations are identified in coupfe/operators/contact.py,
 coupfe/operators/contact3d.py, coupfe/operators/contact3d_numba.py, and
 coupfe/operators/bvh_numba.py.
 
+CoupFE's build-time coupfe.codegen subsystem was mechanically ported from the
+maintainer's project-authored abaqus_ufl research code and subsequently
+extended for native CoupFE execution. This is project lineage rather than
+third-party source: both projects are authored and maintained by Teng Zhang.
+The current CoupFE subsystem is distributed under CoupFE's Apache-2.0 source
+license. See CREDITS.md for the corresponding software and submitted-manuscript
+citations.
+
 The research examples `phasefield_corrosion_cui`, `gel_chester_anand`,
 `stabilized_tet4`, and `morphing_hex8`, together with the code-generation
 proofs `neo_hookean_umat`, `ogden_umat`, `small_strain_j2_umat`, and
