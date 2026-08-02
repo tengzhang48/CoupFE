@@ -378,6 +378,11 @@ PUBLIC_SKILL_FILES = {
         "testing.md",
     }
 }
+PUBLIC_SITE_FILES = {
+    "site/evidence.json",
+    "site/index.html",
+    "site/styles.css",
+}
 
 REQUIRED_SDIST_FILES = (
     PUBLIC_PACKAGE_FILES
@@ -388,8 +393,10 @@ REQUIRED_SDIST_FILES = (
     | PUBLIC_EXAMPLE_FILES
     | PUBLIC_DOC_FILES
     | PUBLIC_SKILL_FILES
+    | PUBLIC_SITE_FILES
     | {
         ".github/scripts/check_release_artifacts.py",
+        ".github/scripts/check_site.py",
         "LICENSE",
         "LICENSE-DOCS.md",
         "LICENSE-ABAQUS-UFL-EXAMPLES",
@@ -523,8 +530,10 @@ TEXT_SUFFIXES = {
     "",
     ".cfg",
     ".csv",
+    ".css",
     ".f90",
     ".for",
+    ".html",
     ".ini",
     ".json",
     ".md",
@@ -639,6 +648,7 @@ def _validate_public_subtrees(names: set[str], artifact: Path) -> None:
         "docs": PUBLIC_DOC_FILES,
         "skills": PUBLIC_SKILL_FILES,
         "examples": PUBLIC_EXAMPLE_FILES,
+        "site": PUBLIC_SITE_FILES,
     }
     for prefix, expected in inventories.items():
         _validate_exact_subtree(names, artifact, prefix, expected)

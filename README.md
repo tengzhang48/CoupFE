@@ -3,6 +3,9 @@
 CoupFE is a small, well-tested **finite-element scaffold**. It is not intended
 to replace a general PDE or engineering-analysis platform.
 
+Public overview: <https://tengzhang48.github.io/CoupFE/>. The website presents
+the core contracts and scoped evidence; it does not run CoupFE in the browser.
+
 Mature open finite-element frameworks are large for good reason: they provide
 broad, reusable support for meshing, boundary conditions, time integration,
 I/O, solver integration, and many difficult edge cases. CoupFE explores a
@@ -106,6 +109,17 @@ Long reproductions are opt-in with `python -m pytest -q -ra -m slow` and may
 need external software or user-supplied data. The references ledger identifies
 which results are analytic validation, implementation consistency, research
 demonstrations, or external reproduction workflows.
+
+The compact public website has no frontend build dependency:
+
+```bash
+python .github/scripts/check_site.py
+python -m http.server 8000 --directory site
+```
+
+The site checker ties displayed example results to `site/evidence.json`, the
+current source hashes, repository links, project metadata, and explicit claim
+boundaries.
 
 ## AI-assisted development
 

@@ -49,7 +49,7 @@ performance = ["numba>=0.57"]
 dev = ["pytest>=7"]
 
 [project.urls]
-Homepage = "https://github.com/tengzhang48/CoupFE"
+Homepage = "https://tengzhang48.github.io/CoupFE/"
 Repository = "https://github.com/tengzhang48/CoupFE.git"
 Documentation = "https://github.com/tengzhang48/CoupFE/tree/main/docs"
 Issues = "https://github.com/tengzhang48/CoupFE/issues"

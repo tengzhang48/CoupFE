@@ -28,6 +28,9 @@ jobs:
       # Include numba so CI exercises the accelerated 3D-contact path as well
       # as the always-available NumPy fallback.
       - run: pip install -e ".[dev,runtime,codegen,performance]"
+      - name: Check the compact public website
+        if: matrix.python-version == '3.12'
+        run: python .github/scripts/check_site.py
       # Long-running reproductions have their own opt-in workflow. Keep this
       # required matrix focused on deterministic unit/integration gates.
       - run: python -m pytest -q -m "not slow"

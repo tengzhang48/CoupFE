@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="CoupFE is a compact finite-element scaffold for custom operators, generated elements, contact, and serial or PETSc/MPI research workflows."
+    >
+    <meta name="author" content="CoupMech Lab">
+    <meta name="theme-color" content="#123a45">
+    <title>CoupFE — a compact finite-element core</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="#top" aria-label="CoupFE home">
+          <span class="brand-mark" aria-hidden="true">C</span>
+          <span>CoupFE</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="#core">Core contract</a>
+          <a href="#backends">Backends</a>
+          <a href="#evidence">Evidence</a>
+          <a href="#scope">Boundary</a>
+          <a class="nav-action" href="#start">Get started</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="shell hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow light">CoupMech Lab · active alpha · v0.0.1</p>
+            <h1 id="hero-title">A compact finite-element core for custom operators.</h1>
+            <p class="hero-lede">
+              CoupFE is a small, tested scaffold for developing custom operators,
+              generated elements, contact formulations, and standalone solver paths.
+              Applications keep ownership of model setup, mesh-tool adapters, domain
+              semantics, and output policy.
+            </p>
+            <div class="button-row" aria-label="Project links">
+              <a class="button primary" href="https://github.com/tengzhang48/CoupFE">View source</a>
+              <a class="button ghost" href="https://github.com/tengzhang48/CoupFE/tree/main/examples">Explore examples</a>
+            </div>
+          </div>
+
+          <aside class="hero-record" aria-labelledby="record-title">
+            <p class="record-kicker">Public record</p>
+            <h2 id="record-title">What is established here</h2>
+            <dl class="record-list">
+              <div>
+                <dt>Core abstraction</dt>
+                <dd>Residual, tangent, commit</dd>
+              </div>
+              <div>
+                <dt>Execution paths</dt>
+                <dd>Serial and scoped PETSc/MPI</dd>
+              </div>
+              <div>
+                <dt>Evidence</dt>
+                <dd>Analytic checks and current-revision example reruns</dd>
+              </div>
+            </dl>
+            <p class="record-boundary">
+              This is alpha research software. Complete finite-element coverage,
+              production engineering qualification, and a release-grade scaling
+              record are not claimed.
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section contract-section" id="core" aria-labelledby="contract-title">
+        <div class="shell">
+          <div class="section-heading narrow">
+            <p class="eyebrow">The core contract</p>
+            <h2 id="contract-title">Compose the physics; keep the driver generic.</h2>
+            <p>
+              Bulk elements, contact, inertia, and loads contribute through the same
+              interface. The assembly and solve layers do not need to know their
+              application-specific meaning.
+            </p>
+          </div>
+
+          <div class="contract-flow" aria-label="Operator to solve flow">
+            <article class="flow-card flow-operator">
+              <span class="flow-number">01</span>
+              <p class="flow-label">Operator</p>
+              <h3>Evaluate locally</h3>
+              <ul class="code-list" aria-label="Operator methods">
+                <li><code>residual(U, state, t, dt)</code></li>
+                <li><code>tangent(U, state, t, dt)</code></li>
+                <li><code>commit(U, state, t, dt)</code></li>
+              </ul>
+            </article>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <article class="flow-card">
+              <span class="flow-number">02</span>
+              <p class="flow-label">Assembly</p>
+              <h3>Compose globally</h3>
+              <p class="formula"><span>R(U) = Σ R<sub>o</sub>(U)</span><span>K(U) = Σ K<sub>o</sub>(U)</span></p>
+            </article>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <article class="flow-card">
+              <span class="flow-number">03</span>
+              <p class="flow-label">Drivers</p>
+              <h3>Increment and solve</h3>
+              <p>Newton increments, line search, implicit dynamics, and explicit linear-solver policy.</p>
+            </article>
+          </div>
+
+          <div class="contract-notes">
+            <article>
+              <p class="note-symbol" aria-hidden="true">∂</p>
+              <div>
+                <h3>One residual as source of truth</h3>
+                <p>
+                  Supported smooth generated elements derive consistent tangents by
+                  complex-step differentiation. Analytic and semismooth operators keep
+                  their own separately tested tangent paths.
+                </p>
+              </div>
+            </article>
+            <article>
+              <p class="note-symbol" aria-hidden="true">✓</p>
+              <div>
+                <h3>Evaluation is separate from commit</h3>
+                <p>
+                  Compiled elements keep trial evaluation separate from committed state.
+                  Generic accepted-step orchestration is not yet complete for every
+                  failure and multi-increment path.
+                </p>
+              </div>
+            </article>
+            <article>
+              <p class="note-symbol" aria-hidden="true">P</p>
+              <div>
+                <h3>Exact affine reduction</h3>
+                <p>
+                  Core supplies the mesh-agnostic transformation
+                  <code>U = Pq + U0</code> for serial quasistatic solves. Applications
+                  construct the physical relations; MPI and dynamics coverage is not claimed.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section backend-section" id="backends" aria-labelledby="backends-title">
+        <div class="shell">
+          <div class="section-heading centered">
+            <p class="eyebrow light">Build-time code generation</p>
+            <h2 id="backends-title">One supported formulation, two parallel backends.</h2>
+            <p>
+              A declared residual can produce source for an established Abaqus workflow
+              and for CoupFE's open standalone runtime. Neither backend calls the other.
+            </p>
+          </div>
+
+          <div class="backend-map">
+            <article class="form-source">
+              <span class="source-tag">Python declaration</span>
+              <h3>Weak form + fields + material</h3>
+              <p>Verify the declaration, state schema, ordering, and generated source.</p>
+            </article>
+            <div class="branch-lines" aria-hidden="true"><span></span><span></span></div>
+            <div class="backend-cards">
+              <article>
+                <p class="backend-label">Established-solver target</p>
+                <h3>Abaqus UEL</h3>
+                <p>
+                  Abaqus owns the real procedure context, including <code>LFLAGS</code>.
+                  Current UEL generation is scoped to documented normal implicit/static use.
+                  Material declarations can separately generate Abaqus UMAT source; that
+                  output does not have a parallel native-UMAT host in CoupFE.
+                </p>
+              </article>
+              <article>
+                <p class="backend-label">Standalone target</p>
+                <h3>CoupFE native kernel</h3>
+                <p>
+                  The f2py runtime exposes joint residual/tangent evaluation and, where
+                  generated, an explicit residual-only entry for serial or distributed callers.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <p class="backend-boundary">
+            <strong>Evidence boundary:</strong> agreement between native and UEL kernels
+            can detect generation, sign, ordering, state-transfer, and ABI drift. Because
+            both share a formulation, parity is an implementation check—not independent
+            physical validation of the equations, parameters, or model.
+          </p>
+        </div>
+      </section>
+
+      <section class="section evidence-section" id="evidence" aria-labelledby="evidence-title">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <p class="eyebrow">Scoped numerical evidence</p>
+              <h2 id="evidence-title">Small examples, explicit questions.</h2>
+            </div>
+            <p>
+              These values are current-revision example reruns. Each result supports only
+              the stated check; it does not qualify an entire method family or a production model.
+              <a class="evidence-record-link" href="evidence.json">Read the machine-readable current-revision evidence record.</a>
+            </p>
+          </div>
+
+          <div class="evidence-grid">
+            <article class="evidence-card compact-card">
+              <p class="result-kind">Analytic limit</p>
+              <h3><code>linear_bar</code></h3>
+              <p>
+                The minimal operator and nonlinear solve path checks its linear limit and
+                analytic tangent without external data.
+              </p>
+              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/linear_bar">Inspect runner <span aria-hidden="true">→</span></a>
+            </article>
+
+            <article class="evidence-card compact-card">
+              <p class="result-kind">Finite strain</p>
+              <h3><code>neo_hookean_block</code></h3>
+              <p class="metric"><strong>0.855918</strong><span>computed lateral stretch</span></p>
+              <p class="metric comparison"><strong>0.855918</strong><span>traction-free oracle</span></p>
+              <p class="micro-result">Relative difference: <code>5.45e-15</code></p>
+              <p class="boundary-copy">
+                This checks the stated block formulation and oracle, not broad finite-strain coverage.
+              </p>
+              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/neo_hookean_block">Inspect runner <span aria-hidden="true">→</span></a>
+            </article>
+
+            <article class="evidence-card compact-card">
+              <p class="result-kind">Curved geometry</p>
+              <h3><code>curved_annulus</code></h3>
+              <p class="metric solo"><strong>2.02</strong><span>last observed convergence rate</span></p>
+              <p class="boundary-copy">
+                The run compares with the exact axisymmetric Lamé field. It supports this
+                discretization study, not a general curved-mesh accuracy claim.
+              </p>
+              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/curved_annulus">Inspect runner <span aria-hidden="true">→</span></a>
+            </article>
+
+            <article class="evidence-card hertz-card">
+              <div class="hertz-copy">
+                <p class="result-kind">Normal contact · analytic law</p>
+                <h3>Rigid-sphere Hertz check</h3>
+                <p>
+                  A rigid sphere indents a deformable Hex8 block. The force trend is
+                  compared with <span class="nowrap">F ∝ δ<sup>3/2</sup></span> at five prescribed approaches.
+                </p>
+                <div class="hertz-stats">
+                  <p><strong>1.598</strong><span>FE log–log slope</span></p>
+                  <p><strong>1.10–1.26</strong><span>FE / Hertz force ratio</span></p>
+                </div>
+                <p class="micro-result">Hertz reference slope: <strong>1.500</strong></p>
+                <p class="boundary-copy">
+                  The coarse, finite-depth block is intentionally stiffer than a half-space;
+                  the prefactor comparison therefore uses the documented loose band. This is
+                  not a mesh-converged contact-pressure study.
+                </p>
+                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/hertz_contact">Inspect runner and equations <span aria-hidden="true">→</span></a>
+              </div>
+
+              <figure class="hertz-figure">
+                <svg
+                  class="hertz-chart"
+                  viewBox="0 0 640 340"
+                  role="img"
+                  aria-labelledby="hertz-chart-title hertz-chart-desc"
+                >
+                  <title id="hertz-chart-title">Finite-element and Hertz normal force by prescribed approach</title>
+                  <desc id="hertz-chart-desc">
+                    Five current-revision values. At approaches 0.020, 0.035, 0.050,
+                    0.065, and 0.080, finite-element forces are 0.0643, 0.1577,
+                    0.2690, 0.4286, and 0.5885; Hertz forces are 0.0586, 0.1357,
+                    0.2317, 0.3434, and 0.4689.
+                  </desc>
+
+                  <g class="chart-grid" aria-hidden="true">
+                    <line x1="82" y1="264" x2="586" y2="264"></line>
+                    <line x1="82" y1="198" x2="586" y2="198"></line>
+                    <line x1="82" y1="132" x2="586" y2="132"></line>
+                    <line x1="82" y1="66" x2="586" y2="66"></line>
+                  </g>
+                  <g class="chart-axes" aria-hidden="true">
+                    <line x1="82" y1="48" x2="82" y2="264"></line>
+                    <line x1="82" y1="264" x2="592" y2="264"></line>
+                  </g>
+                  <g class="chart-labels" aria-hidden="true">
+                    <text x="66" y="269">0</text>
+                    <text x="47" y="203">0.2</text>
+                    <text x="47" y="137">0.4</text>
+                    <text x="47" y="71">0.6</text>
+                    <text x="77" y="287">.020</text>
+                    <text x="197" y="287">.035</text>
+                    <text x="317" y="287">.050</text>
+                    <text x="437" y="287">.065</text>
+                    <text x="557" y="287">.080</text>
+                    <text class="axis-title" x="307" y="320">Prescribed approach, δ</text>
+                    <text class="axis-title" transform="translate(17 188) rotate(-90)">Normal force</text>
+                  </g>
+
+                  <polyline class="theory-line" points="90,244.7 210,219.2 330,187.5 450,150.7 570,109.2"></polyline>
+                  <polyline class="fe-line" points="90,242.8 210,212.0 330,175.2 450,122.6 570,69.8"></polyline>
+                  <g class="theory-dots" aria-hidden="true">
+                    <circle cx="90" cy="244.7" r="4"></circle>
+                    <circle cx="210" cy="219.2" r="4"></circle>
+                    <circle cx="330" cy="187.5" r="4"></circle>
+                    <circle cx="450" cy="150.7" r="4"></circle>
+                    <circle cx="570" cy="109.2" r="4"></circle>
+                  </g>
+                  <g class="fe-dots" aria-hidden="true">
+                    <circle cx="90" cy="242.8" r="5"></circle>
+                    <circle cx="210" cy="212.0" r="5"></circle>
+                    <circle cx="330" cy="175.2" r="5"></circle>
+                    <circle cx="450" cy="122.6" r="5"></circle>
+                    <circle cx="570" cy="69.8" r="5"></circle>
+                  </g>
+                  <g class="chart-legend" aria-hidden="true">
+                    <line class="fe-line" x1="365" y1="26" x2="397" y2="26"></line>
+                    <text x="404" y="31">CoupFE</text>
+                    <line class="theory-line" x1="487" y1="26" x2="519" y2="26"></line>
+                    <text x="526" y="31">Hertz</text>
+                  </g>
+                </svg>
+                <figcaption>Current-revision runner values; axes use the example's stated parameter set.</figcaption>
+              </figure>
+            </article>
+
+            <article class="evidence-card contact-card">
+              <div>
+                <p class="result-kind">Grouped 3-D contact examples</p>
+                <h3>Collision and smoothed friction</h3>
+                <p>
+                  Two serial Hex8 demonstrations compose bulk elements, inertia, and a
+                  deformable barrier operator through the same core contract.
+                </p>
+              </div>
+              <dl class="contact-results">
+                <div>
+                  <dt>Collision minimum gap</dt>
+                  <dd>
+                    <span class="contact-value"><code>2.166e-02</code></span>
+                    <span class="contact-explanation">Below the barrier band and above zero in this trajectory.</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Friction slip ratio</dt>
+                  <dd>
+                    <span class="contact-value">0.65</span>
+                    <span class="contact-explanation">Smoothed-friction interface slip divided by the frictionless run.</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Friction-run minimum gap</dt>
+                  <dd>
+                    <span class="contact-value">3.495 × 10<sup>−2</sup></span>
+                    <span class="contact-explanation">Positive in the retained example rerun.</span>
+                  </dd>
+                </div>
+              </dl>
+              <p class="contact-boundary">
+                These are coarse, focused research demonstrations with the documented
+                material, time-step, barrier, and loading choices. They do not establish
+                general self-contact, acceleration parity, no-locking behavior, or
+                production-scale contact performance.
+              </p>
+              <div class="text-links">
+                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/contact_3d_blocks">Collision source <span aria-hidden="true">→</span></a>
+                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/contact_3d_friction">Friction source <span aria-hidden="true">→</span></a>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section boundary-section" id="scope" aria-labelledby="boundary-title">
+        <div class="shell boundary-grid">
+          <div class="boundary-intro">
+            <p class="eyebrow">A deliberate boundary</p>
+            <h2 id="boundary-title">Core owns reusable numerical contracts.</h2>
+            <p>
+              The application remains responsible for the engineering model around those
+              contracts. This keeps Core small without treating integration work as trivial.
+              No general mesh-software adapter is part of Core.
+            </p>
+            <p class="scope-note">
+              Core does not provide a general CAD, Gmsh, DMPlex, Abaqus-input,
+              or results-file adapter.
+            </p>
+            <a class="inline-button" href="https://github.com/tengzhang48/CoupFE/blob/main/docs/capabilities.md">Read the complete capability matrix</a>
+          </div>
+
+          <div class="ownership-grid">
+            <article class="ownership-card owns">
+              <p class="ownership-label">Core owns</p>
+              <ul>
+                <li>operator composition and sparse assembly;</li>
+                <li>serial drivers and scoped PETSc/MPI paths;</li>
+                <li>compiled-element evaluation and state interfaces;</li>
+                <li>affine algebra, compact mesh views, and regular-mesh utilities;</li>
+                <li>contact operators and search primitives; and</li>
+                <li>build-time UEL, UMAT, and native-kernel generation.</li>
+              </ul>
+            </article>
+            <article class="ownership-card applications">
+              <p class="ownership-label">Applications own</p>
+              <ul>
+                <li>authoritative geometry and mesh-tool integration;</li>
+                <li>physical labels, materials, loads, and boundary semantics;</li>
+                <li>units, parameter provenance, and loading protocols;</li>
+                <li>vendor formats, CAD association, and result translation;</li>
+                <li>model-specific verification and validation; and</li>
+                <li>outputs, review records, and engineering decisions.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <div class="shell mpi-strip" aria-labelledby="mpi-title">
+          <div>
+            <p class="eyebrow light">Distributed execution</p>
+            <h3 id="mpi-title">Rerunnable PETSc/MPI smoke programs are included.</h3>
+          </div>
+          <p>
+            The public paths cover scoped bulk, contact, dynamics, friction, and
+            serial-versus-rank diagnostics. No retained final-revision multi-rank
+            qualification or scaling record is published. There is also no retained
+            large-scale benchmark or general performance claim.
+          </p>
+          <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/mpi_smoke">Inspect MPI programs <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+
+      <section class="section start-section" id="start" aria-labelledby="start-title">
+        <div class="shell start-grid">
+          <div>
+            <p class="eyebrow">Start with the small path</p>
+            <h2 id="start-title">Install, run one example, then inspect its evidence boundary.</h2>
+            <p>
+              The base package needs NumPy and SciPy. Compiled elements need a compatible
+              Fortran toolchain; code generation and PETSc/MPI are optional environments.
+              This static website does not run CoupFE in the browser.
+            </p>
+          </div>
+          <div class="install-panel" aria-label="Installation commands">
+            <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+            <pre><code>git clone https://github.com/tengzhang48/CoupFE.git
+cd CoupFE
+pip install -e ".[dev,runtime,codegen,performance]"
+python examples/linear_bar/run.py
+python -m pytest -q -m "not slow"</code></pre>
+          </div>
+        </div>
+
+        <div class="shell docs-grid" aria-label="Project documentation">
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/install.md"><strong>Installation</strong><span>Toolchains and optional environments</span></a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/DESIGN.md"><strong>Design</strong><span>Architecture and ownership boundary</span></a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/api.md"><strong>Public API</strong><span>Calls and current limitations</span></a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/examples/REFERENCES.md"><strong>Evidence ledger</strong><span>Example roles, references, and provenance</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div>
+          <a class="brand footer-brand" href="#top">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>CoupFE</span>
+          </a>
+          <p>A compact finite-element scaffold from CoupMech Lab.</p>
+          <p class="footer-status">v0.0.1 · active alpha</p>
+        </div>
+        <nav aria-label="Project resources">
+          <a href="https://github.com/tengzhang48/CoupFE">GitHub</a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/README.md">README</a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/status.md">Status</a>
+          <a href="https://github.com/tengzhang48/CoupFE/issues">Issues</a>
+        </nav>
+        <nav aria-label="Licenses and attribution">
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/LICENSE">Apache-2.0 source</a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/LICENSE-DOCS.md">CC BY 4.0 documentation</a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/LICENSE-ABAQUS-UFL-EXAMPLES">MIT paper-example ports</a>
+          <a href="https://github.com/tengzhang48/CoupFE/blob/main/NOTICE">Notice and credits</a>
+        </nav>
+      </div>
+      <div class="shell footer-bottom">
+        <p>
+          Source and examples are Apache-2.0 except where identified; documentation
+          prose and figures are CC BY 4.0. A formal CFF citation record has not yet
+          been selected; cite the versioned repository and use the linked documentation
+          attribution. See the notices for full scope.
+        </p>
+        <a href="#top">Back to top <span aria-hidden="true">↑</span></a>
+      </div>
+    </footer>
+  </body>
+</html>

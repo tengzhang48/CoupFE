@@ -4,6 +4,7 @@ include LICENSE-ABAQUS-UFL-EXAMPLES
 include NOTICE
 include README.md
 include .github/scripts/check_release_artifacts.py
+include .github/scripts/check_site.py
 recursive-include coupfe *.py *.for *.f90
 # Core ships only mesh-agnostic affine constraint algebra. Periodic box,
 # matching, and mesh-adapter policy live in consuming application packages.
@@ -13,6 +14,7 @@ recursive-include examples *.py *.md *.csv *.json *.for
 # unresolved. Comparisons must use COUPFE_RING_REFERENCE_CSV instead.
 exclude examples/ring_compress/abaqus_ring_compress_reactions.csv
 recursive-include skills *.md
+recursive-include site *.html *.css *.json
 include validation/README.md
 
 prune tests

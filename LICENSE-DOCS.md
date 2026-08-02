@@ -5,9 +5,10 @@ this repository are licensed under the [Creative Commons Attribution 4.0
 International Public License][cc-by-4.0] (CC BY 4.0).
 
 This scope includes `README.md`, Markdown files under `docs/`, `skills/`, and
-`examples/`, and other documentation prose shipped in the repository. Source
-code, generated source, configuration, test code, numerical data, and code
-snippets are licensed under the repository's [Apache License 2.0](LICENSE).
+`examples/`, and the documentation prose and inline figure in `site/index.html`.
+Source code, generated source, configuration, style sheets, test code,
+numerical data, and code snippets are licensed under the repository's
+[Apache License 2.0](LICENSE).
 Code snippets embedded in documentation may be used under Apache-2.0 instead
 of CC BY 4.0.
 
