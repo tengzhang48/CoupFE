@@ -135,6 +135,30 @@ is no retained final-revision multi-rank record in this release.
 See [`skills/distributed.md`](distributed.md) for environment and evidence
 requirements.
 
+## Analytic contact benchmarks
+
+Match the continuum model before tuning the contact algorithm:
+
+1. Write the implemented constitutive law and derive its infinitesimal tangent.
+   Map `E` and `nu` to the coefficients that the kernel actually consumes;
+   never infer physical bulk modulus from a property name alone.
+2. Match dimensionality, indenter/body compliance, geometry, friction,
+   boundary conditions, and the load definition used by the analytic oracle.
+3. Resolve the expected contact patch with several elements and vary both mesh
+   and domain size. A finite fixed block is not an elastic half-space merely
+   because its force is near one Hertz point.
+4. Vary penalty or barrier parameters separately from mesh/domain changes, and
+   retain penetration, free-DOF residual, and action/reaction balance.
+5. Define the observable before solving. Total reaction may be meaningful while
+   the radius of every nominally active node remains quantized and unstable.
+   Use a reaction-aware footprint extractor only after documenting its threshold
+   and refinement behavior.
+
+For a solver-backed figure, use the actual solved coordinates and fields. State
+the deformation scale. Discrete nodal reactions may be shown as markers, but do
+not label them as pressure, traction, or stress without a documented recovery
+method and a convergence check for that recovered quantity.
+
 ## Validation ladder
 
 Build contact evidence from small independent checks before an end-to-end
@@ -144,8 +168,9 @@ collision:
 2. residual/tangent consistency on a frozen branch;
 3. action/reaction balance and orientation controls;
 4. collision-bound checks;
-5. analytic or independently derived limits such as Hertz or capstan relations;
-6. mesh/time-step/refinement trends where discretization matters; and
+5. analytic or independently derived limits such as Hertz or capstan relations,
+   after matching the implemented material tangent and boundary assumptions;
+6. mesh, domain, penalty, time-step, and extractor trends where they matter; and
 7. an end-to-end example with explicit convergence and feasibility gates.
 
 The public contact entries and their evidence are indexed in

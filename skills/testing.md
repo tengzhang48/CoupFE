@@ -111,6 +111,25 @@ Set tolerances from the expected source of error:
 - discretization error for a continuum solution; or
 - solver tolerance and conditioning for a serial-versus-rank comparison.
 
+## Analytic benchmark controls
+
+Before accepting a continuum benchmark such as Hertz contact:
+
+- derive the linearized parameters of the implemented constitutive law and
+  confirm they equal the parameters used by the oracle;
+- record domain-to-feature and element-to-feature size ratios;
+- vary domain, mesh, and enforcement stiffness independently;
+- gate the quantity of interest together with the free-DOF residual and a
+  global balance such as base reaction versus contact reaction; and
+- test the extractor itself, especially when one barely active node can set a
+  patch radius or a singular point can set a peak field.
+
+Use a plausible parameter-convention error as a broken control when it matches
+the defect class: for example, replace the Lamé coefficient required by a
+`ln(J)` term with physical bulk modulus and require the physics gate to fail.
+Do not compensate for that failure by changing penalty stiffness or widening
+the benchmark tolerance.
+
 ## Cross-backend and external comparisons
 
 For an Abaqus or other solver comparison, match and record:

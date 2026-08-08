@@ -257,6 +257,39 @@ Small-scale exact-stick research calls live in
 They use a linear bulk matrix and lagged normal data; they are not the general
 nonlinear or distributed contact driver.
 
+### Hertz example evidence record
+
+The retained Hertz benchmark has a source-tree helper for reproducible evidence;
+it is an example interface, not a name exported by `coupfe`:
+
+```python
+from examples.hertz_contact.run import run_hertz
+
+evidence = run_hertz(deltas=(0.03, 0.05, 0.07))
+```
+
+`run_hertz(...)` compiles and solves the finite Hex8 model, then returns:
+
+- `configuration`: material parameters, block and mesh dimensions, penalty,
+  and problem size;
+- `deltas`, `force_fe`, `force_hertz`, `force_ratios`, and `fit_slope`;
+- `cases`: Newton iterations, free-DOF residual, base/contact force-balance
+  error, penetration, and active-node diagnostics for every load; and
+- `snapshot`: reference/deformed nodes, displacement, connectivity, boundary
+  node IDs, gaps, and discrete nodal reactions for the final load.
+
+`solve_hertz(...)` retains the earlier compact
+`(deltas, force_fe, active_node_radius)` return. The richer record is preferred
+for tests and figures. `render_hertz_svg(evidence, output_path)` in the adjacent
+`render.py` writes the solver-backed SVG without rerunning when an evidence
+record is supplied.
+
+The reaction arrays are defined on `snapshot["top_nodes"]`. They are discrete
+penalty-node quantities, not a continuous pressure reconstruction, and
+`active_node_radius` is a mesh diagnostic rather than a qualified contact-radius
+extractor. The complete setup and evidence boundary are in
+[`../examples/hertz_contact/README.md`](../examples/hertz_contact/README.md).
+
 ## Build-time code generation
 
 Install the `codegen` extra and import `coupfe.codegen` for:

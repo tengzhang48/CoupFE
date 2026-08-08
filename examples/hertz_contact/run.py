@@ -1,23 +1,23 @@
-"""Hertz contact — the quantitative analytic benchmark for CoupFE normal contact.
+"""Hertz contact: a quantitative normal-contact check for CoupFE.
 
-A rigid **sphere** (radius R) indents a deformable Hex8 block (a half-space) by a
-prescribed approach δ.  Hertz theory gives the normal force in closed form::
+A rigid sphere of radius ``R`` indents a finite Hex8 block that approximates an
+elastic half-space.  For a rigid indenter, classical Hertz theory gives
 
-    F(δ) = (4/3) · E* · √R · δ^(3/2),     1/E* = (1-ν²)/E   (rigid indenter)
+``F(delta) = (4/3) E* sqrt(R) delta**(3/2)`` and
+``1/E* = (1 - nu**2)/E``.
 
-so a log–log fit of F vs δ must have **slope 3/2** and the prefactor must match
-`(4/3)E*√R`.  Run from the repo root::
+The retained model uses the same ``E`` and ``nu`` in the finite-element and
+analytic calculations.  Its block is deliberately larger than the contact
+patch but remains finite, and contact is enforced by discrete nodal penalty
+springs.  The force law is therefore the validation observable; the radius of
+the outermost active node is reported only as a mesh-resolution diagnostic.
+
+Run from the repository root::
 
     PYTHONPATH=. python examples/hertz_contact/run.py
 
-This is a genuinely *quantitative* check (unlike the qualitative ppf cross-check
-in `examples/contact_vs_ppf/`), but on a **coarse** mesh with a **finite** block,
-so the tolerance is loose: a finite-depth block with a fixed base is stiffer than
-a true half-space, biasing F **above** Hertz, and a coarse contact patch
-under-resolves the pressure.  The robust, mesh-insensitive signal is the
-**exponent 3/2**; the prefactor is checked within a loose band.
-
-Self-reports ``OK`` / ``FAIL``.
+The example self-reports ``OK`` or ``FAIL``.  See the adjacent README for the
+model boundary and the solver-backed figure.
 """
 from __future__ import annotations
 
@@ -31,15 +31,19 @@ from coupfe.runtime.compiled_element import CompiledElement, build_element_kerne
 
 _HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"
 
-# material (E, ν) -> (G, K) for the neo-Hookean kernel; E* for a rigid indenter
+# Material.  The kernel evaluates
+#   P = G (F - F^-T) + lambda ln(J) F^-T,
+# so its second property is the first Lame coefficient, not the physical bulk
+# modulus.  These conversions make the kernel's infinitesimal tangent match the
+# E and nu used by the Hertz oracle.
 E, NU = 10.0, 0.3
 G = E / (2.0 * (1.0 + NU))
-K_BULK = E / (3.0 * (1.0 - 2.0 * NU))
+LAME_LAMBDA = E * NU / ((1.0 + NU) * (1.0 - 2.0 * NU))
 E_STAR = E / (1.0 - NU * NU)
 
 R_SPHERE = 2.0
-LX, LY, LZ = 2.0, 2.0, 1.5
-NX, NY, NZ = 12, 12, 5
+LX, LY, LZ = 2.5, 2.5, 2.4
+NX, NY, NZ = 16, 16, 8
 PENALTY = 1.0e3
 DELTAS = (0.02, 0.035, 0.05, 0.065, 0.08)
 
@@ -54,71 +58,229 @@ def _block_mesh(nx, ny, nz, Lx, Ly, Lz):
     def nid(i, j, k):
         return k * nnx * nny + j * nnx + i
 
-    elems = [[nid(i, j, k), nid(i+1, j, k), nid(i+1, j+1, k), nid(i, j+1, k),
-              nid(i, j, k+1), nid(i+1, j, k+1), nid(i+1, j+1, k+1), nid(i, j+1, k+1)]
-             for k in range(nz) for j in range(ny) for i in range(nx)]
-    return nodes, np.array(elems, int), nnx, nny
+    elems = [
+        [
+            nid(i, j, k),
+            nid(i + 1, j, k),
+            nid(i + 1, j + 1, k),
+            nid(i, j + 1, k),
+            nid(i, j, k + 1),
+            nid(i + 1, j, k + 1),
+            nid(i + 1, j + 1, k + 1),
+            nid(i, j + 1, k + 1),
+        ]
+        for k in range(nz)
+        for j in range(ny)
+        for i in range(nx)
+    ]
+    return nodes, np.array(elems, int)
 
 
 def hertz_force(delta):
-    return (4.0 / 3.0) * E_STAR * np.sqrt(R_SPHERE) * delta ** 1.5
+    """Return the rigid-sphere Hertz force for scalar or array ``delta``."""
+
+    return (4.0 / 3.0) * E_STAR * np.sqrt(R_SPHERE) * np.asarray(delta) ** 1.5
 
 
-def solve_hertz(deltas=DELTAS, *, verbose=False):
-    """Indent the block by each δ; return ``(deltas, F_FE, a_FE)`` arrays."""
-    nodes, elems, _, _ = _block_mesh(NX, NY, NZ, LX, LY, LZ)
+def analyze(deltas, force_fe):
+    """Return the fitted log-log slope and ``F_FE/F_Hertz`` ratios."""
+
+    deltas = np.asarray(deltas, dtype=float)
+    force_fe = np.asarray(force_fe, dtype=float)
+    slope, _ = np.polyfit(np.log(deltas), np.log(force_fe), 1)
+    return float(slope), force_fe / hertz_force(deltas)
+
+
+def run_hertz(deltas=DELTAS, *, verbose=False):
+    """Solve the retained load series and return fields plus force-law evidence.
+
+    The returned ``snapshot`` is the final solved load.  Contact values are
+    discrete nodal penalty reactions, not a reconstructed pressure field.
+    ``solve_hertz`` remains the compact tuple-returning compatibility wrapper.
+    """
+
+    deltas = np.asarray(tuple(deltas), dtype=float)
+    if deltas.ndim != 1 or deltas.size < 2 or not np.all(np.isfinite(deltas)):
+        raise ValueError("deltas must contain at least two finite values")
+    if np.any(deltas <= 0.0) or np.any(np.diff(deltas) <= 0.0):
+        raise ValueError("deltas must be strictly increasing and positive")
+
+    nodes, elems = _block_mesh(NX, NY, NZ, LX, LY, LZ)
     nn = len(nodes)
-    top = np.nonzero(np.abs(nodes[:, 2] - LZ) < 1e-9)[0]      # contact face
-    bottom = np.nonzero(np.abs(nodes[:, 2]) < 1e-9)[0]        # fixed base
+    top = np.flatnonzero(np.abs(nodes[:, 2] - LZ) < 1.0e-9)
+    bottom = np.flatnonzero(np.abs(nodes[:, 2]) < 1.0e-9)
     view = KernelMeshView(nodes, elems, dof_per_node=3)
     ndof = view.ndof
-    elem = CompiledElement(build_element_kernel(_HEX8_FOR, "nh_hex8_hertz"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=0,
-                           mcrd=3, n_elem=len(elems))
-    grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
-    dirichlet = {int(n) * 3 + c: 0.0 for n in bottom for c in (0, 1, 2)}
+    elem = CompiledElement(
+        build_element_kernel(_HEX8_FOR, "nh_hex8_hertz"),
+        props=(G, LAME_LAMBDA),
+        dof_per_node=3,
+        n_svars=0,
+        mcrd=3,
+        n_elem=len(elems),
+    )
+    group = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
+    dirichlet = {int(node) * 3 + comp: 0.0 for node in bottom for comp in (0, 1, 2)}
+    constrained = np.array(sorted(dirichlet), dtype=int)
     cx, cy = LX / 2.0, LY / 2.0
 
     if verbose:
-        print(f"Hertz: rigid sphere R={R_SPHERE} on a {NX}x{NY}x{NZ} block, E*={E_STAR:.3f}")
-        print(f"{'delta':>8} {'F_FE':>10} {'F_Hertz':>10} {'F_FE/F_H':>9} {'a_FE':>7} {'a_H':>7}")
-    U = np.zeros(ndof)
-    F_fe, a_fe_list = [], []
-    for d in deltas:
-        z_c = LZ - d + R_SPHERE                               # sphere indents top by d
-        sphere = Sphere([cx, cy, z_c], R_SPHERE)
-        contact = RigidContact(nodes, top, sphere, dof_per_node=3,
-                               comps=(0, 1, 2), k=PENALTY, mu=0.0)
-        U, _, _ = newton_solve([grp, contact], U, None, ndof, dirichlet, t=1.0, dt=1.0)
-        # total normal force = the fixed-base vertical reaction (= the contact load)
-        R_int, _ = assemble_residual([grp], U, None, 1.0, 1.0, ndof)
-        F = abs(float(np.sum(R_int[bottom * 3 + 2])))
-        pos = nodes + U.reshape(nn, 3)
-        pen = np.array([float(sphere.gap(pos[int(t_)])) < 0 for t_ in top])
-        rad = np.sqrt((pos[top, 0] - cx) ** 2 + (pos[top, 1] - cy) ** 2)
-        a_fe = float(rad[pen].max()) if pen.any() else 0.0
-        F_fe.append(F); a_fe_list.append(a_fe)
+        print(
+            f"Hertz: rigid sphere R={R_SPHERE} on a {NX}x{NY}x{NZ} Hex8 block, "
+            f"E*={E_STAR:.3f}"
+        )
+        print(
+            f"{'delta':>8} {'F_FE':>10} {'F_Hertz':>10} {'F_FE/F_H':>9} "
+            f"{'active':>7} {'a_node':>8}"
+        )
+
+    displacement = np.zeros(ndof)
+    cases = []
+    final_snapshot = None
+    for delta in deltas:
+        sphere_center = np.array([cx, cy, LZ - delta + R_SPHERE])
+        sphere = Sphere(sphere_center, R_SPHERE)
+        contact = RigidContact(
+            nodes,
+            top,
+            sphere,
+            dof_per_node=3,
+            comps=(0, 1, 2),
+            k=PENALTY,
+            mu=0.0,
+        )
+        displacement, _, iterations = newton_solve(
+            [group, contact],
+            displacement,
+            None,
+            ndof,
+            dirichlet,
+            t=1.0,
+            dt=1.0,
+        )
+
+        equilibrium_residual, _ = assemble_residual(
+            [group, contact], displacement, None, 1.0, 1.0, ndof
+        )
+        free_residual = equilibrium_residual.copy()
+        free_residual[constrained] = 0.0
+        free_residual_norm = float(np.linalg.norm(free_residual))
+
+        internal_residual, _ = assemble_residual(
+            [group], displacement, None, 1.0, 1.0, ndof
+        )
+        base_vertical_residual = float(np.sum(internal_residual[bottom * 3 + 2]))
+        force_fe = base_vertical_residual
+
+        nodal_displacement = displacement.reshape(nn, 3)
+        deformed_nodes = nodes + nodal_displacement
+        contact_positions = deformed_nodes[top]
+        gaps = np.asarray(sphere.gap(contact_positions), dtype=float)
+        normals = np.asarray(sphere.normal(contact_positions), dtype=float)
+        penetration = np.maximum(-gaps, 0.0)
+        normal_reaction = PENALTY * penetration
+        vertical_reaction = normal_reaction * (-normals[:, 2])
+        active = gaps < 0.0
+        radial_position = np.linalg.norm(contact_positions[:, :2] - [cx, cy], axis=1)
+        active_node_radius = float(radial_position[active].max()) if active.any() else 0.0
+        force_balance_error = abs(
+            float(np.sum(vertical_reaction)) - base_vertical_residual
+        )
+        force_reference = float(hertz_force(delta))
+
+        case = {
+            "delta": float(delta),
+            "force_fe": force_fe,
+            "force_hertz": force_reference,
+            "force_ratio": force_fe / force_reference,
+            "active_contact_nodes": int(np.count_nonzero(active)),
+            "active_node_radius": active_node_radius,
+            "hertz_radius": float(np.sqrt(R_SPHERE * delta)),
+            "newton_iterations": int(iterations),
+            "free_residual_norm": free_residual_norm,
+            "base_vertical_residual": base_vertical_residual,
+            "force_balance_error": force_balance_error,
+            "max_penetration": float(np.max(penetration)),
+        }
+        cases.append(case)
+        final_snapshot = {
+            "delta": float(delta),
+            "nodes_reference": nodes.copy(),
+            "nodes_deformed": deformed_nodes.copy(),
+            "displacement": nodal_displacement.copy(),
+            "elements": elems.copy(),
+            "top_nodes": top.copy(),
+            "bottom_nodes": bottom.copy(),
+            "contact_gap": gaps.copy(),
+            "contact_normal_reaction": normal_reaction.copy(),
+            "contact_vertical_reaction": vertical_reaction.copy(),
+            "active_contact": active.copy(),
+            "sphere_center": sphere_center.copy(),
+        }
         if verbose:
-            print(f"{d:8.3f} {F:10.4f} {hertz_force(d):10.4f} "
-                  f"{F/max(hertz_force(d),1e-30):9.3f} {a_fe:7.3f} {np.sqrt(R_SPHERE*d):7.3f}")
-    return np.asarray(deltas, float), np.asarray(F_fe), np.asarray(a_fe_list)
+            print(
+                f"{delta:8.3f} {force_fe:10.4f} {force_reference:10.4f} "
+                f"{case['force_ratio']:9.3f} {case['active_contact_nodes']:7d} "
+                f"{active_node_radius:8.3f}"
+            )
+
+    force_fe = np.array([case["force_fe"] for case in cases])
+    active_node_radius = np.array([case["active_node_radius"] for case in cases])
+    slope, force_ratios = analyze(deltas, force_fe)
+    return {
+        "configuration": {
+            "youngs_modulus": E,
+            "poisson_ratio": NU,
+            "shear_modulus": G,
+            "lame_lambda": LAME_LAMBDA,
+            "hertz_modulus": E_STAR,
+            "sphere_radius": R_SPHERE,
+            "block_size": (LX, LY, LZ),
+            "mesh_shape": (NX, NY, NZ),
+            "nodes": nn,
+            "elements": len(elems),
+            "degrees_of_freedom": ndof,
+            "penalty": PENALTY,
+        },
+        "deltas": deltas,
+        "force_fe": force_fe,
+        "force_hertz": hertz_force(deltas),
+        "force_ratios": force_ratios,
+        "fit_slope": slope,
+        "active_node_radius": active_node_radius,
+        "cases": cases,
+        "snapshot": final_snapshot,
+    }
 
 
-def analyze(deltas, F_fe):
-    """Return ``(loglog_slope, F_FE/F_Hertz ratios)``."""
-    slope, _ = np.polyfit(np.log(deltas), np.log(F_fe), 1)
-    return float(slope), F_fe / hertz_force(deltas)
+def solve_hertz(deltas=DELTAS, *, verbose=False):
+    """Return ``(deltas, F_FE, active_node_radius)`` for compatibility."""
+
+    evidence = run_hertz(deltas=deltas, verbose=verbose)
+    return evidence["deltas"], evidence["force_fe"], evidence["active_node_radius"]
 
 
 def main():
-    deltas, F_fe, _ = solve_hertz(verbose=True)
-    slope, ratios = analyze(deltas, F_fe)
-    print(f"log-log slope = {slope:.3f} (Hertz: 1.500);  "
-          f"F_FE/F_Hertz in [{ratios.min():.2f}, {ratios.max():.2f}]")
-    exponent_ok = abs(slope - 1.5) < 0.15
-    prefactor_ok = 0.7 < np.median(ratios) < 1.6     # loose: coarse mesh + finite depth
-    ok = exponent_ok and prefactor_ok
-    print(f"  exponent≈3/2: {exponent_ok}   prefactor within loose band: {prefactor_ok}")
+    evidence = run_hertz(verbose=True)
+    slope = evidence["fit_slope"]
+    ratios = evidence["force_ratios"]
+    errors_percent = 100.0 * (ratios - 1.0)
+    print(
+        f"log-log slope = {slope:.3f} (Hertz: 1.500);  "
+        f"force error in [{errors_percent.min():+.1f}%, {errors_percent.max():+.1f}%]"
+    )
+    exponent_ok = abs(slope - 1.5) < 0.08
+    force_ok = bool(np.max(np.abs(ratios - 1.0)) < 0.08)
+    solve_ok = all(
+        case["free_residual_norm"] < 1.0e-7
+        and case["force_balance_error"] < 1.0e-6
+        for case in evidence["cases"]
+    )
+    ok = exponent_ok and force_ok and solve_ok
+    print(
+        f"  exponent near 3/2: {exponent_ok}   force within 8%: {force_ok}   "
+        f"equilibrium: {solve_ok}"
+    )
     print("OK" if ok else "FAIL")
     return ok
 

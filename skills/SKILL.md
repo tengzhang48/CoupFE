@@ -1,3 +1,8 @@
+---
+name: coupfe-development
+description: Engineering workflow for implementing, debugging, testing, documenting, and presenting CoupFE operators, materials, solvers, contact examples, and validation evidence. Use when changing CoupFE source, tests, benchmark claims, or solver-backed figures.
+---
+
 # CoupFE development skill
 
 Read this before adding an operator, a material, or a solver feature. It ships
@@ -51,6 +56,9 @@ not as a substitute for investigating either.
   measure before escalating, the contract is acceleration-agnostic.
 - `skills/contact.md` — contact + dynamics (freeze the discrete / complex-step the smooth;
   cubic barrier + CCD; capacity-vs-conditioning; dynamics as the substrate + dynamic relaxation).
+  For an analytic contact benchmark, also read `skills/testing.md`; derive the
+  material-parameter mapping from the implemented tangent before tuning contact
+  or solver parameters.
 
 The math behind it all is in `docs/theory/` (`contact_dynamics.md`, `framework.md`).
 

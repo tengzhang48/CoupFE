@@ -162,13 +162,23 @@ meaning. See [`contact.md`](contact.md) for the currently shipped interfaces.
 A successful nonlinear solve is not by itself a validation result. For a
 contact comparison:
 
+- derive the small-strain tangent of the implemented material and map the
+  oracle's `E` and `nu` to those exact kernel coefficients; physical bulk
+  modulus and the first Lamé coefficient are not interchangeable;
 - refine or grade the mesh where the contact patch is expected;
+- vary finite-domain size separately from mesh and contact enforcement;
 - measure patch width from meaningful reactions rather than every nominally
-  active node;
+  active node, and document any reaction threshold;
+- gate free-DOF residual and action/reaction balance alongside the benchmark
+  observable;
 - reproduce the loading history used by a path-dependent reference solution;
 - match material, interface, dimensional, and boundary assumptions; and
 - retain the input, environment, raw output, and acceptance rule for any result
   described as validation.
+
+In visual evidence, identify actual solver fields and the deformation scale.
+Nodal penalty reactions are not a recovered pressure field, and an active-node
+footprint is not automatically a converged contact radius.
 
 Some CoupFE examples are deliberately labeled `RESEARCH`: they exercise useful
 paths but do not yet carry that complete evidence package.

@@ -99,6 +99,34 @@ oracle merely because displacement appears stable.
 
 Convergence studies must test refinement trends, not tune a band around one mesh.
 
+## Match an analytic benchmark at the constitutive tangent
+
+An analytic oracle and a finite-element model must use the same effective
+parameters, not merely variables with familiar names. For the retained Hertz
+example, the compiled law is
+`P = G(F - F^-T) + lambda ln(J) F^-T`; the coefficient of `ln(J)` has the
+infinitesimal role of the first Lamé coefficient `lambda`. Supplying the physical
+bulk modulus there silently changes both the effective Young's modulus and
+Poisson ratio seen by the contact calculation.
+
+Derive the small-strain tangent of a finite-strain law before translating
+`E` and `nu`, and preserve that conversion beside the call site. A symbol such
+as `K` in an implementation is not evidence that it means physical bulk
+modulus. Include a structural broken control that substitutes the plausible
+wrong convention and verify that the benchmark rejects it.
+
+After matching the material, separate the remaining errors. Check domain size,
+mesh resolution across the expected contact patch, penalty sensitivity,
+nonlinear residual, and global force balance independently. A boolean active
+set is often a poor footprint extractor: one marginal outer node or ring can
+set the reported radius while carrying negligible reaction. Define extractors
+from the quantity that supports the claim and study their refinement behavior.
+
+Apply the same discipline to figures. Plot solved fields and reactions directly,
+state the deformation scale, and label discrete nodal forces as nodal forces.
+Do not relabel them as pressure or stress unless a documented reconstruction
+and an appropriate convergence check establish that quantity.
+
 ## Keep code generation at build time
 
 `coupfe.codegen` defines materials and weak forms and emits self-contained

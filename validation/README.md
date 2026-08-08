@@ -32,7 +32,8 @@ The shipped suite includes focused checks for:
 - UEL/UMAT generation, deterministic generated source, compilation, state, and
   reference-assembly behavior for the examples that claim those checks; and
 - analytic or independently implemented checks for selected examples such as
-  the linear bar, curved annulus, Hertz contact, and material-point paths.
+  the linear bar, curved annulus, finite-block Hertz normal-force check, and
+  material-point paths.
 
 `examples/mpi_smoke/` contains rerunnable MPI programs. They are useful for
 qualifying a concrete PETSc/MPI installation, but this release does not publish

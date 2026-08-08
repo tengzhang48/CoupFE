@@ -62,7 +62,7 @@ share a formulation. They are not independent physical validation. See
 |---|---|---|
 | `contact_3d_blocks` | **RESEARCH** | `run.py`; tested 3-D deformable collision path with optional acceleration. |
 | `contact_3d_friction` | **RESEARCH** | `run.py`; tested 3-D smoothed-friction path with optional acceleration. |
-| `hertz_contact` | **READY** | `run.py`; normal-contact check against the stated Hertz law, with coarse-mesh limits documented. |
+| `hertz_contact` | **READY** | `run.py`; finite-block normal-contact force check against the stated Hertz law. `render.py` regenerates the solver-backed field/force figure; the README states the mesh and contact-radius limitations. |
 | `ring_compress` | **RESEARCH** | `reproduce.py` / `reproduce_dynamics.py`; manual workflow requiring a user-supplied input deck. |
 | `contact_vs_ppf` | **RESEARCH** | `ppf_reference.py` plus local comparison scripts; interoperability recipe, not retained quantitative evidence. |
 | `compression_cylinders` | **RESEARCH** | `run.py`; qualitative many-body workflow requiring a user-obtained source deck. |

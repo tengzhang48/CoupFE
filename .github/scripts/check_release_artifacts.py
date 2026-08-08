@@ -275,6 +275,8 @@ PUBLIC_EXAMPLE_FILES = {
     "examples/gel_chester_anand/paper_example_record.json",
     "examples/gel_chester_anand/u_p_mu_quad8/build.py",
     "examples/gel_chester_anand/u_p_mu_quad8/chester_anand_upmu_quad8_uel.for",
+    "examples/hertz_contact/README.md",
+    "examples/hertz_contact/render.py",
     "examples/hertz_contact/run.py",
     "examples/j2_plasticity_uel/build.py",
     "examples/linear_bar/bar.py",
@@ -352,6 +354,7 @@ PUBLIC_EXAMPLE_FILES = {
 }
 
 PUBLIC_DOC_FILES = {
+    "docs/assets/hertz-contact-benchmark.svg",
     "docs/DESIGN.md",
     "docs/api.md",
     "docs/capabilities.md",

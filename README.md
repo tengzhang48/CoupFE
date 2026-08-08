@@ -79,6 +79,18 @@ standalone example. See [`examples/README.md`](examples/README.md) for
 entry points and [`examples/REFERENCES.md`](examples/REFERENCES.md) for the
 evidence and attribution boundary.
 
+## A quantitative contact check
+
+![Rigid-sphere Hertz contact on a finite Hex8 block](docs/assets/hertz-contact-benchmark.svg)
+
+The retained Hertz example compares a real `16 × 16 × 8` Hex8 contact solve
+with the rigid-sphere force law. Its five-point force error is `+1.3%` to
+`+6.2%`, and its fitted log-log exponent is `1.533` versus the analytic `1.500`.
+The field panel shows the true-scale deformed mesh and actual nodal contact
+reactions; it does not imply a reconstructed pressure field. See the
+[`hertz_contact` example](examples/hertz_contact/README.md) for the setup,
+reproduction command, and finite-block/mesh limitations.
+
 No mesh-software dependency or general-purpose mesh adapter is part of Core.
 For example, the morphing case contains a narrow, read-only extractor for a
 user-supplied Abaqus mesh; it is not a general Abaqus input translator.
