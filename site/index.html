@@ -258,16 +258,16 @@
                   compared with <span class="nowrap">F ∝ δ<sup>3/2</sup></span> at five prescribed approaches.
                 </p>
                 <div class="hertz-stats">
-                  <p><strong>1.598</strong><span>FE log–log slope</span></p>
-                  <p><strong>1.10–1.26</strong><span>FE / Hertz force ratio</span></p>
+                  <p><strong>1.533</strong><span>FE log–log slope</span></p>
+                  <p><strong>1.01–1.06</strong><span>FE / Hertz force ratio</span></p>
                 </div>
-                <p class="micro-result">Hertz reference slope: <strong>1.500</strong></p>
+                <p class="micro-result">Force error: <strong>+1.3% to +6.2%</strong> · Hertz slope: <strong>1.500</strong></p>
                 <p class="boundary-copy">
-                  The coarse, finite-depth block is intentionally stiffer than a half-space;
-                  the prefactor comparison therefore uses the documented loose band. This is
-                  not a mesh-converged contact-pressure study.
+                  The 16 × 16 × 8 finite block and discrete nodal penalty contact
+                  approximate a half-space. This is a checked normal-force comparison,
+                  not a mesh/domain-converged contact-pressure or contact-radius study.
                 </p>
-                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/hertz_contact">Inspect runner and equations <span aria-hidden="true">→</span></a>
+                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/hertz_contact">Inspect solver, field figure, and limits <span aria-hidden="true">→</span></a>
               </div>
 
               <figure class="hertz-figure">
@@ -280,8 +280,8 @@
                   <title id="hertz-chart-title">Finite-element and Hertz normal force by prescribed approach</title>
                   <desc id="hertz-chart-desc">
                     Five current-revision values. At approaches 0.020, 0.035, 0.050,
-                    0.065, and 0.080, finite-element forces are 0.0643, 0.1577,
-                    0.2690, 0.4286, and 0.5885; Hertz forces are 0.0586, 0.1357,
+                    0.065, and 0.080, finite-element forces are 0.0594, 0.1374,
+                    0.2375, 0.3645, and 0.4920; Hertz forces are 0.0586, 0.1357,
                     0.2317, 0.3434, and 0.4689.
                   </desc>
 
@@ -310,7 +310,7 @@
                   </g>
 
                   <polyline class="theory-line" points="90,244.7 210,219.2 330,187.5 450,150.7 570,109.2"></polyline>
-                  <polyline class="fe-line" points="90,242.8 210,212.0 330,175.2 450,122.6 570,69.8"></polyline>
+                  <polyline class="fe-line" points="90,244.4 210,218.6 330,185.6 450,143.7 570,101.7"></polyline>
                   <g class="theory-dots" aria-hidden="true">
                     <circle cx="90" cy="244.7" r="4"></circle>
                     <circle cx="210" cy="219.2" r="4"></circle>
@@ -319,11 +319,11 @@
                     <circle cx="570" cy="109.2" r="4"></circle>
                   </g>
                   <g class="fe-dots" aria-hidden="true">
-                    <circle cx="90" cy="242.8" r="5"></circle>
-                    <circle cx="210" cy="212.0" r="5"></circle>
-                    <circle cx="330" cy="175.2" r="5"></circle>
-                    <circle cx="450" cy="122.6" r="5"></circle>
-                    <circle cx="570" cy="69.8" r="5"></circle>
+                    <circle cx="90" cy="244.4" r="5"></circle>
+                    <circle cx="210" cy="218.6" r="5"></circle>
+                    <circle cx="330" cy="185.6" r="5"></circle>
+                    <circle cx="450" cy="143.7" r="5"></circle>
+                    <circle cx="570" cy="101.7" r="5"></circle>
                   </g>
                   <g class="chart-legend" aria-hidden="true">
                     <line class="fe-line" x1="365" y1="26" x2="397" y2="26"></line>
@@ -332,7 +332,7 @@
                     <text x="526" y="31">Hertz</text>
                   </g>
                 </svg>
-                <figcaption>Current-revision runner values; axes use the example's stated parameter set.</figcaption>
+                <figcaption>Corrected E–ν mapping; five checked finite-block runner values.</figcaption>
               </figure>
             </article>
 

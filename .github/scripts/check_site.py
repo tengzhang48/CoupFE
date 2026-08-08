@@ -101,7 +101,7 @@ def sha256(path: Path) -> str:
 
 def check_evidence(payload: dict[str, object]) -> None:
     require(payload.get("schemaVersion") == 1, "unexpected evidence schema")
-    require(payload.get("recordedDate") == "2026-08-02", "unexpected evidence date")
+    require(payload.get("recordedDate") == "2026-08-08", "unexpected evidence date")
     source_commit = payload.get("sourceCommit")
     require(
         isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
@@ -150,6 +150,27 @@ def check_evidence(payload: dict[str, object]) -> None:
     ratios = [float(fe) / float(reference) for fe, reference in zip(forces_fe, forces_hertz)]
     require(round(min(ratios), 2) == hertz.get("forceRatioMin"), "Hertz minimum ratio drifted")
     require(round(max(ratios), 2) == hertz.get("forceRatioMax"), "Hertz maximum ratio drifted")
+    force_errors = [(ratio - 1.0) * 100.0 for ratio in ratios]
+    require(
+        round(min(force_errors), 1) == hertz.get("forceErrorPercentMin"),
+        "Hertz minimum force error drifted",
+    )
+    require(
+        round(max(force_errors), 1) == hertz.get("forceErrorPercentMax"),
+        "Hertz maximum force error drifted",
+    )
+    require(hertz.get("meshShape") == [16, 16, 8], "Hertz mesh shape drifted")
+    require(
+        hertz.get("nodes") == 2601
+        and hertz.get("elements") == 2048
+        and hertz.get("degreesOfFreedom") == 7803,
+        "Hertz problem size drifted",
+    )
+    figure = hertz.get("figure")
+    require(
+        isinstance(figure, str) and (ROOT / figure).is_file(),
+        "Hertz solver-backed figure is missing",
+    )
     require(hertz.get("status") == "OK", "Hertz rerun did not pass")
 
     block = runs.get("neoHookeanBlock")
@@ -260,9 +281,10 @@ def main() -> None:
         "CREDITS.md",
         str(project["version"]),
         author,
-        "1.598",
+        "1.533",
         "1.500",
-        "1.10–1.26",
+        "1.01–1.06",
+        "+1.3% to +6.2%",
         "0.855918",
         "5.45e-15",
         "2.02",
