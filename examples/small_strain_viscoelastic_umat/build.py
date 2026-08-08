@@ -119,14 +119,15 @@ def reference_errors(model=None):
     }
 
 
-def continuous_limit_errors():
+def continuous_limit_errors(material=None):
     """Backward-Euler decay error at two step sizes for fixed total time."""
+    mat = SmallStrainViscoelastic() if material is None else material
     total_time = 1.0
     errors = []
     for dt in (0.1, 0.05):
         n_steps = int(round(total_time / dt))
-        discrete = 1.0 / (1.0 + dt / 0.5) ** n_steps
-        errors.append(abs(discrete - math.exp(-total_time / 0.5)))
+        discrete = 1.0 / (1.0 + dt / mat.tau) ** n_steps
+        errors.append(abs(discrete - math.exp(-total_time / mat.tau)))
     return tuple(errors)
 
 

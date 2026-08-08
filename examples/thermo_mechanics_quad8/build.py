@@ -18,14 +18,23 @@ from coupfe.runtime.compiled_element import build_element_kernel
 
 
 class ThermoMechanicalMaterial(au.Material):
-    """Compressible neo-Hookean mechanics with isotropic thermal pressure."""
+    """Compressible neo-Hookean mechanics with isotropic thermal pressure.
+
+    ``alpha`` is a log-volumetric thermal-expansion coefficient and ``T`` is
+    the temperature change from an implicit reference value of zero.  It is
+    therefore not the usual linear coefficient: in a three-dimensional
+    isotropic interpretation, ``alpha = 3 * alpha_linear``.
+    """
 
     props = dict(G=1.0, K=100.0, alpha=1.0e-3, kappa=0.25, cT=1.0)
 
     def stress_PK1(self, F, T):
+        """Return stress for ``T = temperature - reference_temperature``."""
         finv_t = inv(F).T
         J = det(F)
-        P_mech = self.G * (F - finv_t) + self.K * log(J) * finv_t
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        P_mech = self.G * (F - finv_t) + lame_lambda * log(J) * finv_t
+        # Thermal pressure is parameterized by physical bulk modulus K.
         P_thermal = -self.K * self.alpha * T * finv_t
         return P_mech + P_thermal
 

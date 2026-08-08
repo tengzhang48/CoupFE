@@ -8,9 +8,10 @@ Supports three modes:
    - Element: Quad4 or Hex8
    - The local pressure is stored in ``SVARS(1)`` and statically condensed from
      the element tangent before returning AMATRX/RHS.
-   - The pressure equation ``p - K*lnJ = 0`` makes ``p`` the volume-average
-     volumetric stress (L2 projection), the variationally-consistent alternative
-     to F-bar.
+   - A material-supplied pressure equation such as ``p - c*lnJ = 0`` makes
+     ``p`` the volume-average volumetric stress (L2 projection), the
+     variationally-consistent alternative to F-bar. The material declaration,
+     not this generator, defines the meaning of coefficient ``c``.
 
 2. **Mechanics with inelastic volume change** (global displacement only):
    - The material exposes ``inelastic_jacobian(F)`` returning ``J_inel``.

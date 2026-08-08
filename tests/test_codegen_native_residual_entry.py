@@ -60,15 +60,15 @@ _RK_PREFIX_SHA256 = {
 
 
 class NeoHookean(au.Material):
-    """Source form used to generate the long-standing public Quad4 kernel."""
+    """Raw ``(G, lambda)`` source for the retained public Quad4 kernel."""
 
-    props = dict(G=1.0, K=100.0)
+    props = dict(G=1.0, lame_lambda=100.0)
 
     def stress_PK1(self, F):
         J = tensor.det(F)
         return (
             self.G * (F - tensor.inv(F).T)
-            + self.K * tensor.log(J) * tensor.inv(F).T
+            + self.lame_lambda * tensor.log(J) * tensor.inv(F).T
         )
 
 
@@ -86,14 +86,14 @@ class NeoQuad4(au.WeakForm):
 
 
 class NeoHookean(au.Material):
-    """Source form used to generate the public F-bar Hex8 kernel."""
+    """Raw ``(G, lambda)`` source for the public F-bar kernels."""
 
-    props = dict(G=0.5, K=50.0)
+    props = dict(G=0.5, lame_lambda=50.0)
 
     def stress_PK1(self, F):
         J = det(F)
         FinvT = inv(F).T
-        return self.G * (F - FinvT) + self.K * log(J) * FinvT
+        return self.G * (F - FinvT) + self.lame_lambda * log(J) * FinvT
 
 
 NeoHookeanFBar = NeoHookean
@@ -123,7 +123,7 @@ class NeoQuad4FBar(au.WeakForm):
 class StatefulNeoHookean(au.Material):
     """Small stateful law used only to gate the F-bar state contract."""
 
-    props = dict(G=0.5, K=50.0)
+    props = dict(G=0.5, lame_lambda=50.0)
     state_vars = dict(alpha=0.25)
 
     def stress_PK1(self, F, alpha_old, dt):
@@ -131,7 +131,7 @@ class StatefulNeoHookean(au.Material):
         FinvT = inv(F).T
         scale = 1.0 + alpha_old
         stress = scale * (
-            self.G * (F - FinvT) + self.K * log(J) * FinvT
+            self.G * (F - FinvT) + self.lame_lambda * log(J) * FinvT
         )
         alpha_new = alpha_old + dt * log(J)
         return stress, {"alpha": alpha_new}
@@ -234,7 +234,7 @@ def test_abaqus_generation_has_no_native_residual_entry(tmp_path, kind):
 def test_vendored_abaqus_kernel_is_byte_unchanged(tmp_path):
     out = tmp_path / "neo_q4_abaqus_fbar.for"
     generate_element(
-        NeoQuad4(G=0.5, K=50.0),
+        NeoQuad4(G=0.5, lame_lambda=50.0),
         str(out),
         element="Quad4",
         formulation="fbar_mechanics",

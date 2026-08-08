@@ -44,7 +44,7 @@ share a formulation. They are not independent physical validation. See
 | `ogden_umat` | **READY — codegen proof** | `build.py`; one-term compressible spectral Ogden UMAT with principal-stretch checks. |
 | `small_strain_j2_umat` | **READY — codegen proof** | `build.py`; radial-return J2 UMAT with elastic/plastic path and state checks. |
 | `small_strain_viscoelastic_umat` | **READY — codegen proof** | `build.py`; standard-linear-solid UMAT with tensor-history and relaxation checks. |
-| `j2_plasticity_uel` | **READY — codegen proof** | `build.py`; deliberately small-strain state-schema proof. |
+| `j2_plasticity_uel` | **READY — codegen proof** | `build.py`; small-strain associative J2 state/commit proof with a yield-surface oracle. |
 | `scalar_diffusion_uel` | **READY — codegen proof** | `build.py`; synthetic thermo-mechanical/Fourier coupling form. |
 | `thermo_mechanics_quad8` | **READY — codegen proof** | `build.py`; synthetic displacement-temperature form. |
 | `phasefield_fracture_uel` | **RESEARCH** | `build.py`; simplified AT2-style codegen demonstration, not fracture validation. |

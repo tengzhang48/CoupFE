@@ -24,7 +24,11 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(__file__))
 from build_model import boundary_edges, disk_mesh, extract_geometry  # noqa: E402
 
-from coupfe import InertiaOperator, solve_dynamics  # noqa: E402
+from coupfe import (  # noqa: E402
+    InertiaOperator,
+    neo_hookean_kernel_props,
+    solve_dynamics,
+)
 from coupfe.mesh import KernelMeshView  # noqa: E402
 from coupfe.operators.base import Residual, Tangent  # noqa: E402
 from coupfe.operators.contact import (  # noqa: E402
@@ -91,8 +95,10 @@ def main(n_cyl=6, lid_step=1.5):
     # --- two element groups: cylinders (soft F-bar) + lid (stiff F-bar) ---
     kernel = build_element_kernel(_FOR, "neo_fbar_q4_dl")
     view = KernelMeshView(nodes, np.array(celems + le.tolist(), int), dof_per_node=2)
-    ec = CompiledElement(kernel, props=(G, K_BULK), dof_per_node=2, n_svars=0, mcrd=2, n_elem=len(celems))
-    el = CompiledElement(kernel, props=(G_LID, K_LID), dof_per_node=2, n_svars=0, mcrd=2, n_elem=len(le))
+    ec = CompiledElement(kernel, props=neo_hookean_kernel_props(G, K_BULK),
+                         dof_per_node=2, n_svars=0, mcrd=2, n_elem=len(celems))
+    el = CompiledElement(kernel, props=neo_hookean_kernel_props(G_LID, K_LID),
+                         dof_per_node=2, n_svars=0, mcrd=2, n_elem=len(le))
     gc = ElementGroup(ec, nodes, np.array(celems, int), dof_per_node=2, comps=(0, 1))
     gl = ElementGroup(el, nodes, le, dof_per_node=2, comps=(0, 1))
 

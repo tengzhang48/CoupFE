@@ -80,6 +80,29 @@ Run the code. Static review cannot reveal compiler, ABI, nonlinear-basin, state-
 transfer, or environment failures. Start with focused element and operator tests,
 then execute the end-to-end path associated with the claim.
 
+Review findings need the same evidence discipline. Reproduce the alleged
+failure from the equations and representative numbers, then classify whether it
+belongs to the solver, an example, an extractor, or only a misleading comment.
+Do not preserve a false positive merely because a review labeled it major: an
+independent calculation can confirm the behavior while rejecting the proposed
+explanation or severity.
+
+Test the invariant named by the claim, not a convenient surrogate:
+
+- a plastic return map must finish on its declared yield surface, not merely
+  have a tangent consistent with its own update;
+- a public bulk modulus must recover that bulk modulus in the infinitesimal
+  tangent, even if the raw kernel ABI accepts the first Lame coefficient;
+- a penetration claim needs an oriented signed gap or collision history, not an
+  unsigned closest-point distance; and
+- a global Coulomb cap must be reconstructed from assembled reactions, not
+  returned as the expected cap by the branch being tested.
+
+When a defect crosses an API boundary, inventory callers before changing it.
+Convert once at a named boundary and document the raw ABI; silent reinterpretation
+can fix one example while breaking external callers or a previously correct
+benchmark.
+
 ## Establish evidence before tuning
 
 Begin with units, signs, boundary conditions, and dimensionless groups. Confirm

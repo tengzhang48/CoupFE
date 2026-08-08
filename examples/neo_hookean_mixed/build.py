@@ -18,7 +18,11 @@ from coupfe.runtime.compiled_element import build_element_kernel
 
 
 class NeoHookeanMixed(au.Material):
-    """Compressible neo-Hookean with a mixed pressure field."""
+    """Compressible neo-Hookean with physical bulk modulus ``K``.
+
+    Eliminating pressure gives the volumetric coefficient
+    ``lambda = K - 2G/3`` required by the non-isochoric shear term.
+    """
 
     props = dict(G=0.5, K=50.0)
 
@@ -28,7 +32,8 @@ class NeoHookeanMixed(au.Material):
         return self.G * (F - finv_t) + p * j * finv_t
 
     def pressure_resid(self, F, p):
-        return det(F) - 1.0 - p / self.K
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return det(F) - 1.0 - p / lame_lambda
 
 
 class Quad8MixedPatch(au.WeakForm):

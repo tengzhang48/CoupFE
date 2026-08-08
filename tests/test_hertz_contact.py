@@ -43,7 +43,10 @@ def test_hertz_force_law(tmp_path):
     # The kernel's ln(J) coefficient has the infinitesimal role of lambda.  A
     # bulk-modulus substitution silently changes the E, nu pair used by Hertz.
     expected_lambda = ex.E * ex.NU / ((1.0 + ex.NU) * (1.0 - 2.0 * ex.NU))
+    expected_bulk = ex.E / (3.0 * (1.0 - 2.0 * ex.NU))
+    assert ex.K_BULK == pytest.approx(expected_bulk)
     assert ex.LAME_LAMBDA == pytest.approx(expected_lambda)
+    assert ex.KERNEL_PROPS == pytest.approx((ex.G, expected_lambda))
 
     config = evidence["configuration"]
     snapshot = evidence["snapshot"]
@@ -92,8 +95,8 @@ def test_hertz_bulk_modulus_broken_control():
     """The plausible bulk-modulus substitution must fail the force gate."""
 
     ex = _load(_RUN, "hertz_run_wrong_modulus")
-    physical_bulk_modulus = ex.E / (3.0 * (1.0 - 2.0 * ex.NU))
-    assert physical_bulk_modulus != pytest.approx(ex.LAME_LAMBDA)
-    ex.LAME_LAMBDA = physical_bulk_modulus
+    assert ex.K_BULK != pytest.approx(ex.LAME_LAMBDA)
+    # Plausible bypass: put physical K directly into the raw kernel's lambda slot.
+    ex.KERNEL_PROPS = (ex.G, ex.K_BULK)
     evidence = ex.run_hertz(deltas=(0.03, 0.05, 0.07))
     assert np.max(np.abs(evidence["force_ratios"] - 1.0)) >= 0.08

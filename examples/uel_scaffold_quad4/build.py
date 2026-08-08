@@ -21,7 +21,8 @@ class NeoHookean(au.Material):
     def stress_PK1(self, F):
         J = det(F)
         FinvT = inv(F).T
-        return self.G * (F - FinvT) + self.K * log(J) * FinvT
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return self.G * (F - FinvT) + lame_lambda * log(J) * FinvT
 
 
 class NeoQuad4(au.WeakForm):

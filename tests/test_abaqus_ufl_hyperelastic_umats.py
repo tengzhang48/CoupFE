@@ -53,15 +53,16 @@ def test_neo_hookean_closed_forms_and_broken_control():
     example = _load_example("neo_hookean")
     model = example.NeoHookean()
     shear_modulus, bulk_modulus = example.DEFAULT_PROPS
+    lame_lambda = bulk_modulus - 2.0 * shear_modulus / 3.0
 
     stretch = 1.2
     F_uniaxial = np.diag([stretch, 1.0, 1.0])
     expected_uniaxial = np.diag(
         [
             shear_modulus * (stretch - 1.0 / stretch)
-            + bulk_modulus * math.log(stretch) / stretch,
-            bulk_modulus * math.log(stretch) / stretch,
-            bulk_modulus * math.log(stretch) / stretch,
+            + lame_lambda * math.log(stretch) / stretch,
+            lame_lambda * math.log(stretch) / stretch,
+            lame_lambda * math.log(stretch) / stretch,
         ]
     )
     assert np.allclose(

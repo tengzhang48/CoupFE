@@ -14,6 +14,19 @@ import os
 _ELEM_DIR = os.path.join(os.path.dirname(__file__), "runtime", "elements")
 
 
+def neo_hookean_kernel_props(G, K):
+    """Convert physical ``(G, K)`` to the retained kernels' raw ``(G, lambda)``.
+
+    The retained core kernels under ``coupfe/runtime/elements`` evaluate
+    ``P = G(F - F^-T) + lambda*ln(J)*F^-T``.  Consequently their second raw
+    property is the first Lame coefficient, while the public material API uses
+    the physical small-strain bulk modulus ``K = lambda + 2*G/3``.
+    """
+    G = float(G)
+    K = float(K)
+    return G, K - 2.0 * G / 3.0
+
+
 @functools.lru_cache(maxsize=8)
 def _build(for_path, module_name):
     from coupfe.runtime.compiled_element import build_element_kernel
@@ -21,7 +34,12 @@ def _build(for_path, module_name):
 
 
 class NeoHookean:
-    """Compressible neo-Hookean, ``P = G(F - F⁻ᵀ) + K ln(J) F⁻ᵀ`` (2D, stateless).
+    """Compressible neo-Hookean parameterized by physical ``G`` and ``K``.
+
+    Here ``K`` is the small-strain bulk modulus.  The retained raw Fortran
+    core kernel uses ``(G, lambda)`` in
+    ``P = G(F - F⁻ᵀ) + lambda ln(J) F⁻ᵀ``; this wrapper performs the
+    conversion before constructing the compiled element.
 
     Maps to the vendored CoupFE-native ``neo_hookean_q4_fbar_native.for``
     kernel, preserving the F-bar formulation used by this convenience material
@@ -31,7 +49,7 @@ class NeoHookean:
     """
 
     def __init__(self, G, K):
-        self.props = (float(G), float(K))
+        self.props = neo_hookean_kernel_props(G, K)
         self.n_svars = 0
         self.mcrd = 2
         self._for = os.path.join(_ELEM_DIR, "neo_hookean_q4_fbar_native.for")

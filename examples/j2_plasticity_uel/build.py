@@ -1,10 +1,10 @@
 """Small-strain J2 plasticity Quad4 UEL proof element.
 
-This element stores plastic strain (``epsp``, a 3x3 tensor) and isotropic
-hardening (``alpha``, a scalar) per Gauss point.  It is intentionally a
-proof-of-state-schema element, **not** a research-grade finite-strain J2
-model: the returned PK1 stress is approximated as the small-strain Cauchy
-stress, which is consistent for infinitesimal strains.
+This element stores plastic strain (``epsp``, a 3x3 tensor) and accumulated
+equivalent plastic strain (``alpha``, a scalar) per Gauss point.  It is
+intentionally a proof-of-state-schema element, **not** a research-grade
+finite-strain J2 model: the returned PK1 stress is approximated as the
+small-strain Cauchy stress, which is consistent for infinitesimal strains.
 """
 from __future__ import annotations
 
@@ -24,13 +24,13 @@ class J2SmallStrainPlasticity(au.Material):
 
     State variables:
         epsp  -- plastic strain (small-strain, 3x3 tensor)
-        alpha -- accumulated isotropic hardening (scalar)
+        alpha -- accumulated equivalent plastic strain (scalar)
     """
 
     props = dict(E=200e3, nu=0.3, sigma_y=250.0, H=1000.0)
     state_vars = dict(
         epsp=np.zeros((3, 3)),   # plastic strain (small-strain)
-        alpha=0.0,                # isotropic hardening
+        alpha=0.0,                # accumulated equivalent plastic strain
     )
 
     def stress_PK1(self, F, epsp_old, alpha_old, dt):
@@ -54,8 +54,8 @@ class J2SmallStrainPlasticity(au.Material):
         # Plastic multiplier
         dgamma = phi / (3.0 * mu + self.H)
         dgamma = tensor.where(phi.real > 0.0, dgamma, 0.0)
-        # Flow direction
-        n = s_trial / (seq + 1e-30)
+        # Associated flow direction d(seq)/d(sigma) = 3 s / (2 seq)
+        n = 1.5 * s_trial / (seq + 1e-30)
         # Updated stress
         sigma = sigma_trial - 2.0 * mu * dgamma * n
         # Updated state
@@ -63,7 +63,7 @@ class J2SmallStrainPlasticity(au.Material):
                                            dgamma * n,
                                            tensor.zeros((3, 3)))
         alpha_new = alpha_old + tensor.where(phi.real > 0.0,
-                                             tensor.sqrt(2.0 / 3.0) * dgamma,
+                                             dgamma,
                                              0.0)
         # Return PK1 = sigma (approximation valid for small strains)
         return sigma, {'epsp': epsp_new, 'alpha': alpha_new}
@@ -78,10 +78,9 @@ class J2Quad4(au.WeakForm):
     def define_fields(self):
         self.u = au.VectorField('u', degree=1)
 
-    def momentum_equation(self, v, F):
-        # The framework evaluates the material routine directly; this body
-        # is used for equation-signature detection.
-        return self.material.stress_PK1(F)
+    def momentum_equation(self, v, F, epsp_old, alpha_old, dt):
+        sigma, _state = self._mat.stress_PK1(F, epsp_old, alpha_old, dt)
+        return sigma
 
 
 DEFAULT_PROPS = (200e3, 0.3, 250.0, 1000.0)
@@ -107,7 +106,7 @@ def _lame_parameters(E: float, nu: float):
 
 
 def analytic_state_update(eps, epsp_old, alpha_old, E, nu, sigma_y, H):
-    """Independent oracle: same radial-return update as the material."""
+    """NumPy oracle for the conventional associative radial-return update."""
     eps = np.asarray(eps, dtype=float)
     epsp_old = np.asarray(epsp_old, dtype=float)
     alpha_old = float(alpha_old)
@@ -121,10 +120,10 @@ def analytic_state_update(eps, epsp_old, alpha_old, E, nu, sigma_y, H):
     f = seq - (sigma_y + H * alpha_old)
     if f > 0.0:
         dgamma = f / (3.0 * mu + H)
-        n = s_trial / (seq + 1e-30)
+        n = 1.5 * s_trial / (seq + 1e-30)
         sigma = sigma_trial - 2.0 * mu * dgamma * n
         epsp_new = epsp_old + dgamma * n
-        alpha_new = alpha_old + np.sqrt(2.0 / 3.0) * dgamma
+        alpha_new = alpha_old + dgamma
     else:
         sigma = sigma_trial
         epsp_new = epsp_old.copy()

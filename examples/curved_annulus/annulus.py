@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "neo_hookean_block")))
 from block import DEFAULT_PROPS, _kernel  # noqa: E402
 
-from coupfe import solve_increments  # noqa: E402
+from coupfe import neo_hookean_kernel_props, solve_increments  # noqa: E402
 from coupfe.mesh import Circle, KernelMeshView, uniform_refine_quad  # noqa: E402
 from coupfe.operators.element_group import ElementGroup  # noqa: E402
 from coupfe.runtime.compiled_element import CompiledElement  # noqa: E402
@@ -73,7 +73,8 @@ def solve_level(level, reembed=True):
     is_bnd = np.zeros(v.n_node, dtype=bool)
     is_bnd[bnd] = True
 
-    elem = CompiledElement(_kernel(DEFAULT_PROPS), props=DEFAULT_PROPS,
+    elem = CompiledElement(_kernel(DEFAULT_PROPS),
+                           props=neo_hookean_kernel_props(*DEFAULT_PROPS),
                            dof_per_node=2, n_svars=0, mcrd=2, n_elem=v.n_elem)
     group = ElementGroup.from_view(v, elem, comps=(0, 1))
 

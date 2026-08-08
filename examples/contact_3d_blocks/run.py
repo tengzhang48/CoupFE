@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from coupfe import InertiaOperator, solve_dynamics
+from coupfe import InertiaOperator, neo_hookean_kernel_props, solve_dynamics
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact3d import DeformableBarrierContact3D, point_triangle_coeff_unclassified
 from coupfe.operators.element_group import ElementGroup
@@ -30,7 +30,7 @@ from coupfe.runtime.compiled_element import CompiledElement, build_element_kerne
 _HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"   # scoped F-bar formulation
 NE = 2                                  # NE×NE×NE hexes per block
 G, K_BULK, DENSITY = 1.0, 10.0, 1.0     # K/G = 10 (moderate compressibility)
-DHAT, KAPPA = 0.04, 1.0e2               # κ ~ K_bulk (matched); CCD owns non-penetration
+DHAT, KAPPA = 0.04, 1.0e2               # activation distance + barrier scale; different units from K_bulk
 GAP0 = 1.2 * DHAT                       # top block starts just above the barrier band (separated)
 V0 = 0.15                               # gentle downward impact velocity
 DT, N_STEPS, DAMP = 0.02, 25, 2.0
@@ -74,14 +74,44 @@ def _lumped_mass(nodes, elems, density, ndof):
     return M
 
 
-def _min_interface_gap(U, nodes, secondary, faces):
-    pos = nodes + U.reshape(len(nodes), 3); g = np.inf
+def _min_signed_interface_gap(U, nodes, secondary, faces):
+    """Minimum oriented secondary-to-primary gap.
+
+    The closest-point distance used by the contact primitive is unsigned and
+    therefore remains positive after a vertex tunnels through a face.  For
+    this two-block evidence gate the primary triangles have a known reference
+    orientation.  We orient each deformed normal consistently with that
+    reference normal, then sign the closest separation with it.
+    """
+    pos = nodes + U.reshape(len(nodes), 3)
+    min_gap = np.inf
     for v in secondary:
         v = int(v)
+        closest_distance = np.inf
+        closest_signed_gap = np.inf
         for f in faces:
             w = point_triangle_coeff_unclassified(pos[v], pos[f[0]], pos[f[1]], pos[f[2]])
-            g = min(g, float(np.linalg.norm(pos[v] - (w[0]*pos[f[0]] + w[1]*pos[f[1]] + w[2]*pos[f[2]]))))
-    return g
+            closest = w[0] * pos[f[0]] + w[1] * pos[f[1]] + w[2] * pos[f[2]]
+            separation = pos[v] - closest
+            distance = float(np.linalg.norm(separation))
+            if distance >= closest_distance:
+                continue
+
+            reference_normal = np.cross(nodes[f[1]] - nodes[f[0]],
+                                        nodes[f[2]] - nodes[f[0]])
+            deformed_normal = np.cross(pos[f[1]] - pos[f[0]],
+                                       pos[f[2]] - pos[f[0]])
+            reference_area = float(np.linalg.norm(reference_normal))
+            deformed_area = float(np.linalg.norm(deformed_normal))
+            if reference_area <= 1.0e-14 or deformed_area <= 1.0e-14:
+                return -np.inf                              # a collapsed primary face fails the gate
+            if float(deformed_normal @ reference_normal) < 0.0:
+                deformed_normal = -deformed_normal
+            deformed_normal /= deformed_area
+            closest_distance = distance
+            closest_signed_gap = float(separation @ deformed_normal)
+        min_gap = min(min_gap, closest_signed_gap)
+    return float(min_gap)
 
 
 def main():
@@ -96,7 +126,8 @@ def main():
 
     view = KernelMeshView(nodes, elems, dof_per_node=3)
     ndof = view.ndof
-    elem = CompiledElement(build_element_kernel(_HEX8_FOR, "neo_hex8_serial"), props=(G, K_BULK),
+    elem = CompiledElement(build_element_kernel(_HEX8_FOR, "neo_hex8_serial"),
+                           props=neo_hookean_kernel_props(G, K_BULK),
                            dof_per_node=3, n_svars=0, mcrd=3, n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
     M = _lumped_mass(nodes, elems, DENSITY, ndof)
@@ -110,14 +141,14 @@ def main():
     U = np.zeros(ndof); min_gap = np.inf
     for _ in range(N_STEPS):                              # step-by-step → track the min gap over time
         U, _info = solve_dynamics(ops, U, ndof, dirich, dt=DT, n_steps=1)
-        min_gap = min(min_gap, _min_interface_gap(U, nodes, secondary, faces))
+        min_gap = min(min_gap, _min_signed_interface_gap(U, nodes, secondary, faces))
 
     max_u = float(np.max(np.abs(U)))
     collided = min_gap < DHAT
     penetration_free = min_gap > 0.0
     ok = collided and penetration_free and max_u < 0.2
     print(f"nodes={len(nodes)} hexes={len(elems)} ndof={ndof}  max|U|={max_u:.4f}")
-    print(f"min interface gap over trajectory = {min_gap:.3e}  (d̂={DHAT})  "
+    print(f"min signed interface gap over trajectory = {min_gap:.3e}  (d̂={DHAT})  "
           f"collided={collided} penetration_free={penetration_free}  -> {'OK' if ok else 'FAIL'}")
     return ok
 

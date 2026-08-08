@@ -39,7 +39,7 @@ from coupfe.constraints import (
     compile_affine_constraints,
 )
 from coupfe.model import Model, Result
-from coupfe.materials import NeoHookean
+from coupfe.materials import NeoHookean, neo_hookean_kernel_props
 
 # The compiled-element runtime needs numpy.f2py + a Fortran compiler at *build*
 # time (to compile an element .for once).  It is imported lazily so the pure-Python
@@ -85,4 +85,5 @@ __all__ = [
     "Model",
     "Result",
     "NeoHookean",
+    "neo_hookean_kernel_props",
 ]

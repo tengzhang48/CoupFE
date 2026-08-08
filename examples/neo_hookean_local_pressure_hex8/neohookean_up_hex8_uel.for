@@ -345,8 +345,12 @@ C======================================================================
       DOUBLE COMPLEX, INTENT(OUT) :: rp_out
 
       DOUBLE COMPLEX :: det33z
+      DOUBLE COMPLEX :: lame_lambda
 
-      rp_out = (p - (DCMPLX(props(2), 0.0d0) * LOG(det33z(F))))
+      lame_lambda = (DCMPLX(props(2), 0.0d0) -
+     &((DCMPLX(2.000000000000000d+00, 0.0d0) * DCMPLX(props(1), 0.0d0))
+     &/ DCMPLX(3.000000000000000d+00, 0.0d0)))
+      rp_out = (p - (lame_lambda * LOG(det33z(F))))
 
       RETURN
       END SUBROUTINE neohookeanup_pressure_resid

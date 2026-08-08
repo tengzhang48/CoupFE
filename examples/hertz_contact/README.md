@@ -18,9 +18,10 @@ for frictionless contact with the sphere. Five prescribed approaches span
 The compiled kernel evaluates
 `P = G(F - F^-T) + lambda ln(J) F^-T`. Its second property is therefore the
 first Lamé coefficient
-`lambda = E nu / ((1 + nu)(1 - 2 nu))`, not the physical bulk modulus. Using
-that conversion keeps the finite-element infinitesimal tangent consistent with
-the `E` and `nu` used by the Hertz oracle.
+`lambda = E nu / ((1 + nu)(1 - 2 nu))`, not the physical bulk modulus. The
+example computes physical `G,K` from `E,nu` and uses
+`neo_hookean_kernel_props(G, K)` for that conversion, keeping the finite-element
+infinitesimal tangent consistent with the Hertz oracle.
 
 ## Run and render
 
@@ -50,8 +51,9 @@ The five-point log-log slope is `1.533`, compared with the Hertz exponent
 `1.500`. The focused regression uses `delta = 0.03, 0.05, 0.07`, checks the
 force to within 8%, checks the exponent to within 0.08, and independently
 checks free-DOF equilibrium and base/contact force balance. An opt-in slow
-broken control substitutes physical bulk modulus for the required Lamé
-coefficient and verifies that the same force gate rejects the mismatch.
+broken control bypasses the converter and puts physical bulk modulus directly
+in the raw Lamé slot, then verifies that the same force gate rejects the
+mismatch.
 
 ## What the figure shows
 

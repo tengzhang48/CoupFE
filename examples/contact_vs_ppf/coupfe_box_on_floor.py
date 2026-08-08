@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from coupfe import InertiaOperator, solve_dynamics
+from coupfe import InertiaOperator, neo_hookean_kernel_props, solve_dynamics
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.base import Residual, Tangent
 from coupfe.operators.contact import HalfSpace, RigidBarrierContact
@@ -91,7 +91,7 @@ def run(theta_deg, mu, *, ne=2, grav=0.4, damp=0.5, n_steps=150, dt=0.02):
     bottom = np.array([j * nn + i for j in range(nn) for i in range(nn)], int)  # k=0
     view = KernelMeshView(nodes, elems, dof_per_node=3)
     ndof = view.ndof
-    elem = CompiledElement(_kernel(), props=(G, K_BULK), dof_per_node=3,
+    elem = CompiledElement(_kernel(), props=neo_hookean_kernel_props(G, K_BULK), dof_per_node=3,
                            n_svars=0, mcrd=3, n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
 

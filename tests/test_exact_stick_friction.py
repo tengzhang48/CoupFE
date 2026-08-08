@@ -58,6 +58,7 @@ def test_exact_zero_slip_stick_and_coulomb_cap():
         assert regime == "slip"
         assert vt > 0.0
         assert Ff == pytest.approx(ex.MU * ex.P, abs=1e-12)
+        assert iface.last_friction_work < 0.0
 
     # The closed cone includes its boundary.  A few ULPs of sparse-solver
     # roundoff must not make the active-set state Python/SciPy dependent.
@@ -83,3 +84,40 @@ def test_broken_control_zero_friction_loses_cap():
         assert regime == "slip" and vt > 0.0               # cannot stick — no friction to hold it
     finally:
         ex.MU = saved
+
+
+def test_broken_control_undercapped_slip_is_observable():
+    """The reported slip force must come from equilibrium, not echo ``mu*P``."""
+    ex = _load()
+
+    class UnderCappedInterface(ex.ExactStickInterface):
+        def _slip_force_distribution(self, stick_reaction, cap):
+            return 0.5 * super()._slip_force_distribution(
+                stick_reaction, cap
+            )
+
+    nodes, ndof, K = ex.build_stiffness()
+    iface = UnderCappedInterface(nodes, ndof, K)
+    dstar = ex.MU * ex.P / iface.shear_stiffness()
+    regime, vt, friction_reaction = iface.step(1.5 * dstar)
+
+    assert regime == "slip" and vt > 0.0
+    assert friction_reaction == pytest.approx(0.5 * ex.MU * ex.P, abs=1.0e-12)
+    assert abs(friction_reaction - ex.MU * ex.P) > 0.25 * ex.MU * ex.P
+
+
+def test_broken_control_reversed_friction_does_positive_work():
+    """A correct force magnitude cannot conceal a reversed friction direction."""
+    ex = _load()
+
+    class ReversedInterface(ex.ExactStickInterface):
+        def _slip_force_distribution(self, stick_reaction, cap):
+            return -super()._slip_force_distribution(
+                stick_reaction, cap
+            )
+
+    nodes, ndof, K = ex.build_stiffness()
+    iface = ReversedInterface(nodes, ndof, K)
+    dstar = ex.MU * ex.P / iface.shear_stiffness()
+    with pytest.raises(RuntimeError, match="positive work"):
+        iface.step(1.5 * dstar)

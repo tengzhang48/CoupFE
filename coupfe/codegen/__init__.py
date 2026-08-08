@@ -74,7 +74,9 @@ Minimal example
         props = dict(G=1.0, K=100.0)
         def stress_PK1(self, F):
             J = det(F)
-            return self.G * (F - inv(F).T) + self.K * log(J) * inv(F).T
+            lame_lambda = self.K - 2.0 * self.G / 3.0
+            return (self.G * (F - inv(F).T)
+                    + lame_lambda * log(J) * inv(F).T)
 
     model = NeoHookean(G=0.5, K=50.0)
     model.verify()                                    # raises if any block fails

@@ -118,6 +118,13 @@ model.prescribe("right", x=0.1)
 result = model.solve(steps=4)
 ```
 
+For `NeoHookean`, `G` is shear modulus and `K` is the physical small-strain
+bulk modulus. The convenience material converts these to the retained raw
+core-kernel ABI `(G, lambda)`, where `lambda = K - 2G/3`. Direct users of the
+vendored kernels under `coupfe/runtime/elements` can call
+`neo_hookean_kernel_props(G, K)` to perform the same conversion. Code-generated
+kernels instead retain the property convention declared by their source model.
+
 Construction and setup calls are:
 
 - `Model.structured(nx, ny, Lx=1, Ly=1)`;

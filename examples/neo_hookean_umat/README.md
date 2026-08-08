@@ -4,9 +4,13 @@ This example declares a stateless finite-strain material and generates a
 self-contained, three-dimensional Abaqus/Standard UMAT:
 
 ```text
-P = G (F - F^-T) + K ln(det F) F^-T
+lambda = K - 2 G / 3
+P = G (F - F^-T) + lambda ln(det F) F^-T
 PROPS = (G, K)
 ```
+
+Here `K` is the physical small-strain bulk modulus; the generated constitutive
+law computes the first Lamé coefficient used by the `ln(J)` term.
 
 The generated wrapper converts first Piola stress and its tangent to Cauchy
 stress and the Jaumann-rate `DDSDDE` used by Abaqus. It requires

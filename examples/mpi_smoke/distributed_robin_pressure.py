@@ -17,7 +17,7 @@ import numpy as np
 import scipy.sparse as sp
 from petsc4py import PETSc
 
-from coupfe import InertiaOperator, solve_dynamics
+from coupfe import InertiaOperator, neo_hookean_kernel_props, solve_dynamics
 from coupfe.assembly.distributed import element_partition, solve_dynamics_distributed
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.base import Residual, Tangent
@@ -112,7 +112,8 @@ def _serial_reference(nodes, elems, ndof, M, robin_dofs, press_dofs, base):
     """Serial solve_dynamics with the SAME operators as a list — the 1-vs-N oracle."""
     view = KernelMeshView(nodes, elems, dof_per_node=3)
     elem = CompiledElement(build_element_kernel(_HEX8_FOR, "rp_hex8_serial"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=0, mcrd=3,
+                           props=neo_hookean_kernel_props(G, K_BULK),
+                           dof_per_node=3, n_svars=0, mcrd=3,
                            n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
     inertia = InertiaOperator(M, ndof, damping=DAMP)
@@ -141,7 +142,8 @@ def main():
 
     my_gm, my_coords, _ = element_partition(view, rank, size)
     elem = CompiledElement(build_element_kernel(_HEX8_FOR, "rp_hex8_dist"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=0, mcrd=3,
+                           props=neo_hookean_kernel_props(G, K_BULK),
+                           dof_per_node=3, n_svars=0, mcrd=3,
                            n_elem=max(len(my_gm), 1))
     dirich = {int(g): 0.0 for g in base}
 

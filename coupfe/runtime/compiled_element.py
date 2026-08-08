@@ -157,7 +157,11 @@ class CompiledElement:
 
     The element's shape is passed explicitly (no weak-form introspection):
 
-    * ``props``: the material property vector the kernel reads (e.g. ``(G, K)``).
+    * ``props``: the kernel-specific raw property vector.  The retained
+      core kernels in ``coupfe/runtime/elements`` use ``(G, lambda)``; public
+      physical ``(G, K)`` values are converted by
+      :func:`coupfe.neo_hookean_kernel_props`. Generated kernels retain the
+      property convention declared by their source material.
     * ``dof_per_node``: DOFs the element writes per node (2 for u-only 2D).
     * ``n_svars``: state-variable slots per element (0 ⇒ stateless).
     * ``mcrd``: spatial coordinate dimension (2 or 3).

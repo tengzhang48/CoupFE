@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from coupfe import InertiaOperator, solve_dynamics
+from coupfe import InertiaOperator, neo_hookean_kernel_props, solve_dynamics
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.base import Residual, Tangent
 from coupfe.operators.contact3d import DeformableBarrierContact3D, point_triangle_coeff_unclassified
@@ -85,14 +85,37 @@ def _lumped_mass(nodes, elems, density, ndof):
     return M
 
 
-def _min_interface_gap(U, nodes, secondary, faces):
-    pos = nodes + U.reshape(len(nodes), 3); g = np.inf
+def _min_signed_interface_gap(U, nodes, secondary, faces):
+    """Minimum oriented secondary-to-primary gap for the block interface."""
+    pos = nodes + U.reshape(len(nodes), 3)
+    min_gap = np.inf
     for v in secondary:
         v = int(v)
+        closest_distance = np.inf
+        closest_signed_gap = np.inf
         for f in faces:
             w = point_triangle_coeff_unclassified(pos[v], pos[f[0]], pos[f[1]], pos[f[2]])
-            g = min(g, float(np.linalg.norm(pos[v] - (w[0]*pos[f[0]] + w[1]*pos[f[1]] + w[2]*pos[f[2]]))))
-    return g
+            closest = w[0] * pos[f[0]] + w[1] * pos[f[1]] + w[2] * pos[f[2]]
+            separation = pos[v] - closest
+            distance = float(np.linalg.norm(separation))
+            if distance >= closest_distance:
+                continue
+
+            reference_normal = np.cross(nodes[f[1]] - nodes[f[0]],
+                                        nodes[f[2]] - nodes[f[0]])
+            deformed_normal = np.cross(pos[f[1]] - pos[f[0]],
+                                       pos[f[2]] - pos[f[0]])
+            reference_area = float(np.linalg.norm(reference_normal))
+            deformed_area = float(np.linalg.norm(deformed_normal))
+            if reference_area <= 1.0e-14 or deformed_area <= 1.0e-14:
+                return -np.inf
+            if float(deformed_normal @ reference_normal) < 0.0:
+                deformed_normal = -deformed_normal
+            deformed_normal /= deformed_area
+            closest_distance = distance
+            closest_signed_gap = float(separation @ deformed_normal)
+        min_gap = min(min_gap, closest_signed_gap)
+    return float(min_gap)
 
 
 def _build():
@@ -109,7 +132,8 @@ def _build():
 
 def _run(mu, nodes, elems, secondary, faces, base, top_face, top_block):
     view = KernelMeshView(nodes, elems, dof_per_node=3); ndof = view.ndof
-    elem = CompiledElement(build_element_kernel(_HEX8_FOR, "neo_hex8_serial_fr"), props=(G, K_BULK),
+    elem = CompiledElement(build_element_kernel(_HEX8_FOR, "neo_hex8_serial_fr"),
+                           props=neo_hookean_kernel_props(G, K_BULK),
                            dof_per_node=3, n_svars=0, mcrd=3, n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
     M = _lumped_mass(nodes, elems, DENSITY, ndof)
@@ -119,31 +143,45 @@ def _run(mu, nodes, elems, secondary, faces, base, top_face, top_block):
                                          dof_per_node=3, dhat=DHAT, kappa=KAPPA, mu=mu,
                                          friction_eps=FRICTION_EPS)
 
-    def dirichlet(t):                                    # base fixed; top face dragged +x (z,y free)
-        frac = t / (N_STEPS * DT)
+    def dirichlet(frac):                                 # base fixed; top face dragged +x (z,y free)
         d = {int(n) * 3 + c: 0.0 for n in base for c in (0, 1, 2)}
         for n in top_face:
             d[int(n) * 3 + 0] = SHEAR * frac
         return d
 
-    U, _ = solve_dynamics([grp, inertia, gravity, contact], np.zeros(ndof), ndof,
-                          dirichlet, dt=DT, n_steps=N_STEPS)
-    return U
+    operators = [grp, inertia, gravity, contact]
+    U = np.zeros(ndof)
+    min_signed_gap = np.inf
+    for step in range(1, N_STEPS + 1):
+        # Advance exactly one accepted step so the public non-penetration
+        # evidence covers the trajectory rather than only the final state.
+        U, _ = solve_dynamics(
+            operators,
+            U,
+            ndof,
+            dirichlet(step / N_STEPS),
+            dt=DT,
+            n_steps=1,
+        )
+        min_signed_gap = min(
+            min_signed_gap,
+            _min_signed_interface_gap(U, nodes, secondary, faces),
+        )
+    return U, float(min_signed_gap)
 
 
 def main():
     mesh = _build()
     nodes, _, secondary, faces = mesh[0], mesh[1], mesh[2], mesh[3]
-    U_fric = _run(MU, *mesh)
-    U_free = _run(0.0, *mesh)
+    U_fric, min_gap = _run(MU, *mesh)
+    U_free, _ = _run(0.0, *mesh)
     slip_fric = float(np.abs(np.mean(U_fric[secondary * 3 + 0])))
     slip_free = float(np.abs(np.mean(U_free[secondary * 3 + 0])))
-    min_gap = _min_interface_gap(U_fric, nodes, secondary, faces)
     held = slip_fric < 0.7 * slip_free
     penetration_free = min_gap > 0.0
     ok = held and penetration_free and slip_free > 1e-3
     print(f"interface slip: μ={MU} -> {slip_fric:.4e},  μ=0 -> {slip_free:.4e}  (ratio {slip_fric/max(slip_free,1e-30):.2f})")
-    print(f"min interface gap (μ>0) = {min_gap:.3e} (d̂={DHAT})  held={held} penetration_free={penetration_free}  -> {'OK' if ok else 'FAIL'}")
+    print(f"min signed interface gap over trajectory (μ>0) = {min_gap:.3e} (d̂={DHAT})  held={held} penetration_free={penetration_free}  -> {'OK' if ok else 'FAIL'}")
     return ok
 
 

@@ -41,10 +41,6 @@ class ScovazziBlockMaterial(au.Material):
         h_elem=0.0625,
     )
 
-    # P(F, theta) is part of a mixed stabilized residual; dP/dF at fixed
-    # theta is not expected to have hyperelastic major symmetry.
-    symmetric_tangent = False
-
     def _S_enriched(self, F, thetat):
         """Second Piola stress evaluated at the theta-enriched strain."""
         I = eye(3)
@@ -210,7 +206,7 @@ def build(output_dir=None, *, verify=True) -> Path:
     problem = ScovazziBlockTet4()
     if verify:
         for index, state in enumerate(verification_states()):
-            if not problem.verify(state=state, tol=5.0e-5, verbose=False):
+            if not problem.verify(state=state, tol=1.0e-6, verbose=False):
                 raise RuntimeError(
                     "framework verification failed at state {}".format(index)
                 )

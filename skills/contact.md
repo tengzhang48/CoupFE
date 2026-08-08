@@ -60,6 +60,10 @@ Test broad phase and narrow phase separately.
   self-forces from adjacent primitives.
 - Surface orientation affects signed gaps, normal direction, and reaction
   signs. Include reversed-orientation broken controls.
+- Do not use Euclidean closest-point distance as a nonpenetration gate: it is
+  unsigned and becomes positive again after a vertex crosses a face. Orient the
+  deformed normal consistently with the reference facet, evaluate the signed
+  normal separation, and include a synthetic below-face broken control.
 - Freeze pairing only when the formulation states that per-step lag. An
   all-primitive barrier and a closest-feature node-to-segment model have
   different pairing semantics.
@@ -98,6 +102,13 @@ For a return map, test both stick and slip branches, the cone inequality,
 tangent asymmetry where expected, and the transition between branches. For
 persistent finite-sliding state, also test edge crossing, frame rotation,
 reversal, and nonnegative dissipation over a closed loading history.
+
+For a global Coulomb-cap claim, recover the tangential reaction from the
+assembled interface result and compare that independent quantity with
+``mu * total_normal_reaction``. Nodal weights used to distribute a global cap
+must have the intended signed resultant; checking a function that simply
+returns the target ``mu * P`` is circular. Also check force·slip work so an
+absolute-value magnitude gate cannot conceal reversed friction.
 
 Semismooth exact-stick examples are useful for studying stick/slip onset and
 frozen-active-set derivatives. Their small-interface results should not be

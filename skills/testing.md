@@ -43,6 +43,26 @@ are understood. Conversely, static review and compilation cannot expose ABI,
 state-transfer, nonlinear-basin, or environment defects; execute the path that
 supports the claim.
 
+## Review-response checklist
+
+For a reported physics or evidence defect:
+
+1. Write down the exact invariant and evaluate it at the reported state.
+2. Use an independent calculation rather than the implementation's companion
+   oracle; duplicated equations reproduce duplicated bugs.
+3. Decide whether the defect changes core mechanics, an example, an evidence
+   extractor, documentation, or only a dead configuration flag.
+4. Search all public and raw-kernel callers before changing parameter semantics.
+5. Add a regression that measures the invariant directly and a deliberately
+   wrong control that the gate rejects.
+6. Verify generated artifacts and end-to-end behavior after the local gate
+   passes, then record any remaining evidence boundary.
+
+Also test the review's explanation. A reported tolerance workaround, for
+example, should be checked by measuring the actual normalized derivative error
+and symmetry defect at all retained verification states before changing the
+framework.
+
 ## Tangent checks
 
 For an analytic residual, compare the local or assembled tangent with a finite
@@ -75,6 +95,12 @@ Check that:
 
 The current generic-driver limitations for accepted-step state are part of the
 test scope; see `docs/capabilities.md`.
+
+For a constitutive property ABI, derive the small-strain response of the exact
+implemented law. If a public material accepts physical ``(G, K)`` while a raw
+compiled kernel consumes ``(G, lambda)``, convert at one named boundary and
+test hydrostatic and shear perturbations separately. Keep the raw tuple
+documented so direct callers cannot silently use the wrong convention.
 
 ## Nonlinear and coupled tests
 

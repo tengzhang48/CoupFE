@@ -38,7 +38,8 @@ def _compliance(U, fext):
 def _bulk_residual(nodes, elems, U, G, ndof):
     view = KernelMeshView(nodes, elems, dof_per_node=3)
     elem = CompiledElement(build_element_kernel(_UP_HEX8_FOR, "tire_up_sens"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=1, mcrd=3, n_elem=len(elems))
+                           props=(G, K_BULK), dof_per_node=3, n_svars=1,
+                           mcrd=3, n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
     R, _ = assemble_residual([grp], U, None, 1.0, 1.0, ndof)
     return R

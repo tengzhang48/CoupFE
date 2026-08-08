@@ -5,7 +5,10 @@ an alternative to F-bar. The pressure ``p`` is one constant per element
 (``LocalScalar``, stored in SVARS, statically condensed), and the element
 pressure equation
 
-    ∫ q (p − K·lnJ) dV = 0   with constant q,p   ⇒   p = K · (1/V)∫ lnJ dV
+    ∫ q (p − lambda·lnJ) dV = 0   with constant q,p
+        ⇒   p = lambda · (1/V)∫ lnJ dV,
+
+where the public physical bulk modulus is ``K = lambda + 2G/3``.
 
 makes ``p`` the **volume-AVERAGE** of the volumetric response (the L2
 projection), whereas F-bar uses the **centroid** value. It condenses to a
@@ -42,9 +45,10 @@ class NeoHookeanUP(au.Material):
         return self.G * (F - inv(F).T) + p * inv(F).T
 
     def pressure_resid(self, F, p):
-        # p is the (element-constant) volumetric stress; condensation enforces
-        # the volume-average  p = K·avg(lnJ).
-        return p - self.K * log(det(F))
+        # The non-isochoric shear term contributes 2G/3 to physical bulk
+        # response, so the ln(J) pressure coefficient is lambda.
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return p - lame_lambda * log(det(F))
 
 
 class NeoHookeanUPQuad4(au.WeakForm):

@@ -4,12 +4,15 @@ Reconstructs the Cauchy stress and its von Mises invariant **independently in Py
 input displacement (the element kernel computes stress internally but returns
 only R/K). This supplies a separate post-processing implementation of the same
 mixed-u-p law. It is not an independent formulation oracle or a GetFEM
-comparison: `P = G(F−F⁻ᵀ) + p F⁻ᵀ`, `p = K·avg(lnJ)`
+comparison: `P = G(F−F⁻ᵀ) + p F⁻ᵀ`, `p = lambda·avg(lnJ)` with
+`lambda = K - 2G/3`
 (element-constant), `σ = J⁻¹ P Fᵀ`, `σ_vm = √(3/2 s:s)`.
 """
 from __future__ import annotations
 
 import numpy as np
+
+from coupfe import neo_hookean_kernel_props
 
 # Hex8 reference corners (±1), matching the mesh's bottom-face-then-top ordering, and the 8 Gauss points.
 _XI = np.array([[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
@@ -33,6 +36,7 @@ def _shape_grads(X, xi):
 
 def element_vonmises(nodes, elems, U, G, K):
     """Per-element von Mises (averaged over Gauss points) on the deformed configuration."""
+    _, lame_lambda = neo_hookean_kernel_props(G, K)
     u = U.reshape(len(nodes), 3)
     vm = np.zeros(len(elems))
     for ei, e in enumerate(elems):
@@ -44,7 +48,7 @@ def element_vonmises(nodes, elems, U, G, K):
             dJs.append(detJ)
         dJs = np.asarray(dJs)
         lnJ = np.array([np.log(np.linalg.det(F)) for F in Fs])
-        p = K * np.sum(lnJ * dJs) / np.sum(dJs)    # element-constant condensed pressure
+        p = lame_lambda * np.sum(lnJ * dJs) / np.sum(dJs)
         vmg = []
         for F in Fs:
             Jdet = np.linalg.det(F)

@@ -324,6 +324,7 @@ C======================================================================
       DOUBLE COMPLEX :: finv_t(3,3)
       DOUBLE COMPLEX :: P0(3,3)
       DOUBLE COMPLEX :: J
+      DOUBLE COMPLEX :: lame_lambda
       DOUBLE COMPLEX :: g_d
       INTEGER :: ii, jj
 
@@ -331,8 +332,11 @@ C======================================================================
       CALL inv33z(F, INV1)
       CALL transpose33z(INV1, AT2)
       finv_t = AT2
-      P0 = ((DCMPLX(props(1), 0.0d0) * (F - finv_t)) +
-     &((DCMPLX(props(2), 0.0d0) * LOG(J)) * finv_t))
+      lame_lambda = (DCMPLX(props(2), 0.0d0) -
+     &((DCMPLX(2.000000000000000d+00, 0.0d0) * DCMPLX(props(1), 0.0d0))
+     &/ DCMPLX(3.000000000000000d+00, 0.0d0)))
+      P0 = ((DCMPLX(props(1), 0.0d0) * (F - finv_t)) + ((lame_lambda *
+     &LOG(J)) * finv_t))
       g_d = (((DCMPLX(1.000000000000000d+00, 0.0d0) - d) **
      &DCMPLX(2.0d0, 0.0d0)) + DCMPLX(props(5), 0.0d0))
 

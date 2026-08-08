@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from coupfe import assemble_residual, newton_solve
+from coupfe import assemble_residual, neo_hookean_kernel_props, newton_solve
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact import RigidContact, Sphere
 from coupfe.operators.element_group import ElementGroup
@@ -34,11 +34,13 @@ _HEX8_FOR = "coupfe/runtime/elements/neo_hookean_hex8_fbar.for"
 # Material.  The kernel evaluates
 #   P = G (F - F^-T) + lambda ln(J) F^-T,
 # so its second property is the first Lame coefficient, not the physical bulk
-# modulus.  These conversions make the kernel's infinitesimal tangent match the
-# E and nu used by the Hertz oracle.
+# modulus.  Convert the physical G,K pair once so the kernel's infinitesimal
+# tangent matches the E and nu used by the Hertz oracle.
 E, NU = 10.0, 0.3
 G = E / (2.0 * (1.0 + NU))
-LAME_LAMBDA = E * NU / ((1.0 + NU) * (1.0 - 2.0 * NU))
+K_BULK = E / (3.0 * (1.0 - 2.0 * NU))
+KERNEL_PROPS = neo_hookean_kernel_props(G, K_BULK)
+LAME_LAMBDA = KERNEL_PROPS[1]
 E_STAR = E / (1.0 - NU * NU)
 
 R_SPHERE = 2.0
@@ -113,7 +115,7 @@ def run_hertz(deltas=DELTAS, *, verbose=False):
     ndof = view.ndof
     elem = CompiledElement(
         build_element_kernel(_HEX8_FOR, "nh_hex8_hertz"),
-        props=(G, LAME_LAMBDA),
+        props=KERNEL_PROPS,
         dof_per_node=3,
         n_svars=0,
         mcrd=3,
@@ -232,6 +234,7 @@ def run_hertz(deltas=DELTAS, *, verbose=False):
             "youngs_modulus": E,
             "poisson_ratio": NU,
             "shear_modulus": G,
+            "bulk_modulus": K_BULK,
             "lame_lambda": LAME_LAMBDA,
             "hertz_modulus": E_STAR,
             "sphere_radius": R_SPHERE,

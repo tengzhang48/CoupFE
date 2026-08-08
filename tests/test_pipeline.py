@@ -27,7 +27,11 @@ pytestmark = pytest.mark.skipif(
     + (f": {_WHY}" if not _HAVE else ""))
 
 if _HAVE:
-    from coupfe import assemble_residual, solve_increments
+    from coupfe import (
+        assemble_residual,
+        neo_hookean_kernel_props,
+        solve_increments,
+    )
     from coupfe.mesh import KernelMeshView, check_positive_jacobian, uniform_refine_quad
     from coupfe.operators.contact import HalfSpace, RigidContact
     from coupfe.operators.element_group import ElementGroup
@@ -51,7 +55,8 @@ def test_serial_pipeline_refined_block_on_plane():
     assert view.n_elem == 64                            # 16 → 64 under one refinement
 
     # 3. compiled element over the refined view
-    elem = CompiledElement(_kernel(DEFAULT_PROPS), props=DEFAULT_PROPS, dof_per_node=2,
+    elem = CompiledElement(_kernel(DEFAULT_PROPS),
+                           props=neo_hookean_kernel_props(*DEFAULT_PROPS), dof_per_node=2,
                            n_svars=0, mcrd=2, n_elem=view.n_elem)
     group = ElementGroup.from_view(view, elem, comps=(0, 1))
 

@@ -23,7 +23,9 @@ class HeatDiffusionMaterial(au.Material):
     def stress_PK1(self, F, T):
         J = det(F)
         finv_t = inv(F).T
-        P_mech = self.G * (F - finv_t) + self.K * log(J) * finv_t
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        P_mech = self.G * (F - finv_t) + lame_lambda * log(J) * finv_t
+        # Thermal pressure is parameterized by physical bulk modulus K.
         P_thermal = -self.K * self.alpha * T * finv_t
         return P_mech + P_thermal
 

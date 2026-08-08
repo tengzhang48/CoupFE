@@ -6,18 +6,19 @@ example demonstrates the **dual-multiplier** (Alart-Curnier / active-set) treatm
 exact *constraint* rather than a stiff spring:
 
     stick:  v_t = 0   (the tangential slip is a CONSTRAINT; the friction force is its Lagrange multiplier)
-    slip :  |p_t| = μN (the multiplier sits on the Coulomb cone; v_t > 0 is free)
+    slip :  |F_t| = μP (the global resultant sits on the Coulomb cone; v_t > 0 is free)
 
-The active set switches on the dimensionless **utilization** ``η = |p_t| / (μN)`` — stick iff ``η ≤ 1``.
+The active set switches on the dimensionless **utilization** ``η = |F_t| / (μP)`` — stick iff ``η ≤ 1``.
 Because stick is a constraint, the interface slip is **machine-zero** (not ``~F/k_t``): there is no
 tangential-stiffness ``k_t`` and hence no ``k̃_t = k_t L/E`` conditioning knob — the wall the
 return-map/penalty forms hit when pushed toward exact stick.
 
 Setup: a unit ``G=1`` linear-elastic block (CoupFE ``NeoHookean`` tangent at ``u=0``) pressed by ``P`` onto a
 rigid floor (bottom ``y`` fixed) and sheared quasi-statically by a prescribed top displacement ``δ`` (ramped).
-The interface obeys the **global** Coulomb criterion ``Σ|p_t| ≤ μ ΣN`` (the interface sticks/slides as a unit
-— well-posed and mesh-robust; per-node *partial* slip needs the full semismooth Newton on a smooth contact
-geometry; see `docs/api.md` and `docs/capabilities.md`).
+The interface obeys the **global-resultant** Coulomb criterion ``|Σp_t| ≤ μP``, with ``P = ΣN``;
+the interface sticks/slides as a unit.  This is well-posed and mesh-robust, while per-node *partial*
+slip needs the full semismooth Newton on a smooth contact geometry; see `docs/api.md` and
+`docs/capabilities.md`.
 
 Self-check (prints ``OK`` / ``FAIL``):
   * EXACT stick: interface slip ``v_t = 0`` to machine precision for every ``δ < δ*``;
@@ -65,6 +66,7 @@ class ExactStickInterface:
         self.bx, self.by = bottom * 2, bottom * 2 + 1     # bottom tangential / normal dofs
         self.tx, self.ty = top * 2, top * 2 + 1           # top tangential / normal dofs
         self.ntop = len(top)
+        self.last_friction_work = 0.0
 
     def _solve(self, fixed, uc, fextra=None):
         free = np.setdiff1d(self.all, fixed)
@@ -83,23 +85,50 @@ class ExactStickInterface:
                            np.concatenate([np.full(len(self.tx), 1.0), np.zeros(len(self.by) + len(self.bx))]))
         return abs(float(np.sum(R[self.bx])))
 
+    def _slip_force_distribution(self, stick_reaction, cap):
+        """Scale the all-stick multiplier pattern to one global resultant.
+
+        The all-stick tangential reactions provide the nodal interpolation
+        pattern at incipient slip.  Scaling that pattern preserves a continuous
+        stick-to-slip transition; normalizing its signed resultant enforces
+        ``|sum(p_t)| = mu*P`` independently of the number of interface nodes.
+        """
+        stick_reaction = np.asarray(stick_reaction, dtype=float)
+        resultant = float(np.sum(stick_reaction))
+        if not np.isfinite(resultant) or abs(resultant) <= 1.0e-30:
+            raise RuntimeError("slip branch has no tangential stick reaction")
+        return stick_reaction * (float(cap) / abs(resultant))
+
     def step(self, delta):
         """One quasi-static shear increment: returns (regime, interface_slip v_t, friction force)."""
         # Trial: assume STICK (v_t = 0 constraint) → the tangential reactions ARE the multipliers p_t.
         _, R = self._solve(np.concatenate([self.tx, self.by, self.bx]),
                           np.concatenate([np.full(len(self.tx), delta), np.zeros(len(self.by) + len(self.bx))]))
         Fs = float(np.sum(R[self.bx]))                      # total tangential force demanded by stick
-        N = np.maximum(R[self.by], 0.0)                     # per-node normal reactions (compressive)
         cap = MU * P
         cone_tol = 128.0 * np.finfo(float).eps * max(abs(Fs), cap)
         if abs(Fs) <= cap + cone_tol:                       # closed cone: η ≤ 1 → stick admissible
+            self.last_friction_work = 0.0
             return "stick", 0.0, abs(Fs)                    # v_t = 0 EXACTLY (a constraint)
-        # SLIP: multiplier on the cone (|p_t| = μN), interface free → it slides.
-        sgn = -np.sign(Fs)                                  # friction opposes the slip tendency
-        u, _ = self._solve(np.concatenate([self.tx, self.by]),
+        # SLIP: global multiplier on the cone (|Σp_t| = μP), interface free → it slides.
+        slip_force = self._slip_force_distribution(R[self.bx], cap)
+        u, R = self._solve(np.concatenate([self.tx, self.by]),
                            np.concatenate([np.full(len(self.tx), delta), np.zeros(len(self.by))]),
-                           fextra=(self.bx, -sgn * MU * N))
-        return "slip", float(np.max(np.abs(u[self.bx]))), MU * P
+                           fextra=(self.bx, slip_force))
+        friction_work = float(slip_force @ u[self.bx])
+        work_scale = float(np.linalg.norm(slip_force) * np.linalg.norm(u[self.bx]))
+        work_tol = 256.0 * np.finfo(float).eps * max(work_scale, 1.0e-30)
+        if friction_work > work_tol:
+            raise RuntimeError(
+                "slip friction does positive work: force direction is reversed"
+            )
+        self.last_friction_work = friction_work
+        # Recover the friction resultant independently from the constrained
+        # top-face reaction.  Returning ``cap`` itself would make the public
+        # Coulomb-cap check true by construction even if the applied nodal
+        # distribution had the wrong magnitude or sign.
+        friction_reaction = abs(float(np.sum(R[self.tx])))
+        return "slip", float(np.max(np.abs(u[self.bx]))), friction_reaction
 
 
 def main():
@@ -121,7 +150,9 @@ def main():
             # δ=δ* deterministically selects the zero-slip boundary state.
             ok &= regime == "stick" and vt == 0.0 and abs(Ff - MU * P) < 1e-12
         else:
-            ok &= regime == "slip" and vt > 0.0 and abs(Ff - MU * P) < 1e-12  # exact Coulomb cap, sliding
+            ok &= (regime == "slip" and vt > 0.0
+                   and abs(Ff - MU * P) < 1e-12
+                   and iface.last_friction_work < 0.0)      # exact dissipative cap, sliding
 
     print("OK" if ok else "FAIL")
     return ok

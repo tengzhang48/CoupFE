@@ -4,7 +4,9 @@ The inelastic volume change is stress-free.  The material exposes
 ``inelastic_jacobian(F)`` so the generator forms the elastic Jacobian
 ``J_e = J / J_inel`` and the pressure equation becomes
 
-    p = K * avg(ln J_e).
+    p = lambda * avg(ln J_e),  lambda = K - 2G/3,
+
+where ``K`` is the physical small-strain bulk modulus.
 
 The elastic deformation gradient is ``F_e = F / J_inel**(1/2)`` in 2D plane
 strain (out-of-plane stretch = 1).  ``stress_PK1`` returns the reference PK1
@@ -49,7 +51,8 @@ class NeoHookeanInelasticUP(au.Material):
         return s * P_e
 
     def pressure_resid(self, F, p, J_inel):
-        return p - self.K * log(det(F) / J_inel)
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return p - lame_lambda * log(det(F) / J_inel)
 
 
 class NeoHookeanInelasticUPQuad4(au.WeakForm):

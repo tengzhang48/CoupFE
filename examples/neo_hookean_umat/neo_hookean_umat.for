@@ -103,18 +103,21 @@ C======================================================================
       DOUBLE COMPLEX :: AT2(3,3)
       DOUBLE COMPLEX :: FinvT(3,3)
       DOUBLE COMPLEX :: J
+      DOUBLE COMPLEX :: lame_lambda
       INTEGER :: ii, jj
 
       J = det33z(F)
       CALL inv33z(F, INV1)
       CALL transpose33z(INV1, AT2)
       FinvT = AT2
+      lame_lambda = (DCMPLX(props(2), 0.0d0) -
+     &((DCMPLX(2.000000000000000d+00, 0.0d0) * DCMPLX(props(1), 0.0d0))
+     &/ DCMPLX(3.000000000000000d+00, 0.0d0)))
 
       DO ii = 1, 3
         DO jj = 1, 3
           P_out(ii,jj) = ((DCMPLX(props(1), 0.0d0) * (F(ii,jj) -
-     &FinvT(ii,jj))) + ((DCMPLX(props(2), 0.0d0) * LOG(J)) * FinvT(ii,
-     &jj)))
+     &FinvT(ii,jj))) + ((lame_lambda * LOG(J)) * FinvT(ii,jj)))
         END DO
       END DO
 

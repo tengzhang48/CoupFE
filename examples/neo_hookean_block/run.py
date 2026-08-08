@@ -25,15 +25,19 @@ def lateral_stretch_analytic(lam, props):
     """Traction-free lateral stretch ``lam_t`` of a homogeneous plane-strain block.
 
     Plane strain (F_33 = 1), F = diag(lam, lam_t, 1).  The lateral PK1 component
-    must vanish: P_22 = G(lam_t - 1/lam_t) + K ln(lam*lam_t) / lam_t = 0.  Solve for
-    lam_t by 1D Newton — this is the independent reference the FE result is gauged on.
+    must vanish: P_22 = G(lam_t - 1/lam_t) + lambda ln(lam*lam_t) / lam_t = 0,
+    where ``lambda = K - 2G/3`` for the public physical bulk modulus ``K``.
+    Solve for lam_t by 1D Newton — this is the independent reference the FE
+    result is gauged on.
     """
     G, K = props
+    lame_lambda = K - 2.0 * G / 3.0
     lt = 1.0
     for _ in range(50):
         J = lam * lt
-        P22 = G * (lt - 1.0 / lt) + K * np.log(J) / lt
-        dP22 = G * (1.0 + 1.0 / lt**2) + K * (1.0 - np.log(J)) / lt**2
+        P22 = G * (lt - 1.0 / lt) + lame_lambda * np.log(J) / lt
+        dP22 = (G * (1.0 + 1.0 / lt**2)
+                + lame_lambda * (1.0 - np.log(J)) / lt**2)
         step = P22 / dP22
         lt -= step
         if abs(step) < 1e-14:

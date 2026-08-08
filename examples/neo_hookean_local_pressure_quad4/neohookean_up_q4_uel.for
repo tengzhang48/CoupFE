@@ -344,8 +344,12 @@ C======================================================================
       DOUBLE COMPLEX, INTENT(OUT) :: rp_out
 
       DOUBLE COMPLEX :: det33z
+      DOUBLE COMPLEX :: lame_lambda
 
-      rp_out = (p - (DCMPLX(props(2), 0.0d0) * LOG(det33z(F))))
+      lame_lambda = (DCMPLX(props(2), 0.0d0) -
+     &((DCMPLX(2.000000000000000d+00, 0.0d0) * DCMPLX(props(1), 0.0d0))
+     &/ DCMPLX(3.000000000000000d+00, 0.0d0)))
+      rp_out = (p - (lame_lambda * LOG(det33z(F))))
 
       RETURN
       END SUBROUTINE neohookeanup_pressure_resid
@@ -372,6 +376,7 @@ C======================================================================
       DOUBLE COMPLEX :: Fz(3,3), F_old_z(3,3)
       DOUBLE COMPLEX :: p_scalar_z, p_old_z
       DOUBLE COMPLEX :: stress_z(3,3), rp_z
+      DOUBLE COMPLEX :: J_inel_z
       INTEGER :: i, j, k, l
 
 C     Real outputs
@@ -379,6 +384,7 @@ C     Real outputs
       CALL real2complex33(F_old, F_old_z)
       p_scalar_z = DCMPLX(p, 0.0d0)
       p_old_z = DCMPLX(p_old, 0.0d0)
+            J_inel_z = DCMPLX(1.0d0, 0.0d0)
       CALL neohookeanup_stress_PK1(Fz, p_scalar_z, PROPS, stress_z)
       CALL neohookeanup_pressure_resid(Fz, p_scalar_z, PROPS, rp_z)
       DO i = 1, 3
@@ -396,6 +402,7 @@ C     F perturbations
           p_scalar_z = DCMPLX(p, 0.0d0)
           p_old_z = DCMPLX(p_old, 0.0d0)
           Fz(k,l) = Fz(k,l) + DCMPLX(0.0d0, CS_H)
+                J_inel_z = DCMPLX(1.0d0, 0.0d0)
           CALL neohookeanup_stress_PK1(Fz, p_scalar_z, PROPS, stress_z)
           CALL neohookeanup_pressure_resid(Fz, p_scalar_z, PROPS, rp_z)
           DO i = 1, 3
@@ -412,6 +419,7 @@ C     p perturbation
       CALL real2complex33(F_old, F_old_z)
       p_scalar_z = DCMPLX(p, CS_H)
       p_old_z = DCMPLX(p_old, 0.0d0)
+            J_inel_z = DCMPLX(1.0d0, 0.0d0)
       CALL neohookeanup_stress_PK1(Fz, p_scalar_z, PROPS, stress_z)
       CALL neohookeanup_pressure_resid(Fz, p_scalar_z, PROPS, rp_z)
       DO i = 1, 3
@@ -428,7 +436,7 @@ C======================================================================
 C     Templates
 C======================================================================
 C======================================================================
-C     tensor_ops.for ? Complex-arithmetic tensor utilities
+C     tensor_ops.for — Complex-arithmetic tensor utilities
 C
 C     Provides det33, inv33, matmul33, transpose33, outer33 for
 C     DOUBLE COMPLEX arguments. Also provides real-only wrappers.
@@ -520,7 +528,7 @@ C----------------------------------------------------------------------
 
 C----------------------------------------------------------------------
 C     matmul33z: C = A * B for 3x3 complex matrices
-C     (Explicit loop ? avoids MATMUL intrinsic for portability)
+C     (Explicit loop — avoids MATMUL intrinsic for portability)
 C----------------------------------------------------------------------
       SUBROUTINE matmul33z(A, B, C)
       IMPLICIT NONE
@@ -718,17 +726,17 @@ C
 C     All DOUBLE COMPLEX, CS-safe. See MATRIX_FUNCTIONS_DESIGN.md.
 C
 C     Subroutines:
-C       cross3z        ? cross product of complex 3-vectors
-C       outer33z       ? outer product of two complex 3-vectors
-C       sym3z          ? symmetric 3x3 tensor from 6 unique entries
-C       eig33z         ? eigenvalues/vectors of 3x3 symmetric matrix
-C       sqrtm33z       ? matrix square root via eigendecomposition
-C       logm33z        ? matrix logarithm via eigendecomposition
-C       expm33z        ? matrix exponential via eigendecomposition
-C       polar33z       ? right polar decomposition F = R * U
-C       sqrtm33z_iter  ? matrix square root (Denman-Beavers)
-C       logm33z_iter   ? matrix logarithm (inv scaling & squaring)
-C       expm33z_iter   ? matrix exponential (scaling & squaring + Pade)
+C       cross3z        — cross product of complex 3-vectors
+C       outer33z       — outer product of two complex 3-vectors
+C       sym3z          — symmetric 3x3 tensor from 6 unique entries
+C       eig33z         — eigenvalues/vectors of 3x3 symmetric matrix
+C       sqrtm33z       — matrix square root via eigendecomposition
+C       logm33z        — matrix logarithm via eigendecomposition
+C       expm33z        — matrix exponential via eigendecomposition
+C       polar33z       — right polar decomposition F = R * U
+C       sqrtm33z_iter  — matrix square root (Denman-Beavers)
+C       logm33z_iter   — matrix logarithm (inv scaling & squaring)
+C       expm33z_iter   — matrix exponential (scaling & squaring + Pade)
 C======================================================================
 
 C----------------------------------------------------------------------
@@ -1208,7 +1216,7 @@ C----------------------------------------------------------------------
       INTEGER, PARAMETER :: NSERIES = 8
       INTEGER :: ks, i, j
 
-C     Step 1: Repeated square roots ? B = A^{1/2^NSCALE}
+C     Step 1: Repeated square roots — B = A^{1/2^NSCALE}
       DO i = 1, 3
         DO j = 1, 3
           B(i,j) = A(i,j)
@@ -1258,7 +1266,7 @@ C     L += Xpow * X2 / k  for k = 3, 5, 7, ..., 2*NSERIES+1
         END DO
       END DO
 
-C     Step 3: Undo scaling ? L = 2 * L * 2^NSCALE
+C     Step 3: Undo scaling — L = 2 * L * 2^NSCALE
       scl = DCMPLX(DBLE(2**(NSCALE+1)), 0.0d0)
       DO i = 1, 3
         DO j = 1, 3
@@ -1316,7 +1324,7 @@ C     [2/2] Pade: exp(B) ~ inv(I - B/2 + B^2/12) * (I + B/2 + B^2/12)
       CALL inv33z(D2, D2inv)
       CALL matmul33z(D2inv, N2, E)
 
-C     Step 3: Repeated squaring ? E = E^{2^NSCALE}
+C     Step 3: Repeated squaring — E = E^{2^NSCALE}
       DO ks = 1, NSCALE
         CALL matmul33z(E, E, T1)
         DO i = 1, 3
@@ -1331,7 +1339,7 @@ C     Step 3: Repeated squaring ? E = E^{2^NSCALE}
 
 C======================================================================
 C     CS-safe scalar trig/hyperbolic functions (DOUBLE COMPLEX)
-C     Exact complex formulas ? safe for complex-step derivatives
+C     Exact complex formulas — safe for complex-step derivatives
 C======================================================================
 
 C----------------------------------------------------------------------
@@ -1528,7 +1536,7 @@ C     Shift back
       END SUBROUTINE cs_cubic_roots
 
 C======================================================================
-C     isoparametric.for ? Isoparametric mapping (2D and 3D)
+C     isoparametric.for — Isoparametric mapping (2D and 3D)
 C
 C     Contains:
 C       map_grad_2d:    Map shape function gradients (2D) + return Jinv
@@ -1546,15 +1554,15 @@ C----------------------------------------------------------------------
 C     map_grad_2d: Map shape function gradients from (xi,eta) to (X,Y)
 C
 C     Given:
-C       dshxi(nNode,2)  ? derivatives wrt xi, eta
-C       coords(2,nNode) ? nodal coordinates (X,Y for each node)
-C       nNode           ? number of nodes
+C       dshxi(nNode,2)  — derivatives wrt xi, eta
+C       coords(2,nNode) — nodal coordinates (X,Y for each node)
+C       nNode           — number of nodes
 C
 C     Returns:
-C       dsh(nNode,2)    ? derivatives wrt X, Y
-C       detJ            ? determinant of the Jacobian
-C       Jinv_out(2,2)   ? inverse Jacobian (for reuse with apply_jinv)
-C       stat            ? 0 if detJ <= 0 (degenerate element)
+C       dsh(nNode,2)    — derivatives wrt X, Y
+C       detJ            — determinant of the Jacobian
+C       Jinv_out(2,2)   — inverse Jacobian (for reuse with apply_jinv)
+C       stat            — 0 if detJ <= 0 (degenerate element)
 C----------------------------------------------------------------------
       SUBROUTINE map_grad_2d(dshxi, coords, nNode, dsh, detJ,
      &                       Jinv_out, stat)
@@ -1617,12 +1625,12 @@ C     For mixed-degree elements: use the Jacobian inverse from the full
 C     geometry mapping to map lower-degree shape function derivatives.
 C
 C     Given:
-C       dshxi(nNode,2)  ? derivatives wrt xi, eta
-C       Jinv(2,2)       ? pre-computed Jacobian inverse
-C       nNode           ? number of nodes
+C       dshxi(nNode,2)  — derivatives wrt xi, eta
+C       Jinv(2,2)       — pre-computed Jacobian inverse
+C       nNode           — number of nodes
 C
 C     Returns:
-C       dsh(nNode,2)    ? derivatives wrt X, Y
+C       dsh(nNode,2)    — derivatives wrt X, Y
 C----------------------------------------------------------------------
       SUBROUTINE apply_jinv(dshxi, Jinv, nNode, dsh)
       IMPLICIT NONE
@@ -1644,15 +1652,15 @@ C     map_grad_3d: Map shape function gradients from (xi,eta,zeta)
 C                  to (X,Y,Z)
 C
 C     Given:
-C       dshxi(nNode,3)  ? derivatives wrt xi, eta, zeta
-C       coords(3,nNode) ? nodal coordinates (X,Y,Z for each node)
-C       nNode           ? number of nodes
+C       dshxi(nNode,3)  — derivatives wrt xi, eta, zeta
+C       coords(3,nNode) — nodal coordinates (X,Y,Z for each node)
+C       nNode           — number of nodes
 C
 C     Returns:
-C       dsh(nNode,3)    ? derivatives wrt X, Y, Z
-C       detJ            ? determinant of the Jacobian
-C       Jinv_out(3,3)   ? inverse Jacobian (for reuse with apply_jinv_3d)
-C       stat            ? 0 if detJ <= 0 (degenerate element)
+C       dsh(nNode,3)    — derivatives wrt X, Y, Z
+C       detJ            — determinant of the Jacobian
+C       Jinv_out(3,3)   — inverse Jacobian (for reuse with apply_jinv_3d)
+C       stat            — 0 if detJ <= 0 (degenerate element)
 C----------------------------------------------------------------------
       SUBROUTINE map_grad_3d(dshxi, coords, nNode, dsh, detJ,
      &                       Jinv_out, stat)
@@ -1713,12 +1721,12 @@ C     apply_jinv_3d: Map shape function derivatives using
 C                    pre-computed 3x3 Jinv
 C
 C     Given:
-C       dshxi(nNode,3)  ? derivatives wrt xi, eta, zeta
-C       Jinv(3,3)       ? pre-computed Jacobian inverse
-C       nNode           ? number of nodes
+C       dshxi(nNode,3)  — derivatives wrt xi, eta, zeta
+C       Jinv(3,3)       — pre-computed Jacobian inverse
+C       nNode           — number of nodes
 C
 C     Returns:
-C       dsh(nNode,3)    ? derivatives wrt X, Y, Z
+C       dsh(nNode,3)    — derivatives wrt X, Y, Z
 C----------------------------------------------------------------------
       SUBROUTINE apply_jinv_3d(dshxi, Jinv, nNode, dsh)
       IMPLICIT NONE
@@ -1740,7 +1748,7 @@ C----------------------------------------------------------------------
       END SUBROUTINE apply_jinv_3d
 
 C======================================================================
-C     gauss_rules.for ? Gauss quadrature rules for 2D elements
+C     gauss_rules.for — Gauss quadrature rules for 2D elements
 C
 C     Contains:
 C       1. gauss_2d_2x2:  4-point (2x2), exact to degree 3
@@ -1849,7 +1857,7 @@ C----------------------------------------------------------------------
       END SUBROUTINE gauss_1d_3pt
 
 C======================================================================
-C     shape_quad4.for ? 4-node bilinear shape functions (Quad4)
+C     shape_quad4.for — 4-node bilinear shape functions (Quad4)
 C
 C     Node numbering:
 C

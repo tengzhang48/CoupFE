@@ -51,6 +51,7 @@ from petsc4py import PETSc
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "compression_cylinders"))
 from build_model import boundary_edges, disk_mesh, extract_geometry  # noqa: E402
 
+from coupfe import neo_hookean_kernel_props  # noqa: E402
 from coupfe.assembly.distributed import element_partition, solve_dynamics_distributed  # noqa: E402
 from coupfe.mesh import KernelMeshView  # noqa: E402
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel  # noqa: E402
@@ -168,7 +169,7 @@ def main():
 
     my_gm, my_coords, _ = element_partition(view, rank, size)
     elem = CompiledElement(build_element_kernel(_FOR, os.path.splitext(os.path.basename(_FOR))[0] + "_lw"),
-                           props=(G, K_BULK), dof_per_node=2,
+                           props=neo_hookean_kernel_props(G, K_BULK), dof_per_node=2,
                            n_svars=int(os.environ.get("NSVARS", "1")), mcrd=2,   # u-p needs 1 (condensed p); F-bar=0
                            n_elem=max(len(my_gm), 1))
     dc = {"kind": "barrier", "nodes_ref": nodes, "secondary": dbnodes, "edges": edges,

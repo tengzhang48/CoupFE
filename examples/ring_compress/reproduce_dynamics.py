@@ -40,7 +40,7 @@ from pathlib import Path
 
 import numpy as np
 
-from coupfe import InertiaOperator
+from coupfe import InertiaOperator, neo_hookean_kernel_props
 from coupfe.assembly.assemble import newton_solve, _call_max_step
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact import (
@@ -170,7 +170,7 @@ def build_model(contact_kind: str = "penalty"):
 
     elem = CompiledElement(
         build_element_kernel(_Q4_FOR, "ring_compress_q4"),
-        props=(G_RING, K_RING),
+        props=neo_hookean_kernel_props(G_RING, K_RING),
         dof_per_node=2,
         n_svars=0,
         mcrd=2,

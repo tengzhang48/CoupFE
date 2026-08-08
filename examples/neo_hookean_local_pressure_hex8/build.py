@@ -6,7 +6,10 @@ near-incompressible element used by the 3D rubber-contact studies (see
 rescaling when centroid `J̄≤0`; instead it
 condenses an element-constant pressure `p` enforcing the **volume-average** constraint
 
-    ∫ q (p − K·lnJ) dV = 0,  q,p constant  ⇒  p = K · (1/V)∫ lnJ dV   (mean dilatation / L2 projection),
+    ∫ q (p − lambda·lnJ) dV = 0,  q,p constant
+        ⇒  p = lambda · (1/V)∫ lnJ dV   (mean dilatation / L2 projection),
+
+where the public physical bulk modulus is ``K = lambda + 2G/3``.
 
 It condenses to a displacement-only Hex8. This ships as a RESEARCH example;
 the present checks do not establish a general inf-sup, locking, or
@@ -43,8 +46,10 @@ class NeoHookeanUP(au.Material):
         return self.G * (F - inv(F).T) + p * inv(F).T
 
     def pressure_resid(self, F, p):
-        # p = element-constant volumetric stress; condensation enforces p = K·avg(lnJ).
-        return p - self.K * log(det(F))
+        # The non-isochoric shear term contributes 2G/3 to physical bulk
+        # response, so the ln(J) pressure coefficient is lambda.
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return p - lame_lambda * log(det(F))
 
 
 class NeoHookeanUPHex8(au.WeakForm):

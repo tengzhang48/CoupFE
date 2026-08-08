@@ -31,6 +31,7 @@ import sys
 import numpy as np
 from petsc4py import PETSc
 
+from coupfe import neo_hookean_kernel_props
 from coupfe.assembly.distributed import element_partition, solve_dynamics_distributed
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact3d import point_triangle_coeff_unclassified
@@ -131,7 +132,8 @@ def main():
 
     my_gm, my_coords, _ = element_partition(view, rank, size)
     elem = CompiledElement(build_element_kernel(_HEX8_FOR, "neo_hex8_dist_fr"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=0, mcrd=3,
+                           props=neo_hookean_kernel_props(G, K_BULK),
+                           dof_per_node=3, n_svars=0, mcrd=3,
                            n_elem=max(len(my_gm), 1))
 
     # bottom block fixed; top face dragged +x (ramped) with z,y FREE → gravity seats the block onto

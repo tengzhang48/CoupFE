@@ -70,7 +70,8 @@ def solve_tire(grav=GRAV, mu=MU, n_steps=N_STEPS, n_phi=N_PHI, n_theta=N_THETA, 
     ndof = view.ndof
 
     elem = CompiledElement(build_element_kernel(_UP_HEX8_FOR, "tire_up_hex8"),
-                           props=(G, K_BULK), dof_per_node=3, n_svars=1, mcrd=3, n_elem=len(elems))
+                           props=(G, K_BULK), dof_per_node=3, n_svars=1,
+                           mcrd=3, n_elem=len(elems))
     grp = ElementGroup.from_view(view, elem, comps=(0, 1, 2))
 
     nodal = _lumped_mass(nodes, elems, DENSITY)

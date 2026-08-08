@@ -28,7 +28,7 @@ from pathlib import Path
 
 import numpy as np
 
-from coupfe import solve_increments
+from coupfe import neo_hookean_kernel_props, solve_increments
 from coupfe.mesh import KernelMeshView
 from coupfe.operators.contact import RigidContact, HalfSpace
 from coupfe.operators.element_group import ElementGroup
@@ -113,7 +113,7 @@ def build_model():
 
     elem = CompiledElement(
         build_element_kernel(_Q4_FOR, "ring_compress_q4"),
-        props=(G_RING, K_RING),
+        props=neo_hookean_kernel_props(G_RING, K_RING),
         dof_per_node=2,
         n_svars=0,
         mcrd=2,

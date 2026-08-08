@@ -3,7 +3,7 @@
 This is the smallest *compiled-kernel* CoupFE operator (the bar example is the
 smallest pure-Python one).  It wires the vendored native neo-Hookean Quad4
 kernel (``coupfe/runtime/elements/neo_hookean_q4_native.for``,
-``P = G(F - F^-T) + K ln(J) F^-T``) into an :class:`ElementGroup` and solves a
+``P = G(F - F^-T) + lambda ln(J) F^-T``) into an :class:`ElementGroup` and solves a
 small block/patch through ``newton_solve`` — the same contract as every other
 operator.
 
@@ -21,13 +21,15 @@ from functools import lru_cache
 import numpy as np
 
 from coupfe.operators.element_group import ElementGroup, GroupState
+from coupfe.materials import neo_hookean_kernel_props
 from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
 
 # Vendored native Neo-Hookean Quad4 kernel shipped with CoupFE.
 _FOR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                     "coupfe", "runtime", "elements", "neo_hookean_q4_native.for")
 
-# Material properties the kernel reads, props = (G, K): shear and bulk-like moduli.
+# Public example inputs: shear modulus G and physical small-strain bulk modulus K.
+# ``make_group`` converts these to the retained raw kernel ABI ``(G, lambda)``.
 DEFAULT_PROPS = (1.0, 10.0)
 
 
@@ -64,7 +66,8 @@ def make_group(nodes, elems, props=DEFAULT_PROPS, dof_per_node=2, comps=(0, 1)):
     pure-u (2 DOF/node) single-material layout but accept the multi-material pattern.
     """
     mod = _kernel(tuple(props))
-    elem = CompiledElement(mod, props=props, dof_per_node=2, n_svars=0,
+    raw_props = neo_hookean_kernel_props(*props)
+    elem = CompiledElement(mod, props=raw_props, dof_per_node=2, n_svars=0,
                            mcrd=2, n_elem=len(elems))
     return ElementGroup(elem, nodes, elems, dof_per_node=dof_per_node, comps=comps)
 

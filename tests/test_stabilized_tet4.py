@@ -74,10 +74,36 @@ def test_material_and_problem_verify_at_non_benign_states():
     # WeakForm construction supplies the material with the declared scalar
     # field metadata, so this is the configured material verification path.
     assert problem._mat.verify(
-        state=states[0], tol=5.0e-5, verbose=False
+        state=states[0], tol=1.0e-6, verbose=False
     )
     for state in states:
-        assert problem.verify(state=state, tol=5.0e-5, verbose=False)
+        assert problem.verify(state=state, tol=1.0e-6, verbose=False)
+
+
+def test_fixed_scalar_tangent_is_major_symmetric():
+    """Retain the property that the review questioned instead of bypassing it."""
+    example = _load_example()
+    material = example.ScovazziBlockMaterial()
+
+    for state in example.verification_states():
+        F = np.asarray(state["F"], dtype=float)
+        thetat = float(state["thetat"])
+        step = 1.0e-25
+        tangent = np.empty((3, 3, 3, 3))
+        for k in range(3):
+            for l in range(3):
+                perturbed = F.astype(complex)
+                perturbed[k, l] += 1j * step
+                stress = material.stress_PK1(perturbed, thetat)
+                tangent[:, :, k, l] = np.imag(
+                    np.asarray(stress, dtype=complex)
+                ) / step
+
+        scale = max(float(np.max(np.abs(tangent))), 1.0e-30)
+        relative_asymmetry = np.max(
+            np.abs(tangent - tangent.transpose(2, 3, 0, 1))
+        ) / scale
+        assert relative_asymmetry < 1.0e-12
 
 
 def test_tet4_generation_and_object_compile(tmp_path):

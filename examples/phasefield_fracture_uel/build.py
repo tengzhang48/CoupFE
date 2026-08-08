@@ -26,7 +26,8 @@ class PhaseFieldFractureMaterial(au.Material):
     def stress_PK1(self, F, d):
         J = det(F)
         finv_t = inv(F).T
-        P0 = self.G * (F - finv_t) + self.K * log(J) * finv_t
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        P0 = self.G * (F - finv_t) + lame_lambda * log(J) * finv_t
         g_d = (1.0 - d) ** 2 + self.kappa
         return g_d * P0
 

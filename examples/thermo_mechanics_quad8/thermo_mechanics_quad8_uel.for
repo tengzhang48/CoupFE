@@ -378,14 +378,18 @@ C======================================================================
       DOUBLE COMPLEX :: P_mech(3,3)
       DOUBLE COMPLEX :: P_thermal(3,3)
       DOUBLE COMPLEX :: J
+      DOUBLE COMPLEX :: lame_lambda
       INTEGER :: ii, jj
 
       CALL inv33z(F, INV1)
       CALL transpose33z(INV1, AT2)
       finv_t = AT2
       J = det33z(F)
+      lame_lambda = (DCMPLX(props(2), 0.0d0) -
+     &((DCMPLX(2.000000000000000d+00, 0.0d0) * DCMPLX(props(1), 0.0d0))
+     &/ DCMPLX(3.000000000000000d+00, 0.0d0)))
       P_mech = ((DCMPLX(props(1), 0.0d0) * (F - finv_t)) +
-     &((DCMPLX(props(2), 0.0d0) * LOG(J)) * finv_t))
+     &((lame_lambda * LOG(J)) * finv_t))
       P_thermal = ((((-DCMPLX(props(2), 0.0d0)) * DCMPLX(props(3),
      &0.0d0)) * T) * finv_t)
 

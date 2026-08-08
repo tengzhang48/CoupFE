@@ -26,7 +26,8 @@ from coupfe.codegen.core.tensor import det, inv, log
 class NeoHookean(au.Material):
     """Compressible neo-Hookean law with ``PROPS = (G, K)``.
 
-    ``P = G (F - F^-T) + K ln(J) F^-T``, with ``J = det(F)``.
+    ``K`` is physical small-strain bulk modulus, so the ``ln(J)`` coefficient
+    is ``lambda = K - 2G/3``.
     """
 
     props = dict(G=0.5, K=50.0)
@@ -34,7 +35,8 @@ class NeoHookean(au.Material):
     def stress_PK1(self, F):
         J = det(F)
         FinvT = inv(F).T
-        return self.G * (F - FinvT) + self.K * log(J) * FinvT
+        lame_lambda = self.K - 2.0 * self.G / 3.0
+        return self.G * (F - FinvT) + lame_lambda * log(J) * FinvT
 
 
 DEFAULT_PROPS = tuple(NeoHookean.props.values())
