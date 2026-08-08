@@ -229,9 +229,9 @@
             <article class="evidence-card compact-card">
               <p class="result-kind">Finite strain</p>
               <h3><code>neo_hookean_block</code></h3>
-              <p class="metric"><strong>0.855918</strong><span>computed lateral stretch</span></p>
-              <p class="metric comparison"><strong>0.855918</strong><span>traction-free oracle</span></p>
-              <p class="micro-result">Relative difference: <code>5.45e-15</code></p>
+              <p class="metric"><strong>0.857332</strong><span>computed lateral stretch</span></p>
+              <p class="metric comparison"><strong>0.857332</strong><span>traction-free oracle</span></p>
+              <p class="micro-result">Relative difference: <code>1.04e-15</code></p>
               <p class="boundary-copy">
                 This checks the stated block formulation and oracle, not broad finite-strain coverage.
               </p>
@@ -347,10 +347,10 @@
               </div>
               <dl class="contact-results">
                 <div>
-                  <dt>Collision minimum gap</dt>
+                  <dt>Collision minimum signed gap</dt>
                   <dd>
-                    <span class="contact-value"><code>2.166e-02</code></span>
-                    <span class="contact-explanation">Below the barrier band and above zero in this trajectory.</span>
+                    <span class="contact-value"><code>2.175e-02</code></span>
+                    <span class="contact-explanation">Below the barrier band and above zero over the accepted trajectory.</span>
                   </dd>
                 </div>
                 <div>
@@ -361,10 +361,10 @@
                   </dd>
                 </div>
                 <div>
-                  <dt>Friction-run minimum gap</dt>
+                  <dt>Friction-run minimum signed gap</dt>
                   <dd>
-                    <span class="contact-value">3.495 × 10<sup>−2</sup></span>
-                    <span class="contact-explanation">Positive in the retained example rerun.</span>
+                    <span class="contact-value"><code>2.503e-02</code></span>
+                    <span class="contact-explanation">Positive over the accepted retained trajectory.</span>
                   </dd>
                 </div>
               </dl>

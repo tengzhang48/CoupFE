@@ -99,6 +99,25 @@ symmetry regression was added.
 - The 3-D contact comment no longer equates barrier scale `kappa` with bulk
   modulus; they have different roles and units.
 
+## Verification record
+
+The corrected code was pinned at
+`a4a7c3843cb9c4864b6306ad0f57647a6fe981f2` before refreshing public numerical
+evidence.
+
+- `python -m pytest -q -m 'not slow'` completed with `170 passed`, `1 skipped`,
+  and `1` opt-in slow test deselected.
+- Focused material/code-generation suites included `12` physical-modulus
+  perturbation tests, raw-kernel regeneration/hash checks, generated-source
+  compilation, J2 trial/commit checks, and the contact/friction broken controls.
+- Every modified retained UEL/UMAT source was regenerated; the corresponding
+  declarations also generated and compiled in temporary directories.
+- The pinned `neo_hookean_block`, `curved_annulus`, `hertz_contact`,
+  `contact_3d_blocks`, and `contact_3d_friction` simulations were rerun. Their
+  refreshed values and source hashes are in [`../site/evidence.json`](../site/evidence.json).
+- `python .github/scripts/check_site.py` passed after the evidence and displayed
+  values were refreshed.
+
 ## Claim boundary
 
 These changes strengthen the stated example-level checks. They do not turn the

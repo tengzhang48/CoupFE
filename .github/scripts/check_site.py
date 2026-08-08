@@ -285,11 +285,12 @@ def main() -> None:
         "1.500",
         "1.01–1.06",
         "+1.3% to +6.2%",
-        "0.855918",
-        "5.45e-15",
+        "0.857332",
+        "1.04e-15",
         "2.02",
-        "2.166e-02",
+        "2.175e-02",
         "0.65",
+        "2.503e-02",
     ):
         require(required.casefold() in normalized_html.casefold(), f"required public text is missing: {required}")
 

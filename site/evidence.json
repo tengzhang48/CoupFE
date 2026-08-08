@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "recordedDate": "2026-08-08",
-  "sourceCommit": "7a2b37a3e13067a28527f503d99da89b86628e5b",
+  "sourceCommit": "a4a7c3843cb9c4864b6306ad0f57647a6fe981f2",
   "scope": "Current-revision example reruns. These values support only the named example and its documented qualification boundary.",
   "environment": {
     "python": "CPython 3.13.9",
@@ -11,20 +11,26 @@
     "platform": "Linux x86_64, glibc 2.39"
   },
   "sourceFiles": {
+    "coupfe/materials.py": "9fb2536b3e58cd65f7799de850b37ca171a2b1b12a9640c857683144f2837719",
+    "coupfe/runtime/elements/neo_hookean_q4_native.for": "34092cb1e6b4f414e08b2b7f9e768b4884d1ee0aef0345301ca9ccd8cf27831f",
+    "coupfe/runtime/elements/neo_hookean_hex8_fbar.for": "f9d4ab2e67745976f79d99d847f5aafe7ffe1aab96505fd95c0e879014365b50",
     "examples/linear_bar/run.py": "7ab000784b4a31a421b42838b3f6650a36a8237a57efa45553c7fd1fa6d89bda",
     "examples/linear_bar/bar.py": "1fea44e7754ff4b9a2add4d09ff9da8fd0eb059f04d4b3fbcbea5f857a363e77",
     "tests/test_operator_contract.py": "9ea36e2ae56aaf7af36642cf2408cd0200db8b10d9ad384c7d6807f5a673553f",
-    "examples/neo_hookean_block/run.py": "3b54b7675e0692199f5f5eca02f0dc83ff15a9f790a455f7ec4de0ac399838a0",
+    "examples/neo_hookean_block/run.py": "17d12f317b6f50723b9f87d44e11a24eafe8527121386f33fa03a0854d7b465e",
+    "examples/neo_hookean_block/block.py": "416ab48ef6ba71b9dbf871d5f090b4a5a52c93c0bda6e35fa17022975d641891",
     "tests/test_element_group.py": "e9d87023f1ab88d48c148bdfc0c8f8f75819c11c4d115b96ad1485533ee7d155",
     "examples/curved_annulus/run.py": "1665a3dd9d14a459776d228f85a535ef2015fa66945404b83306ac7a7e3e5891",
+    "examples/curved_annulus/annulus.py": "5be8f26a92fe9eb7a43d0c17872ebd54f083dae42c0b47218994b47b8ae03349",
     "tests/test_curved_convergence.py": "ce0b22b20758208b6df60f3e87bdbd07913e120ab2a05ee99cee21314ba93676",
-    "examples/hertz_contact/run.py": "150416b299001640a8582f992fa41b0bcf39672ad71e1244da7a2dc06855dc41",
+    "examples/hertz_contact/run.py": "ba738001c0002216e1a25c0c6cf486e67b8925e20db0d3e7d139ce973d4c8c38",
     "examples/hertz_contact/render.py": "3bf69bb3dbaac1e0a81f83a4bc56b55cba127a257cc8560cbd47c36954002c43",
-    "tests/test_hertz_contact.py": "62ae3e4c278e60726d29b03b4fcfca09ebd526119a8f32729537a1c6d1c1d54e",
-    "docs/assets/hertz-contact-benchmark.svg": "05718bc9f52524b2ddfda45d18950901c44a69f53a394f640a4b833c8c4399ac",
-    "examples/contact_3d_blocks/run.py": "cf34c31843690e5f0564e2ead45754bf53667934d35e2b7e15c28d6e4c27ac3f",
-    "examples/contact_3d_friction/run.py": "c2586876d8b82d365e1bd11f1d2acada1ab94ca996c1cf611139d6b1f69df660",
-    "tests/test_examples_contact_3d.py": "b373b76af6781bc35923f70b61c5ebe5c070ef6613c2764c7b6ebd7e9e8bc790"
+    "tests/test_hertz_contact.py": "8385263e31d97586abce4705bc13c81e77f88a46dbd23adbde940f46373972ae",
+    "tests/test_neo_hookean_material.py": "6286cbe7fde3400cd4c69421c584b19d7619eb454cccd59dc7214d02af8fc541",
+    "docs/assets/hertz-contact-benchmark.svg": "c62f103743d915db0b00e0386ac049bd8e0ef3ad54a4d0144e9ffc5ed1c19deb",
+    "examples/contact_3d_blocks/run.py": "660bb8951bd7b51e8ba9a0717347e85abf2474283d4a7bc55bb6fc66a1bc637b",
+    "examples/contact_3d_friction/run.py": "d2338fb4102b98c16d29db08ea016a86deb35f1976f23021fd6f6c9b38638ae2",
+    "tests/test_examples_contact_3d.py": "9461478164f5be8017b3dc72248b164a77de1e2e75de45ba1313554f7b2a566d"
   },
   "runs": {
     "linearBar": {
@@ -34,25 +40,25 @@
     },
     "neoHookeanBlock": {
       "command": "PYTHONPATH=. python examples/neo_hookean_block/run.py",
-      "lateralStretchFe": 0.855918,
-      "lateralStretchAnalytic": 0.855918,
-      "reportedRelativeError": 5.45e-15
+      "lateralStretchFe": 0.857332,
+      "lateralStretchAnalytic": 0.857332,
+      "reportedRelativeError": 1.04e-15
     },
     "curvedAnnulus": {
       "command": "PYTHONPATH=. python examples/curved_annulus/run.py",
       "reembeddedElementCounts": [8, 32, 128, 512],
-      "reembeddedRelativeL2Errors": [0.02434, 0.008112, 0.002145, 0.000529],
+      "reembeddedRelativeL2Errors": [0.02414, 0.008028, 0.002120, 0.0005227],
       "lastObservedRate": 2.02
     },
     "hertzContact": {
       "command": "PYTHONPATH=. python examples/hertz_contact/run.py",
       "deltas": [0.02, 0.035, 0.05, 0.065, 0.08],
       "forcesFe": [
-        0.059371494752944856,
-        0.13744005905493548,
-        0.2374788903161259,
-        0.36452190036601073,
-        0.4919613368609966
+        0.05937149475294532,
+        0.1374400590549352,
+        0.23747889031612474,
+        0.36452190036601007,
+        0.4919613368609975
       ],
       "forcesHertz": [
         0.05860805860805861,
@@ -61,7 +67,7 @@
         0.3433858357584752,
         0.46886446886446886
       ],
-      "logLogSlope": 1.5325049301019322,
+      "logLogSlope": 1.5325049301019267,
       "referenceSlope": 1.5,
       "forceRatioMin": 1.01,
       "forceRatioMax": 1.06,
@@ -79,7 +85,7 @@
       "nodes": 54,
       "hexes": 16,
       "degreesOfFreedom": 162,
-      "minimumInterfaceGap": 0.02166,
+      "minimumInterfaceGap": 0.02175,
       "collisionObserved": true,
       "penetrationFree": true,
       "status": "OK"
@@ -87,10 +93,10 @@
     "contact3dFriction": {
       "command": "PYTHONPATH=. python examples/contact_3d_friction/run.py",
       "frictionCoefficient": 0.8,
-      "interfaceSlip": 0.0015312,
-      "frictionlessSlip": 0.002373,
+      "interfaceSlip": 0.0015265,
+      "frictionlessSlip": 0.00236,
       "slipRatio": 0.65,
-      "minimumInterfaceGap": 0.03495,
+      "minimumInterfaceGap": 0.02503,
       "held": true,
       "penetrationFree": true,
       "status": "OK"
