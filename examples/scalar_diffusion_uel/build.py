@@ -3,6 +3,9 @@
 This uses ``coupfe.codegen`` to define a Quad4 element with displacement DOFs
 plus one scalar (temperature) DOF per
 node, neo-Hookean mechanics with thermal expansion, and Fourier heat conduction.
+The coefficient ``alpha`` is log-volumetric, and ``T`` is the temperature
+change from an implicit zero reference; in a three-dimensional isotropic
+interpretation, ``alpha = 3 * alpha_linear``.
 """
 from __future__ import annotations
 
@@ -18,9 +21,17 @@ from coupfe.runtime.compiled_element import build_element_kernel
 
 
 class HeatDiffusionMaterial(au.Material):
+    """Neo-Hookean/Fourier material with the stated thermal convention.
+
+    ``alpha`` is log-volumetric and ``T`` is a temperature change from an
+    implicit reference value of zero, not an absolute temperature.
+    """
+
     props = dict(G=1.0, K=10.0, alpha=1e-3, k=0.5, rho_cp=1.0)
 
     def stress_PK1(self, F, T):
+        """Return stress for ``T = temperature - reference_temperature``."""
+
         J = det(F)
         finv_t = inv(F).T
         lame_lambda = self.K - 2.0 * self.G / 3.0

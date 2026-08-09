@@ -1,10 +1,13 @@
 """Gate the dual-multiplier EXACT-STICK friction example (examples/exact_stick_friction).
 
 Two layers: (1) run the example as a subprocess and assert it self-reports OK; (2) drive the active-set
-interface directly and assert the *defining* properties of the dual-multiplier treatment that the
-smoothed/return-map forms cannot deliver — interface slip that is EXACTLY zero in stick (a constraint,
-not ~F/k_t), the Coulomb force locked at μN to machine precision once sliding, and the stick→slip onset
-at the analytic incipient shear. A broken control (zeroed friction) must lose the cap."""
+interface directly and assert the *defining* properties of the dual-multiplier
+treatment that the smoothed/return-map forms cannot deliver — interface slip
+that is EXACTLY zero in stick (a constraint, not ~F/k_t), the global Coulomb
+resultant locked at μP to machine precision once sliding, and the stick→slip
+onset at the analytic incipient shear. A broken control (zeroed friction) must
+lose the cap.
+"""
 from __future__ import annotations
 
 import importlib.util

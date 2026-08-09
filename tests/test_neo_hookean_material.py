@@ -117,6 +117,36 @@ def test_codegen_declarations_recover_physical_moduli(material, stress):
 
 
 @pytest.mark.parametrize(
+    "material",
+    (
+        HeatDiffusionMaterial(G=1.5, K=12.0, alpha=2.5e-3),
+        ThermoMechanicalMaterial(G=1.5, K=12.0, alpha=2.5e-3),
+    ),
+    ids=("diffusion", "thermo"),
+)
+def test_thermal_pressure_uses_log_volumetric_alpha_and_delta_temperature(
+    material,
+):
+    """At F=I, the declared thermal convention has a direct stress oracle."""
+
+    delta_temperature = 7.0
+    stress = np.real(
+        np.asarray(
+            material.stress_PK1(np.eye(3), delta_temperature),
+            dtype=complex,
+        )
+    )
+    expected = (
+        -material.K
+        * material.alpha
+        * delta_temperature
+        * np.eye(3)
+    )
+
+    np.testing.assert_allclose(stress, expected, rtol=0.0, atol=1.0e-14)
+
+
+@pytest.mark.parametrize(
     "material,pressure,stress",
     (
         (

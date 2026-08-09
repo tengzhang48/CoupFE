@@ -42,6 +42,24 @@ def _points(values):
     return " ".join(f"{_num(x)},{_num(y)}" for x, y in values)
 
 
+def _marker_order(projected, node_ids):
+    """Return a deterministic painter's order at the SVG output precision."""
+
+    projected = np.asarray(projected, dtype=float)
+    node_ids = np.asarray(node_ids, dtype=int)
+    if projected.size == 0:
+        return np.empty(0, dtype=int)
+    if projected.shape != (len(node_ids), 2):
+        raise ValueError("projected markers and node IDs must have matching rows")
+
+    # ``_num`` emits two decimal places.  Sorting the same rounded coordinates
+    # prevents sub-rendering-precision floating-point noise from swapping
+    # symmetric markers and changing the retained SVG hash.  Node ID is the
+    # final tie-breaker when both rendered coordinates coincide.
+    rendered = np.round(projected, decimals=2)
+    return np.lexsort((node_ids, rendered[:, 0], rendered[:, 1]))
+
+
 def _project(values, center_xy=(1.25, 1.25)):
     """Orthographic engineering projection used by the field panel."""
 
@@ -215,10 +233,11 @@ def render_hertz_svg(evidence, output_path=DEFAULT_OUTPUT):
         )
 
     active_positions = deformed[top_nodes][active]
+    active_node_ids = top_nodes[active]
     active_reaction = reaction[active]
     active_projected = _project(active_positions, center_xy)
     maximum_reaction = float(np.max(active_reaction)) if active_reaction.size else 1.0
-    order = np.argsort(active_projected[:, 1]) if active_projected.size else []
+    order = _marker_order(active_projected, active_node_ids)
     for index in order:
         marker_radius = 2.4 + 5.0 * np.sqrt(active_reaction[index] / maximum_reaction)
         svg.append(

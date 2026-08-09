@@ -25,6 +25,24 @@ def _load(path, name):
     return mod
 
 
+def test_marker_order_is_stable_below_svg_output_precision():
+    renderer = _load(_RENDER, "hertz_render_marker_order")
+    projected = np.array(
+        [
+            [10.004, 20.004],
+            [9.994, 20.004],
+            [10.004, 20.004],
+        ]
+    )
+    node_ids = np.array([8, 5, 3])
+
+    order = renderer._marker_order(projected, node_ids)
+
+    # Rounded y is tied; rounded x orders node 5 first, then node ID resolves
+    # the two markers that are identical at the renderer's output precision.
+    assert order.tolist() == [1, 2, 0]
+
+
 @pytest.mark.skipif(shutil.which("gfortran") is None, reason="needs gfortran")
 def test_hertz_force_law(tmp_path):
     ex = _load(_RUN, "hertz_run")
