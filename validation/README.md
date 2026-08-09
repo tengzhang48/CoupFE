@@ -38,9 +38,12 @@ The shipped suite includes focused checks for:
   the linear bar, curved annulus, finite-block Hertz normal-force check, and
   material-point paths.
 
-`examples/mpi_smoke/` contains rerunnable MPI programs. They are useful for
-qualifying a concrete PETSc/MPI installation, but this release does not publish
-a retained final-revision multi-rank result.
+`examples/mpi_smoke/` contains worked PETSc/MPI examples that execute scoped
+distributed bulk, contact, dynamics, and friction problems. The historical
+directory name is retained for compatibility; these are solver-backed examples,
+not merely process-launch checks. They are useful for qualifying a concrete
+PETSc/MPI installation, but this release does not publish a retained
+final-revision multi-rank result or a release-grade scaling record.
 
 ## Evidence categories
 
@@ -100,6 +103,13 @@ to edit blindly or a reason to defend the current code.  Use this sequence:
    compiled or end-to-end paths.
 9. Record what was confirmed, what was disproved, the resulting claim boundary,
    and any compatibility work deliberately deferred.
+
+When a numerical run is pinned before a figure or report is rendered, keep the
+two provenance layers explicit. Source hashes and run values belong to the
+source commit; deterministic figures are presentation artifacts derived from
+that run and need their own renderer and output hashes. Do not place a later
+artifact hash in a mapping that claims every entry is recoverable from the
+earlier source commit.
 
 This process intentionally separates diagnosis from repair.  A derivative
 check may confirm the derivative of an incorrect constitutive map; a positive

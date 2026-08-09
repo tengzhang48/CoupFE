@@ -197,11 +197,39 @@ h3 {
 
 .hero-grid {
   display: grid;
-  min-height: 650px;
-  grid-template-columns: minmax(0, 1.55fr) minmax(310px, 0.7fr);
-  align-items: center;
-  gap: clamp(50px, 7vw, 100px);
-  padding-block: 76px 82px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(38px, 4vw, 52px);
+  padding-block: 68px 82px;
+}
+
+.hero-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  column-gap: clamp(38px, 5vw, 64px);
+  align-items: start;
+  max-width: none;
+}
+
+.hero-copy .eyebrow {
+  grid-column: 1 / -1;
+}
+
+.hero-copy h1 {
+  grid-row: 2 / span 2;
+  grid-column: 1;
+  margin-bottom: 0;
+  font-size: clamp(3rem, 4.8vw, 4.125rem);
+}
+
+.hero-copy .hero-lede {
+  grid-row: 2;
+  grid-column: 2;
+}
+
+.hero-copy .button-row {
+  grid-row: 3;
+  grid-column: 2;
 }
 
 .eyebrow {
@@ -256,13 +284,54 @@ h3 {
   transform: translateY(-1px);
 }
 
-.hero-record {
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 22px 60px rgba(3, 23, 29, 0.18);
-  backdrop-filter: blur(12px);
+.hero-figure {
+  overflow: hidden;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 28px 72px rgba(2, 18, 24, 0.34);
+}
+
+.hero-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.hero-figure-link {
+  display: block;
+  border-radius: 12px;
+}
+
+.hero-figure-link:focus-visible {
+  outline-color: var(--teal);
+  outline-offset: 3px;
+}
+
+.hero-figure figcaption {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 12px 18px;
+  padding: 13px 8px 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.hero-figure figcaption strong {
+  color: var(--deep);
+  font-size: 0.74rem;
+}
+
+.hero-figure figcaption a {
+  color: var(--teal);
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .record-kicker {
@@ -272,44 +341,6 @@ h3 {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-}
-
-.hero-record h2 {
-  margin-bottom: 22px;
-  font-size: 1.55rem;
-  letter-spacing: -0.025em;
-}
-
-.record-list {
-  margin: 0 0 22px;
-}
-
-.record-list div {
-  display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
-  gap: 14px;
-  padding-block: 13px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.record-list dt {
-  color: #9bb5bb;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.record-list dd {
-  margin: 0;
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 650;
-}
-
-.record-boundary {
-  margin-bottom: 0;
-  color: #cbdcdf;
-  font-size: 0.85rem;
-  line-height: 1.55;
 }
 
 .section {
@@ -732,76 +763,42 @@ h3 {
   font-size: 0.68rem;
 }
 
-.hertz-figure {
-  align-self: center;
+.hertz-method {
+  align-self: stretch;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--deep);
+  color: #fff;
+}
+
+.hertz-method .result-kind {
+  color: #8ed2ca;
+}
+
+.hertz-method dl {
   margin: 0;
 }
 
-.hertz-chart {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 13px;
-  background: #fafaf7;
+.hertz-method dl div {
+  display: grid;
+  gap: 4px;
+  padding-block: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
-.chart-grid line {
-  stroke: #dfe4e1;
-  stroke-width: 1;
+.hertz-method dt {
+  color: #8faab0;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.chart-axes line {
-  stroke: #7d8c91;
-  stroke-width: 1.4;
-}
-
-.chart-labels text,
-.chart-legend text {
-  fill: #5a6a70;
-  font-family: Inter, ui-sans-serif, sans-serif;
-  font-size: 12px;
-}
-
-.chart-labels .axis-title {
-  fill: #324b54;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.fe-line,
-.theory-line {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 3;
-}
-
-.fe-line {
-  stroke: var(--copper);
-}
-
-.theory-line {
-  stroke: var(--teal);
-  stroke-dasharray: 7 6;
-}
-
-.fe-dots circle {
-  fill: var(--copper);
-  stroke: #fff;
-  stroke-width: 2;
-}
-
-.theory-dots circle {
-  fill: #fff;
-  stroke: var(--teal);
-  stroke-width: 2.5;
-}
-
-.hertz-figure figcaption {
-  margin-top: 8px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  text-align: center;
+.hertz-method dd {
+  margin: 0;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 650;
 }
 
 .nowrap {
@@ -1083,6 +1080,61 @@ h3 {
   line-height: 1.45;
 }
 
+.public-record-section {
+  padding-block: 70px;
+  background: var(--paper-deep);
+}
+
+.public-record-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(440px, 1.28fr);
+  gap: clamp(40px, 6vw, 80px);
+  padding: clamp(34px, 5vw, 58px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--deep-2), var(--deep));
+  box-shadow: var(--shadow);
+  color: #fff;
+}
+
+.public-record-panel h2 {
+  margin-bottom: 18px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.public-record-panel .record-boundary {
+  margin-bottom: 0;
+  color: #cbdcdf;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.public-record-panel .record-list {
+  margin: 0;
+}
+
+.public-record-panel .record-list div {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 18px;
+  padding-block: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.public-record-panel .record-list dt {
+  color: #9bb5bb;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.public-record-panel .record-list dd {
+  margin: 0;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
 .site-footer {
   padding-block: 58px 26px;
   background: #09252d;
@@ -1152,14 +1204,17 @@ h3 {
 }
 
 @media (max-width: 1000px) {
-  .hero-grid {
-    grid-template-columns: 1fr;
-    gap: 45px;
-    padding-block: 70px;
+  .hero-copy {
+    display: block;
+    max-width: 820px;
   }
 
-  .hero-record {
-    max-width: 720px;
+  .hero-copy h1 {
+    margin-bottom: 24px;
+  }
+
+  .public-record-panel {
+    grid-template-columns: 1fr;
   }
 
   .contract-flow {
@@ -1247,6 +1302,15 @@ h3 {
     padding-block: 62px;
   }
 
+  .hero-figure figcaption {
+    grid-template-columns: 1fr auto;
+  }
+
+  .hero-figure figcaption > span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   h1 {
     font-size: clamp(2.8rem, 13vw, 4.4rem);
   }
@@ -1306,7 +1370,7 @@ h3 {
     gap: 3px;
   }
 
-  .hero-record,
+  .public-record-panel,
   .flow-card,
   .compact-card,
   .hertz-card,
@@ -1320,9 +1384,33 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .hertz-chart {
-    margin-inline: -7px;
-    width: calc(100% + 14px);
+  .hero-figure {
+    margin-inline: -8px;
+    border-radius: 14px;
+  }
+
+  .hero-figure img {
+    height: clamp(260px, 78vw, 320px);
+    object-fit: cover;
+    object-position: left center;
+  }
+
+  .hero-figure figcaption {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-figure figcaption > span {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .hero-figure figcaption a {
+    white-space: normal;
+  }
+
+  .public-record-panel .record-list div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 
   .install-panel pre {
@@ -1379,13 +1467,21 @@ h3 {
   .hero,
   .backend-section,
   .mpi-strip,
+  .hertz-method,
+  .public-record-panel,
   .site-footer {
     background: #fff;
     color: #000;
   }
 
   .hero-lede,
-  .record-boundary,
+  .hertz-method .result-kind,
+  .hertz-method dt,
+  .hertz-method dd,
+  .public-record-panel .record-boundary,
+  .public-record-panel .record-kicker,
+  .public-record-panel .record-list dt,
+  .public-record-panel .record-list dd,
   .backend-section .section-heading p:not(.eyebrow),
   .backend-cards p:last-child,
   .backend-boundary,
@@ -1396,10 +1492,17 @@ h3 {
     color: #333;
   }
 
-  .hero-record,
+  .hero-figure,
+  .hertz-method,
+  .public-record-panel,
   .backend-cards article,
   .mpi-strip {
     border: 1px solid #aaa;
     box-shadow: none;
+  }
+
+  .hertz-method dl div,
+  .public-record-panel .record-list div {
+    border-color: #aaa;
   }
 }

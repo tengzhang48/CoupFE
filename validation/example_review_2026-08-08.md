@@ -112,11 +112,51 @@ evidence.
   compilation, J2 trial/commit checks, and the contact/friction broken controls.
 - Every modified retained UEL/UMAT source was regenerated; the corresponding
   declarations also generated and compiled in temporary directories.
-- The pinned `neo_hookean_block`, `curved_annulus`, `hertz_contact`,
+- The pinned `linear_bar`, `neo_hookean_block`, `curved_annulus`, `hertz_contact`,
   `contact_3d_blocks`, and `contact_3d_friction` simulations were rerun. Their
   refreshed values and source hashes are in [`../site/evidence.json`](../site/evidence.json).
 - `python .github/scripts/check_site.py` passed after the evidence and displayed
   values were refreshed.
+
+## Follow-up audit and presentation provenance — 2026-08-09
+
+The GLM note was checked again after the corrections above. The available note
+was unchanged and still targeted `88811a2`; independent material and contact
+audits found no remaining defect in its named example-level findings. The
+follow-up did identify smaller reproducibility and documentation gaps:
+
+- The retained Hertz SVG had been grouped with source files even though it was
+  rendered after the source-pinned solve. Evidence schema 2 now keeps
+  `sourceFiles` under `sourceCommit` separate from deterministic
+  `presentationArtifacts`, and records both the documentation and deployed-site
+  copies of the figure.
+- Symmetric marker coordinates are ordered at rendered precision with node ID
+  as the final tie-breaker. This prevents visually identical markers from
+  producing cross-run SVG hash noise.
+- A direct nonzero-temperature oracle now checks
+  `P(F=I) = -K * alpha * delta_T * I` for both synthetic thermo-mechanical
+  declarations. The scalar-diffusion example states the same log-volumetric
+  `alpha` and temperature-change convention as its Quad8 sibling.
+- The exact-stick test language now names the implemented global resultant
+  `mu*P`, where `P` is the summed normal load.
+
+The follow-up source revision was pinned at
+`33e897216cd5c88afa3023c3bde16fb0cf94d2ab`. Twenty focused material,
+renderer-ordering, and exact-stick tests passed before the source-pinned
+`linear_bar`, `neo_hookean_block`, `curved_annulus`, `hertz_contact`,
+`contact_3d_blocks`, and `contact_3d_friction` reruns reproduced the retained
+values. The representative Hertz field/force figure was then rendered from that
+run, placed at the top of the public page, and the public-record boundary was
+moved to the end of the page. The final default tier completed with `173 passed`,
+`1 skipped`, and `1` opt-in slow test deselected; the site/provenance checker
+also passed.
+
+One broader policy question remains deliberately separate: core major-symmetry
+verification currently infers its expectation from material state rather than
+an explicit symmetry policy. The reviewed stabilized Tet4 is independently
+major-symmetric and no failing core case was established, so changing that
+cross-material verification contract was not folded into this example-review
+repair.
 
 ## Claim boundary
 

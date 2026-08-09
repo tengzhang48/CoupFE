@@ -85,9 +85,10 @@ small relative to the bulk, but it is not a general large-interface scaling
 claim.
 
 Three-dimensional vertex-face and edge-edge paths, friction, and distributed
-dynamics have runnable smoke programs. Their support differs by formulation;
-consult the contact matrix in `docs/capabilities.md` before describing a mode
-as distributed.
+dynamics have runnable worked examples. They solve scoped distributed physics
+problems rather than merely checking process launch. Their support differs by
+formulation; consult the contact matrix in `docs/capabilities.md` before
+describing a mode as distributed.
 
 The dense-Schur semismooth friction study is suitable only for a small
 interface. Replicating a dense interface operator is not the project's general

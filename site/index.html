@@ -49,29 +49,23 @@
             </div>
           </div>
 
-          <aside class="hero-record" aria-labelledby="record-title">
-            <p class="record-kicker">Public record</p>
-            <h2 id="record-title">What is established here</h2>
-            <dl class="record-list">
-              <div>
-                <dt>Core abstraction</dt>
-                <dd>Residual, tangent, commit</dd>
-              </div>
-              <div>
-                <dt>Execution paths</dt>
-                <dd>Serial and scoped PETSc/MPI</dd>
-              </div>
-              <div>
-                <dt>Evidence</dt>
-                <dd>Analytic checks and current-revision example reruns</dd>
-              </div>
-            </dl>
-            <p class="record-boundary">
-              This is alpha research software. Complete finite-element coverage,
-              production engineering qualification, and a release-grade scaling
-              record are not claimed.
-            </p>
-          </aside>
+          <figure class="hero-figure">
+            <a class="hero-figure-link" href="hertz-contact-benchmark.svg">
+              <img
+                src="hertz-contact-benchmark.svg"
+                width="1280"
+                height="620"
+                alt="Full-size Hertz benchmark figure showing a deformed Hex8 block under a rigid sphere, downward displacement, active nodal reactions, and a force comparison against the Hertz law."
+                decoding="async"
+                fetchpriority="high"
+              >
+            </a>
+            <figcaption>
+              <strong>Representative checked run</strong>
+              <span>2,048 Hex8 elements · true-scale deformation · assembled reaction compared with <span class="nowrap">F ∝ δ<sup>3/2</sup></span></span>
+              <a href="#evidence">Read the evidence boundary <span aria-hidden="true">↓</span></a>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -211,7 +205,7 @@
             <p>
               These values are current-revision example reruns. Each result supports only
               the stated check; it does not qualify an entire method family or a production model.
-              <a class="evidence-record-link" href="evidence.json">Read the machine-readable current-revision evidence record.</a>
+              <a class="evidence-record-link" href="evidence.json">Read the source-pinned evidence and artifact record.</a>
             </p>
           </div>
 
@@ -270,70 +264,23 @@
                 <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/hertz_contact">Inspect solver, field figure, and limits <span aria-hidden="true">→</span></a>
               </div>
 
-              <figure class="hertz-figure">
-                <svg
-                  class="hertz-chart"
-                  viewBox="0 0 640 340"
-                  role="img"
-                  aria-labelledby="hertz-chart-title hertz-chart-desc"
-                >
-                  <title id="hertz-chart-title">Finite-element and Hertz normal force by prescribed approach</title>
-                  <desc id="hertz-chart-desc">
-                    Five current-revision values. At approaches 0.020, 0.035, 0.050,
-                    0.065, and 0.080, finite-element forces are 0.0594, 0.1374,
-                    0.2375, 0.3645, and 0.4920; Hertz forces are 0.0586, 0.1357,
-                    0.2317, 0.3434, and 0.4689.
-                  </desc>
-
-                  <g class="chart-grid" aria-hidden="true">
-                    <line x1="82" y1="264" x2="586" y2="264"></line>
-                    <line x1="82" y1="198" x2="586" y2="198"></line>
-                    <line x1="82" y1="132" x2="586" y2="132"></line>
-                    <line x1="82" y1="66" x2="586" y2="66"></line>
-                  </g>
-                  <g class="chart-axes" aria-hidden="true">
-                    <line x1="82" y1="48" x2="82" y2="264"></line>
-                    <line x1="82" y1="264" x2="592" y2="264"></line>
-                  </g>
-                  <g class="chart-labels" aria-hidden="true">
-                    <text x="66" y="269">0</text>
-                    <text x="47" y="203">0.2</text>
-                    <text x="47" y="137">0.4</text>
-                    <text x="47" y="71">0.6</text>
-                    <text x="77" y="287">.020</text>
-                    <text x="197" y="287">.035</text>
-                    <text x="317" y="287">.050</text>
-                    <text x="437" y="287">.065</text>
-                    <text x="557" y="287">.080</text>
-                    <text class="axis-title" x="307" y="320">Prescribed approach, δ</text>
-                    <text class="axis-title" transform="translate(17 188) rotate(-90)">Normal force</text>
-                  </g>
-
-                  <polyline class="theory-line" points="90,244.7 210,219.2 330,187.5 450,150.7 570,109.2"></polyline>
-                  <polyline class="fe-line" points="90,244.4 210,218.6 330,185.6 450,143.7 570,101.7"></polyline>
-                  <g class="theory-dots" aria-hidden="true">
-                    <circle cx="90" cy="244.7" r="4"></circle>
-                    <circle cx="210" cy="219.2" r="4"></circle>
-                    <circle cx="330" cy="187.5" r="4"></circle>
-                    <circle cx="450" cy="150.7" r="4"></circle>
-                    <circle cx="570" cy="109.2" r="4"></circle>
-                  </g>
-                  <g class="fe-dots" aria-hidden="true">
-                    <circle cx="90" cy="244.4" r="5"></circle>
-                    <circle cx="210" cy="218.6" r="5"></circle>
-                    <circle cx="330" cy="185.6" r="5"></circle>
-                    <circle cx="450" cy="143.7" r="5"></circle>
-                    <circle cx="570" cy="101.7" r="5"></circle>
-                  </g>
-                  <g class="chart-legend" aria-hidden="true">
-                    <line class="fe-line" x1="365" y1="26" x2="397" y2="26"></line>
-                    <text x="404" y="31">CoupFE</text>
-                    <line class="theory-line" x1="487" y1="26" x2="519" y2="26"></line>
-                    <text x="526" y="31">Hertz</text>
-                  </g>
-                </svg>
-                <figcaption>Corrected E–ν mapping; five checked finite-block runner values.</figcaption>
-              </figure>
+              <div class="hertz-method" aria-label="Checked Hertz configuration">
+                <p class="result-kind">Checked configuration</p>
+                <dl>
+                  <div>
+                    <dt>Discretization</dt>
+                    <dd>16 × 16 × 8 finite block · 7,803 DOF</dd>
+                  </div>
+                  <div>
+                    <dt>Loading</dt>
+                    <dd>Five prescribed approaches from 0.020 to 0.080</dd>
+                  </div>
+                  <div>
+                    <dt>Reported quantity</dt>
+                    <dd>Assembled normal reaction, not a smoothed pressure field</dd>
+                  </div>
+                </dl>
+              </div>
             </article>
 
             <article class="evidence-card contact-card">
@@ -428,14 +375,16 @@
 
         <div class="shell mpi-strip" aria-labelledby="mpi-title">
           <div>
-            <p class="eyebrow light">Distributed execution</p>
-            <h3 id="mpi-title">Rerunnable PETSc/MPI smoke programs are included.</h3>
+            <p class="eyebrow light">Distributed finite elements</p>
+            <h3 id="mpi-title">Worked PETSc/MPI examples solve actual finite-element problems.</h3>
           </div>
           <p>
-            The public paths cover scoped bulk, contact, dynamics, friction, and
-            serial-versus-rank diagnostics. No retained final-revision multi-rank
-            qualification or scaling record is published. There is also no retained
-            large-scale benchmark or general performance claim.
+            These solver-backed programs cover nonlinear bulk mechanics, contact,
+            dynamics, and friction, with serial-versus-rank diagnostics where
+            documented. They are worked examples, not launch checks, but remain
+            example-level evidence: no
+            retained final-revision multi-rank qualification, scaling record,
+            large-scale benchmark, or general performance claim is published.
           </p>
           <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/mpi_smoke">Inspect MPI programs <span aria-hidden="true">→</span></a>
         </div>
@@ -467,6 +416,34 @@ python -m pytest -q -m "not slow"</code></pre>
           <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/DESIGN.md"><strong>Design</strong><span>Architecture and ownership boundary</span></a>
           <a href="https://github.com/tengzhang48/CoupFE/blob/main/docs/api.md"><strong>Public API</strong><span>Calls and current limitations</span></a>
           <a href="https://github.com/tengzhang48/CoupFE/blob/main/examples/REFERENCES.md"><strong>Evidence ledger</strong><span>Example roles, references, and provenance</span></a>
+        </div>
+      </section>
+
+      <section class="section public-record-section" aria-labelledby="record-title">
+        <div class="shell public-record-panel">
+          <div class="public-record-copy">
+            <p class="record-kicker">Public record</p>
+            <h2 id="record-title">What is established here</h2>
+            <p class="record-boundary">
+              This is alpha research software. Complete finite-element coverage,
+              production engineering qualification, and a release-grade scaling
+              record are not claimed.
+            </p>
+          </div>
+          <dl class="record-list">
+            <div>
+              <dt>Core abstraction</dt>
+              <dd>Residual, tangent, commit</dd>
+            </div>
+            <div>
+              <dt>Execution paths</dt>
+              <dd>Serial and scoped PETSc/MPI</dd>
+            </div>
+            <div>
+              <dt>Evidence</dt>
+              <dd>Analytic checks and current-revision example reruns</dd>
+            </div>
+          </dl>
         </div>
       </section>
     </main>

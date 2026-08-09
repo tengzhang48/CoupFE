@@ -17,8 +17,9 @@ recursive-include examples *.py *.md *.csv *.json *.for
 # unresolved. Comparisons must use COUPFE_RING_REFERENCE_CSV instead.
 exclude examples/ring_compress/abaqus_ring_compress_reactions.csv
 recursive-include skills *.md
-recursive-include site *.html *.css *.json
+recursive-include site *.html *.css *.json *.svg
 include validation/README.md
+include validation/example_review_2026-08-08.md
 
 prune tests
 
@@ -52,6 +53,7 @@ include tests/test_exact_stick_friction.py
 include tests/test_examples_contact_3d.py
 include tests/test_friction_relay_finite_sliding.py
 include tests/test_hertz_contact.py
+include tests/test_neo_hookean_material.py
 include tests/test_model.py
 include tests/test_pipeline.py
 include tests/test_phasefield_corrosion_cui.py

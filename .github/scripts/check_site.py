@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import re
+import subprocess
 import tomllib
 from html.parser import HTMLParser
 from pathlib import Path
@@ -18,7 +19,8 @@ INDEX = SITE_ROOT / "index.html"
 STYLES = SITE_ROOT / "styles.css"
 EVIDENCE = SITE_ROOT / "evidence.json"
 REPOSITORY = "https://github.com/tengzhang48/CoupFE"
-EXPECTED_SITE_FILES = {"evidence.json", "index.html", "styles.css"}
+HERTZ_SITE_FIGURE = "hertz-contact-benchmark.svg"
+EXPECTED_SITE_FILES = {"evidence.json", HERTZ_SITE_FIGURE, "index.html", "styles.css"}
 EXPECTED_SECTIONS = ["top", "core", "backends", "evidence", "scope", "start"]
 
 
@@ -40,6 +42,8 @@ class SiteParser(HTMLParser):
         self.script_count = 0
         self.image_count = 0
         self.svg_image_count = 0
+        self.image_sources: list[str] = []
+        self.image_alts: list[str] = []
 
     def handle_starttag(self, tag: str, attrs_list: list[tuple[str, str | None]]) -> None:
         attrs = {name: value or "" for name, value in attrs_list}
@@ -67,6 +71,8 @@ class SiteParser(HTMLParser):
             self.script_count += 1
         if tag == "img":
             self.image_count += 1
+            self.image_sources.append(attrs.get("src", ""))
+            self.image_alts.append(attrs.get("alt", ""))
         if tag == "svg" and attrs.get("role") == "img":
             self.svg_image_count += 1
 
@@ -99,13 +105,55 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check_pinned_source_files(
+    source_commit: str,
+    source_files: dict[str, object],
+) -> None:
+    """Verify source hashes at the named commit when Git history is present."""
+
+    try:
+        probe = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except FileNotFoundError:
+        return
+    if probe.returncode != 0:
+        return
+
+    for relative, expected_hash in source_files.items():
+        retained = subprocess.run(
+            ["git", "show", f"{source_commit}:{relative}"],
+            cwd=ROOT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        require(retained.returncode == 0, f"source commit is missing: {relative}")
+        retained_hash = hashlib.sha256(retained.stdout).hexdigest()
+        require(
+            retained_hash == expected_hash,
+            f"source hash is not reproducible at sourceCommit: {relative}",
+        )
+
+
 def check_evidence(payload: dict[str, object]) -> None:
-    require(payload.get("schemaVersion") == 1, "unexpected evidence schema")
-    require(payload.get("recordedDate") == "2026-08-08", "unexpected evidence date")
+    require(payload.get("schemaVersion") == 2, "unexpected evidence schema")
+    require(payload.get("recordedDate") == "2026-08-09", "unexpected evidence date")
     source_commit = payload.get("sourceCommit")
     require(
         isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
         "source commit must be a full SHA",
+    )
+    source_scope = payload.get("sourceCommitScope")
+    require(
+        isinstance(source_scope, str)
+        and "sourceFiles" in source_scope
+        and "presentationArtifacts" in source_scope,
+        "source-commit scope must distinguish sources from presentation artifacts",
     )
 
     source_files = payload.get("sourceFiles")
@@ -116,6 +164,35 @@ def check_evidence(payload: dict[str, object]) -> None:
         path = ROOT / relative
         require(path.is_file(), f"evidence source is missing: {relative}")
         require(sha256(path) == expected_hash, f"evidence source changed: {relative}")
+    check_pinned_source_files(source_commit, source_files)
+
+    presentation = payload.get("presentationArtifacts")
+    require(isinstance(presentation, dict), "presentation-artifact record is required")
+    hertz_artifact = presentation.get("hertzContactFigure")
+    require(isinstance(hertz_artifact, dict), "Hertz presentation artifact is required")
+    require(
+        hertz_artifact.get("derivedFromRun") == "hertzContact",
+        "Hertz artifact must name its source run",
+    )
+    renderer = hertz_artifact.get("renderer")
+    renderer_hash = hertz_artifact.get("rendererSha256")
+    require(isinstance(renderer, str), "Hertz renderer path must be text")
+    require(isinstance(renderer_hash, str), "Hertz renderer hash must be text")
+    require((ROOT / renderer).is_file(), "Hertz renderer is missing")
+    require(sha256(ROOT / renderer) == renderer_hash, "Hertz renderer changed")
+    require(source_files.get(renderer) == renderer_hash, "renderer must be source-pinned")
+    artifact_files = hertz_artifact.get("files")
+    require(isinstance(artifact_files, dict) and artifact_files, "Hertz artifact files are required")
+    require(
+        not set(source_files).intersection(artifact_files),
+        "presentation artifacts must not be classified as source files",
+    )
+    for relative, expected_hash in artifact_files.items():
+        require(isinstance(relative, str), "artifact path must be text")
+        require(isinstance(expected_hash, str), f"artifact hash for {relative} must be text")
+        path = ROOT / relative
+        require(path.is_file(), f"presentation artifact is missing: {relative}")
+        require(sha256(path) == expected_hash, f"presentation artifact changed: {relative}")
 
     runs = payload.get("runs")
     require(isinstance(runs, dict), "runs mapping is required")
@@ -167,9 +244,20 @@ def check_evidence(payload: dict[str, object]) -> None:
         "Hertz problem size drifted",
     )
     figure = hertz.get("figure")
+    site_figure = hertz.get("siteFigure")
     require(
         isinstance(figure, str) and (ROOT / figure).is_file(),
         "Hertz solver-backed figure is missing",
+    )
+    require(
+        isinstance(site_figure, str)
+        and site_figure == f"site/{HERTZ_SITE_FIGURE}"
+        and (ROOT / site_figure).is_file(),
+        "Hertz website figure is missing",
+    )
+    require(
+        figure in artifact_files and site_figure in artifact_files,
+        "Hertz figures must be presentation artifacts",
     )
     require(hertz.get("status") == "OK", "Hertz rerun did not pass")
 
@@ -251,8 +339,11 @@ def main() -> None:
     for previous, current in zip(parser.headings, parser.headings[1:]):
         require(current[0] <= previous[0] + 1, f"heading level jumps from {previous} to {current}")
     require(parser.script_count == 0, "the static Core site must not require JavaScript")
-    require(parser.image_count == 0, "use reviewed inline SVG/HTML rather than external image files")
-    require(parser.svg_image_count == 1, "site must contain one accessible Hertz result plot")
+    require(parser.image_count == 1, "site must contain one representative result figure")
+    require(parser.svg_image_count == 0, "do not duplicate the representative figure inline")
+    require(parser.image_sources == [HERTZ_SITE_FIGURE], "unexpected representative figure")
+    require(parser.image_alts and parser.image_alts[0].strip(), "representative figure needs alt text")
+    require((SITE_ROOT / HERTZ_SITE_FIGURE).is_file(), "representative figure file is missing")
 
     require('class="skip-link" href="#main"' in html, "skip link is missing")
     for href in parser.hrefs:
@@ -275,7 +366,9 @@ def main() -> None:
         "parallel backends",
         "not independent physical validation",
         "No general mesh-software adapter",
-        "No retained final-revision multi-rank qualification or scaling record",
+        "worked examples, not launch checks",
+        "no retained final-revision multi-rank qualification",
+        "scaling record",
         "does not run CoupFE in the browser",
         "CITATION.cff",
         "CREDITS.md",
@@ -291,6 +384,9 @@ def main() -> None:
         "2.175e-02",
         "0.65",
         "2.503e-02",
+        "Representative checked run",
+        "Public record",
+        "What is established here",
     ):
         require(required.casefold() in normalized_html.casefold(), f"required public text is missing: {required}")
 

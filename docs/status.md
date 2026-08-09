@@ -24,10 +24,11 @@ maintained in [`capabilities.md`](capabilities.md). Public calls are listed in
 
 ## Qualification boundary
 
-The shipped serial test suite exercises the public source tree. Some MPI paths
-require an external PETSc/MPI environment and are provided as rerunnable smoke
-programs; this release does not publish a retained final-revision multi-rank
-qualification record.
+The shipped serial test suite exercises the public source tree. The PETSc/MPI
+worked examples execute scoped distributed bulk, contact, dynamics, and
+friction problems in a matched external environment; they are more than
+process-launch checks. This release does not publish a retained final-revision
+multi-rank qualification record.
 
 Several examples are intentionally labeled **RESEARCH**. They demonstrate an
 implemented path without claiming broad physical validation, production

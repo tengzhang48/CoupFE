@@ -1,4 +1,4 @@
-"""Distributed dynamics plus deformable-barrier contact smoke. Run under mpirun.
+"""Distributed dynamics plus deformable-barrier contact example. Run under mpirun.
 
 This exercises the ppf/IPC-style implicit-dynamics substrate in the distributed
 solver. Inertia `M/dt²` regularizes the nonsmooth contact for this setup, while

@@ -130,8 +130,10 @@ python -m http.server 8000 --directory site
 ```
 
 The site checker ties displayed example results to `site/evidence.json`, the
-current source hashes, repository links, project metadata, and explicit claim
-boundaries.
+source-pinned simulation hashes, separately identified presentation-artifact
+hashes, repository links, project metadata, and explicit claim boundaries.
+When Git history is available, it also verifies that every source hash can be
+recovered from the commit named by the evidence record.
 
 ## AI-assisted development
 

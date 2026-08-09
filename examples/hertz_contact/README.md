@@ -31,11 +31,14 @@ Fortran compiler:
 ```bash
 PYTHONPATH=. python examples/hertz_contact/run.py
 PYTHONPATH=. python examples/hertz_contact/render.py
+cp docs/assets/hertz-contact-benchmark.svg site/hertz-contact-benchmark.svg
+python .github/scripts/check_site.py
 ```
 
 The solver command writes no files. The explicit render command regenerates
 [`../../docs/assets/hertz-contact-benchmark.svg`](../../docs/assets/hertz-contact-benchmark.svg)
-from a fresh checked solve.
+from a fresh checked solve. The copy command publishes that byte-identical
+artifact to the static site, and the site check verifies both recorded hashes.
 
 The retained result is:
 

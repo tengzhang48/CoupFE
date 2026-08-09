@@ -2,8 +2,8 @@
 
 This index covers all and only the 35 example directories shipped in the public
 tree. Examples have different purposes: runnable boundary-value problems,
-build-time generators, analytic checks, MPI smoke programs, and research
-workflows.
+build-time generators, analytic checks, distributed PETSc/MPI examples, and
+research workflows.
 
 - Commands assume the repository root and `PYTHONPATH=.`.
 - Code-generation examples usually use `build.py`; generation or compilation
@@ -73,11 +73,11 @@ share a formulation. They are not independent physical validation. See
 | `finite_sliding_friction` | **READY — study** | `run.py`; re-pairing, state transfer, dissipation, and reversal memory. |
 | `finite_sliding_capstan` | **READY — study** | `run.py`; rotating friction frame checked against the capstan equation. |
 
-## Distributed smoke programs
+## Distributed PETSc/MPI examples
 
 | Example | Status | Entry point and scope |
 |---|---|---|
-| `mpi_smoke` | **READY — smoke collection** | Rerunnable bulk, contact, dynamics, friction, and serial-versus-rank diagnostics; not an external physics benchmark or a published scaling record. |
+| `mpi_smoke` | **READY — worked examples** | Executable distributed bulk, contact, dynamics, and friction problems plus serial-versus-rank diagnostics; not an external physics benchmark or a published scaling record. |
 
 For example:
 
@@ -86,7 +86,7 @@ OMP_NUM_THREADS=1 mpirun -n 4 \
   python examples/mpi_smoke/distributed_solve.py
 ```
 
-The directory also contains bulk, contact, dynamics, friction, and
-serial-versus-rank diagnostic programs. Qualify them in the exact PETSc/MPI
-environment you intend to use; the current public release does not include a
-retained final-revision multi-rank result.
+The historical directory name is retained, but these programs do more than
+check launch or import behavior: they execute scoped distributed physics paths.
+Qualify them in the exact PETSc/MPI environment you intend to use; the current
+public release does not include a retained final-revision multi-rank result.

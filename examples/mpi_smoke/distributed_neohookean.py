@@ -1,4 +1,4 @@
-"""Distributed neo-Hookean smoke program with a serial comparison.
+"""Distributed neo-Hookean example with a serial comparison.
 
 Each rank owns a block of elements and assembles a distributed PETSc system
 from the compiled f2py neo-Hookean batch kernel. A load-stepped Newton solve is

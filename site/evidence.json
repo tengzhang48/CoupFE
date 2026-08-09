@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
-  "recordedDate": "2026-08-08",
-  "sourceCommit": "a4a7c3843cb9c4864b6306ad0f57647a6fe981f2",
-  "scope": "Current-revision example reruns. These values support only the named example and its documented qualification boundary.",
+  "schemaVersion": 2,
+  "recordedDate": "2026-08-09",
+  "sourceCommit": "33e897216cd5c88afa3023c3bde16fb0cf94d2ab",
+  "sourceCommitScope": "sourceCommit pins sourceFiles and numerical runs. presentationArtifacts are deterministic renderings created after the source-pinned solves and are not simulation inputs.",
+  "scope": "Source-pinned current-revision example reruns. These values support only the named example and its documented qualification boundary.",
   "environment": {
     "python": "CPython 3.13.9",
     "numpy": "2.4.3",
@@ -24,13 +25,23 @@
     "examples/curved_annulus/annulus.py": "5be8f26a92fe9eb7a43d0c17872ebd54f083dae42c0b47218994b47b8ae03349",
     "tests/test_curved_convergence.py": "ce0b22b20758208b6df60f3e87bdbd07913e120ab2a05ee99cee21314ba93676",
     "examples/hertz_contact/run.py": "ba738001c0002216e1a25c0c6cf486e67b8925e20db0d3e7d139ce973d4c8c38",
-    "examples/hertz_contact/render.py": "3bf69bb3dbaac1e0a81f83a4bc56b55cba127a257cc8560cbd47c36954002c43",
-    "tests/test_hertz_contact.py": "8385263e31d97586abce4705bc13c81e77f88a46dbd23adbde940f46373972ae",
-    "tests/test_neo_hookean_material.py": "6286cbe7fde3400cd4c69421c584b19d7619eb454cccd59dc7214d02af8fc541",
-    "docs/assets/hertz-contact-benchmark.svg": "c62f103743d915db0b00e0386ac049bd8e0ef3ad54a4d0144e9ffc5ed1c19deb",
+    "examples/hertz_contact/render.py": "d6b351d512255df77e6c8e1adc972430ce56480dd22b787a57e45e949f46a275",
+    "tests/test_hertz_contact.py": "6346bd48df6517a15d02ab67f33ead54d0b3cfb2f38233daa3083fa5533a31fd",
+    "tests/test_neo_hookean_material.py": "d6fef0803a50ab2e20c5188bf4dc522e6f16b622e177dda230cf4d54cc87b22f",
     "examples/contact_3d_blocks/run.py": "660bb8951bd7b51e8ba9a0717347e85abf2474283d4a7bc55bb6fc66a1bc637b",
     "examples/contact_3d_friction/run.py": "d2338fb4102b98c16d29db08ea016a86deb35f1976f23021fd6f6c9b38638ae2",
     "tests/test_examples_contact_3d.py": "9461478164f5be8017b3dc72248b164a77de1e2e75de45ba1313554f7b2a566d"
+  },
+  "presentationArtifacts": {
+    "hertzContactFigure": {
+      "derivedFromRun": "hertzContact",
+      "renderer": "examples/hertz_contact/render.py",
+      "rendererSha256": "d6b351d512255df77e6c8e1adc972430ce56480dd22b787a57e45e949f46a275",
+      "files": {
+        "docs/assets/hertz-contact-benchmark.svg": "7faf3d6814811958ce316ec5d97bd5173dc2ed4a13d99871c2e01e8eb0a9ebe1",
+        "site/hertz-contact-benchmark.svg": "7faf3d6814811958ce316ec5d97bd5173dc2ed4a13d99871c2e01e8eb0a9ebe1"
+      }
+    }
   },
   "runs": {
     "linearBar": {
@@ -78,6 +89,7 @@
       "elements": 2048,
       "degreesOfFreedom": 7803,
       "figure": "docs/assets/hertz-contact-benchmark.svg",
+      "siteFigure": "site/hertz-contact-benchmark.svg",
       "status": "OK"
     },
     "contact3dBlocks": {

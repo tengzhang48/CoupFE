@@ -1,4 +1,4 @@
-"""Distributed rigid contact with friction — rerunnable MPI smoke. Run under mpirun.
+"""Distributed rigid-contact and friction example. Run under mpirun.
 
 A neo-Hookean block pressed onto a frictional rigid plane and dragged sideways, solved
 across ranks: the bulk via the compiled element batch, the contact as a **node-local**

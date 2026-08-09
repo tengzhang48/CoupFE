@@ -1,4 +1,4 @@
-"""End-to-end 3D distributed dynamics smoke: two Hex8 blocks collide. Run under mpirun.
+"""End-to-end 3D distributed dynamics example: two Hex8 blocks collide. Run under mpirun.
 
 The full 3D analog of the 2D distributed dynamics barrier, done as a clean collision (no
 gravity-balance, which is finicky in 3D): two compressible neo-Hookean **Hex8 blocks** (real

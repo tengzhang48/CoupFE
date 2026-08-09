@@ -3,8 +3,8 @@
 This CoupFE workflow is inspired by the Abaqus/Explicit **“Compression of
 cylinders with general contact”** example
 (`xpl_2dgencont_compression`). The main driver exercises serial many-body
-deformable contact; a companion MPI smoke program exercises the narrower
-distributed-contact path. This is not a benchmark reproduction: the copyrighted
+deformable contact; a companion distributed PETSc/MPI example exercises the
+narrower distributed-contact path. This is not a benchmark reproduction: the copyrighted
 input deck is not distributed, its exact release/hash and raw CoupFE result are
 not retained, and the mesh/material/solver are deliberately adapted.
 

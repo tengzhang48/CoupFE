@@ -1,4 +1,4 @@
-"""3D distributed dynamics, deformable barrier, and friction smoke. Run under mpirun.
+"""3D distributed dynamics, deformable-barrier, and friction example. Run under mpirun.
 
 The 3D analog of `distributed_dynamics_friction.py` (2D) and the frictional sibling of the 3D
 collision capstone `distributed_dynamics_3d_blocks.py`. Two F-bar Hex8 blocks are pressed into light

@@ -1,4 +1,4 @@
-"""Real-MPI distributed-residual smoke with a serial reference.
+"""Real-MPI distributed-residual example with a serial reference.
 
 Each rank assembles ONLY its owned elements (from the same deterministic partition)
 into a distributed PETSc vector; PETSc sums the off-process contributions on assembly.

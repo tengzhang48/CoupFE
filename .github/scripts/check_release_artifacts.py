@@ -186,6 +186,7 @@ PUBLIC_OPTIONAL_TEST_FILES = {
         "test_examples_contact_3d.py",
         "test_friction_relay_finite_sliding.py",
         "test_hertz_contact.py",
+        "test_neo_hookean_material.py",
         "test_model.py",
         "test_morphing_hex8.py",
         "test_morphing_hex8_inp.py",
@@ -383,8 +384,13 @@ PUBLIC_SKILL_FILES = {
 }
 PUBLIC_SITE_FILES = {
     "site/evidence.json",
+    "site/hertz-contact-benchmark.svg",
     "site/index.html",
     "site/styles.css",
+}
+PUBLIC_VALIDATION_FILES = {
+    "validation/README.md",
+    "validation/example_review_2026-08-08.md",
 }
 
 REQUIRED_SDIST_FILES = (
@@ -397,6 +403,7 @@ REQUIRED_SDIST_FILES = (
     | PUBLIC_DOC_FILES
     | PUBLIC_SKILL_FILES
     | PUBLIC_SITE_FILES
+    | PUBLIC_VALIDATION_FILES
     | {
         ".github/scripts/check_release_artifacts.py",
         ".github/scripts/check_site.py",
@@ -413,7 +420,6 @@ REQUIRED_SDIST_FILES = (
         "examples/REFERENCES.md",
         "examples/ring_compress/README.md",
         "examples/tire_contact/README.md",
-        "validation/README.md",
     }
 )
 
@@ -578,6 +584,8 @@ def _is_documentation_image(path: PurePosixPath) -> bool:
     parts = tuple(part.casefold() for part in path.parts)
     if path.suffix.casefold() not in IMAGE_SUFFIXES or not parts:
         return False
+    if path.as_posix() in PUBLIC_SITE_FILES:
+        return True
     if parts[0] not in {"assets", "docs", "examples"}:
         return False
     return any(part in DOCUMENTATION_IMAGE_DIRS for part in parts[:-1])
@@ -660,6 +668,7 @@ def _validate_public_subtrees(names: set[str], artifact: Path) -> None:
         "skills": PUBLIC_SKILL_FILES,
         "examples": PUBLIC_EXAMPLE_FILES,
         "site": PUBLIC_SITE_FILES,
+        "validation": PUBLIC_VALIDATION_FILES,
     }
     for prefix, expected in inventories.items():
         _validate_exact_subtree(names, artifact, prefix, expected)
@@ -679,7 +688,7 @@ def _reject_private_harness(names: set[str], artifact: Path) -> None:
             )
             or (
                 PurePosixPath(name).parts[0] == "validation"
-                and name != "validation/README.md"
+                and name not in PUBLIC_VALIDATION_FILES
             )
         )
     )

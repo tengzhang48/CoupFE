@@ -1,4 +1,4 @@
-"""Distributed dynamics, deformable barrier, and smoothed-friction smoke. Run under mpirun.
+"""Distributed dynamics, deformable-barrier, and smoothed-friction example. Run under mpirun.
 
 The last cross-rank contact piece: ppf smoothed friction on the distributed deformable barrier, under
 dynamics. Friction rides the same machinery — `_DistDeformableContact` threads `mu` into the
