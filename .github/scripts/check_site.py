@@ -32,7 +32,7 @@ EXPECTED_SITE_FILES = {
     "index.html",
     "styles.css",
 }
-EXPECTED_SECTIONS = ["top", "core", "backends", "evidence", "snapshots", "scope", "start"]
+EXPECTED_SECTIONS = ["top", "core", "backends", "evidence", "scope", "start"]
 
 
 class SiteParser(HTMLParser):

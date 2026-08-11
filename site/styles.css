@@ -1605,6 +1605,29 @@ h3 {
   font-size: 13px;
   line-height: 1.55;
 }
+.snapshot-source {
+  margin-top: 4px;
+  align-self: flex-start;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 600;
+}
+.snapshot-source span { margin-left: 4px; }
+.also-checked {
+  max-width: 880px;
+  margin: 26px auto 0;
+  padding: 18px 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--teal);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.also-checked strong { color: var(--ink); font-weight: 600; }
+.also-checked a { color: var(--teal); font-weight: 600; }
+.also-checked code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 @media (max-width: 900px) {
   .snapshots-grid { grid-template-columns: 1fr; }
   .snapshots-section .section-heading.centered { margin-bottom: 28px; }
