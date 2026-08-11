@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "recordedDate": "2026-08-10",
-  "sourceCommit": "1e9e32d0fc95d34b8113c52b216b1846055f434e",
+  "sourceCommit": "118c3dd8799ba6542b0f7262bcfaa45425d3a2c5",
   "sourceCommitScope": "sourceCommit pins sourceFiles and numerical runs. presentationArtifacts are deterministic renderings created after the source-pinned solves and are not simulation inputs.",
   "scope": "Source-pinned current-revision example reruns. These values support only the named example and its documented qualification boundary.",
   "environment": {
