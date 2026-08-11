@@ -62,8 +62,9 @@ def coarse_view(nr=2, nt=4):
         geometries={"inner": Circle(R1), "outer": Circle(R2)})
 
 
-def solve_level(level, reembed=True):
-    """Refine ``level`` times, solve the Dirichlet problem, return (h, interior error)."""
+def solve_level_fields(level, reembed=True):
+    """Solve one level and return its mesh, displacement, oracle, and error field."""
+
     v = coarse_view()
     for _ in range(level):
         v = uniform_refine_quad(v, reembed=reembed)
@@ -89,4 +90,29 @@ def solve_level(level, reembed=True):
     diff, ref = (Uf - ue)[~is_bnd], ue[~is_bnd]
     interior_err = float(np.linalg.norm(diff) / np.linalg.norm(ref))   # relative L2
     h = (THETA * R2) / (4 * 2 ** level)    # nominal element size
-    return h, interior_err, v.n_elem
+    nodal_abs_error = np.linalg.norm(Uf - ue, axis=1)
+    reference_scale = float(np.max(np.linalg.norm(ue, axis=1)))
+    nodal_relative_error = nodal_abs_error / reference_scale
+    return {
+        "level": int(level),
+        "reembedded": bool(reembed),
+        "h": float(h),
+        "relative_l2_error": interior_err,
+        "n_elements": int(v.n_elem),
+        "nodes_reference": v.nodes.copy(),
+        "elements": v.elems.copy(),
+        "displacement": Uf.copy(),
+        "exact_displacement": ue.copy(),
+        "nodal_absolute_error": nodal_abs_error,
+        "nodal_relative_error": nodal_relative_error,
+        "boundary_nodes": bnd.copy(),
+        "interior_nodes": np.flatnonzero(~is_bnd),
+        "boundary_geometry_error": float(v.boundary_error()),
+    }
+
+
+def solve_level(level, reembed=True):
+    """Refine and solve, returning ``(h, interior relative-L2 error, n_elem)``."""
+
+    result = solve_level_fields(level, reembed=reembed)
+    return result["h"], result["relative_l2_error"], result["n_elements"]

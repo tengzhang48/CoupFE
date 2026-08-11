@@ -260,6 +260,7 @@ PUBLIC_EXAMPLE_FILES = {
     "examples/compression_cylinders/neo_up_native_q4.for",
     "examples/compression_cylinders/parse_inp.py",
     "examples/compression_cylinders/run.py",
+    "examples/contact_3d_blocks/render.py",
     "examples/contact_3d_blocks/run.py",
     "examples/contact_3d_friction/run.py",
     "examples/contact_vs_ppf/README.md",
@@ -281,6 +282,7 @@ PUBLIC_EXAMPLE_FILES = {
     "examples/hertz_contact/run.py",
     "examples/j2_plasticity_uel/build.py",
     "examples/linear_bar/bar.py",
+    "examples/linear_bar/render.py",
     "examples/linear_bar/run.py",
     "examples/model_pipeline/run.py",
     "examples/morphing_hex8/README.md",
@@ -306,6 +308,7 @@ PUBLIC_EXAMPLE_FILES = {
     "examples/mpi_smoke/distributed_robin_pressure.py",
     "examples/mpi_smoke/distributed_solve.py",
     "examples/neo_hookean_block/block.py",
+    "examples/neo_hookean_block/render.py",
     "examples/neo_hookean_block/run.py",
     "examples/neo_hookean_inelastic_local_pressure_quad4/build.py",
     "examples/neo_hookean_local_pressure_hex8/build.py",
@@ -356,6 +359,9 @@ PUBLIC_EXAMPLE_FILES = {
 
 PUBLIC_DOC_FILES = {
     "docs/assets/hertz-contact-benchmark.svg",
+    "docs/assets/linear-bar-snapshot.svg",
+    "docs/assets/neo-hookean-block-snapshot.svg",
+    "docs/assets/contact-3d-blocks-snapshot.svg",
     "docs/DESIGN.md",
     "docs/api.md",
     "docs/capabilities.md",
@@ -385,6 +391,9 @@ PUBLIC_SKILL_FILES = {
 PUBLIC_SITE_FILES = {
     "site/evidence.json",
     "site/hertz-contact-benchmark.svg",
+    "site/linear-bar-snapshot.svg",
+    "site/neo-hookean-block-snapshot.svg",
+    "site/contact-3d-blocks-snapshot.svg",
     "site/index.html",
     "site/styles.css",
 }

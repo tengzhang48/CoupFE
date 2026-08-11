@@ -149,48 +149,54 @@
       <section class="section backend-section" id="backends" aria-labelledby="backends-title">
         <div class="shell">
           <div class="section-heading centered">
-            <p class="eyebrow light">Build-time code generation</p>
-            <h2 id="backends-title">One supported formulation, two parallel backends.</h2>
+            <p class="eyebrow light">Execution and interoperability</p>
+            <h2 id="backends-title">CoupFE executes its own element interface.</h2>
             <p>
-              A declared residual can produce source for an established Abaqus workflow
-              and for CoupFE's open standalone runtime. Neither backend calls the other.
+              Supported weak forms can produce Fortran for CoupFE's standalone
+              compiled-element runtime. Selected formulations can also be exported as
+              Abaqus/Standard UEL source; Abaqus owns that external procedure and its
+              execution context.
             </p>
           </div>
 
           <div class="backend-map">
             <article class="form-source">
-              <span class="source-tag">Python declaration</span>
+              <span class="source-tag">Supported declaration</span>
               <h3>Weak form + fields + material</h3>
-              <p>Verify the declaration, state schema, ordering, and generated source.</p>
+              <p>Verify the residual, state schema, ordering, and emitted source.</p>
             </article>
-            <div class="branch-lines" aria-hidden="true"><span></span><span></span></div>
+            <div class="path-connectors" aria-hidden="true">
+              <span class="primary-connector"></span>
+              <span class="export-connector"></span>
+            </div>
             <div class="backend-cards">
-              <article>
-                <p class="backend-label">Established-solver target</p>
-                <h3>Abaqus UEL</h3>
+              <article class="native-path">
+                <p class="backend-label">Primary CoupFE path</p>
+                <h3>Native compiled element</h3>
                 <p>
-                  Abaqus owns the real procedure context, including <code>LFLAGS</code>.
-                  Current UEL generation is scoped to documented normal implicit/static use.
-                  Material declarations can separately generate Abaqus UMAT source; that
-                  output does not have a parallel native-UMAT host in CoupFE.
+                  CoupFE compiles and calls <code>coupfe_element_rk</code> and, when
+                  available, <code>coupfe_element_r</code> through f2py. Serial and scoped
+                  PETSc/MPI solvers use this native ABI without Abaqus procedure data.
                 </p>
               </article>
-              <article>
-                <p class="backend-label">Standalone target</p>
-                <h3>CoupFE native kernel</h3>
+              <article class="export-path">
+                <p class="backend-label">Optional external export</p>
+                <h3>Abaqus/Standard UEL source</h3>
                 <p>
-                  The f2py runtime exposes joint residual/tangent evaluation and, where
-                  generated, an explicit residual-only entry for serial or distributed callers.
+                  Selected element declarations can emit source for an external Abaqus job.
+                  CoupFE's narrow in-process adapter supports focused normal-static parity
+                  checks only; it is not an Abaqus procedure host.
                 </p>
               </article>
             </div>
           </div>
 
           <p class="backend-boundary">
-            <strong>Evidence boundary:</strong> agreement between native and UEL kernels
-            can detect generation, sign, ordering, state-transfer, and ABI drift. Because
-            both share a formulation, parity is an implementation check—not independent
-            physical validation of the equations, parameters, or model.
+            <strong>Evidence boundary:</strong> comparing a CoupFE-native kernel with the
+            corresponding Abaqus-interface export can expose generation, sign, ordering,
+            state-transfer, and ABI drift. Because both share a formulation, this is an
+            implementation-consistency check—not independent physical validation of the
+            equations, parameters, or model.
           </p>
         </div>
       </section>
@@ -330,6 +336,52 @@
         </div>
       </section>
 
+      <section class="section snapshots-section" id="snapshots" aria-labelledby="snapshots-title">
+        <div class="shell">
+          <div class="section-heading centered">
+            <p class="eyebrow">Solver snapshots</p>
+            <h2 id="snapshots-title">Deterministic figures generated from checked solves.</h2>
+            <p class="section-lede">
+              Each figure is rendered directly from the retained nodal output of its named runner —
+              not from a concept image. Every figure is bound to its renderer and source by a
+              SHA-256 contract in <a href="evidence.json">evidence.json</a>.
+            </p>
+          </div>
+          <div class="snapshots-grid">
+            <figure class="snapshot-card">
+              <a class="snapshot-link" href="linear-bar-snapshot.svg" aria-label="Open the nonlinear bar snapshot">
+                <img src="linear-bar-snapshot.svg" alt="Nonlinear axial bar: true-scale deformed geometry and nodal displacement versus the linear H equals zero reference" loading="lazy" />
+              </a>
+              <figcaption>
+                <p class="snapshot-eyebrow">1-D nonlinear mechanics</p>
+                <strong>Nonlinear bar · solved displacement</strong>
+                <span>10 Line2 elements · fixed left end · ramped tip force. True-scale deformed geometry and nodal displacement against the linear reference.</span>
+              </figcaption>
+            </figure>
+            <figure class="snapshot-card">
+              <a class="snapshot-link" href="neo-hookean-block-snapshot.svg" aria-label="Open the neo-Hookean block snapshot">
+                <img src="neo-hookean-block-snapshot.svg" alt="Finite-strain neo-Hookean block under uniaxial stretch: deformed mesh and lateral contraction versus the analytic plane-strain reference" loading="lazy" />
+              </a>
+              <figcaption>
+                <p class="snapshot-eyebrow">2-D finite-strain mechanics</p>
+                <strong>Neo-Hookean block · lateral contraction</strong>
+                <span>6 × 6 Quad4 block · physical (G, K). Deformed mesh colored by displacement, cross-checked against the traction-free plane-strain lateral stretch.</span>
+              </figcaption>
+            </figure>
+            <figure class="snapshot-card">
+              <a class="snapshot-link" href="contact-3d-blocks-snapshot.svg" aria-label="Open the 3-D collision snapshot">
+                <img src="contact-3d-blocks-snapshot.svg" alt="Three-dimensional Hex8 block collision: accepted minimum signed-gap configuration with active contact nodes" loading="lazy" />
+              </a>
+              <figcaption>
+                <p class="snapshot-eyebrow">3-D dynamics + contact</p>
+                <strong>Block collision · signed-gap contact</strong>
+                <span>Two 2 × 2 × 4 Hex8 blocks · rigid impactor. The accepted trajectory-wide minimum signed interface gap and active contact reactions, not a reconstructed pressure.</span>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
       <section class="section boundary-section" id="scope" aria-labelledby="boundary-title">
         <div class="shell boundary-grid">
           <div class="boundary-intro">
@@ -353,10 +405,10 @@
               <ul>
                 <li>operator composition and sparse assembly;</li>
                 <li>serial drivers and scoped PETSc/MPI paths;</li>
-                <li>compiled-element evaluation and state interfaces;</li>
+                <li>native compiled-element ABI, loading, evaluation, and state interfaces;</li>
                 <li>affine algebra, compact mesh views, and regular-mesh utilities;</li>
                 <li>contact operators and search primitives; and</li>
-                <li>build-time UEL, UMAT, and native-kernel generation.</li>
+                <li>focused checks for residuals, tangents, and state transitions.</li>
               </ul>
             </article>
             <article class="ownership-card applications">
@@ -365,7 +417,7 @@
                 <li>authoritative geometry and mesh-tool integration;</li>
                 <li>physical labels, materials, loads, and boundary semantics;</li>
                 <li>units, parameter provenance, and loading protocols;</li>
-                <li>vendor formats, CAD association, and result translation;</li>
+                <li>vendor formats, external-solver integration, and result translation;</li>
                 <li>model-specific verification and validation; and</li>
                 <li>outputs, review records, and engineering decisions.</li>
               </ul>

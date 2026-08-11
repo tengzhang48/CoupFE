@@ -20,8 +20,19 @@ STYLES = SITE_ROOT / "styles.css"
 EVIDENCE = SITE_ROOT / "evidence.json"
 REPOSITORY = "https://github.com/tengzhang48/CoupFE"
 HERTZ_SITE_FIGURE = "hertz-contact-benchmark.svg"
-EXPECTED_SITE_FILES = {"evidence.json", HERTZ_SITE_FIGURE, "index.html", "styles.css"}
-EXPECTED_SECTIONS = ["top", "core", "backends", "evidence", "scope", "start"]
+LINEAR_BAR_SITE_FIGURE = "linear-bar-snapshot.svg"
+NEO_HOOKEAN_BLOCK_SITE_FIGURE = "neo-hookean-block-snapshot.svg"
+CONTACT_3D_BLOCKS_SITE_FIGURE = "contact-3d-blocks-snapshot.svg"
+EXPECTED_SITE_FILES = {
+    "evidence.json",
+    HERTZ_SITE_FIGURE,
+    LINEAR_BAR_SITE_FIGURE,
+    NEO_HOOKEAN_BLOCK_SITE_FIGURE,
+    CONTACT_3D_BLOCKS_SITE_FIGURE,
+    "index.html",
+    "styles.css",
+}
+EXPECTED_SECTIONS = ["top", "core", "backends", "evidence", "snapshots", "scope", "start"]
 
 
 class SiteParser(HTMLParser):
@@ -142,7 +153,7 @@ def check_pinned_source_files(
 
 def check_evidence(payload: dict[str, object]) -> None:
     require(payload.get("schemaVersion") == 2, "unexpected evidence schema")
-    require(payload.get("recordedDate") == "2026-08-09", "unexpected evidence date")
+    require(payload.get("recordedDate") == "2026-08-10", "unexpected evidence date")
     source_commit = payload.get("sourceCommit")
     require(
         isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
@@ -167,32 +178,36 @@ def check_evidence(payload: dict[str, object]) -> None:
     check_pinned_source_files(source_commit, source_files)
 
     presentation = payload.get("presentationArtifacts")
-    require(isinstance(presentation, dict), "presentation-artifact record is required")
-    hertz_artifact = presentation.get("hertzContactFigure")
-    require(isinstance(hertz_artifact, dict), "Hertz presentation artifact is required")
+    require(isinstance(presentation, dict) and presentation, "presentation-artifact record is required")
+    require("hertzContactFigure" in presentation, "Hertz presentation artifact is required")
+    for name, artifact in presentation.items():
+        require(isinstance(artifact, dict), f"presentation artifact must be an object: {name}")
+        renderer = artifact.get("renderer")
+        renderer_hash = artifact.get("rendererSha256")
+        require(isinstance(renderer, str), f"renderer path must be text: {name}")
+        require(isinstance(renderer_hash, str), f"renderer hash must be text: {name}")
+        require((ROOT / renderer).is_file(), f"renderer is missing: {name}")
+        require(sha256(ROOT / renderer) == renderer_hash, f"renderer changed: {name}")
+        require(
+            source_files.get(renderer) == renderer_hash,
+            f"renderer must be source-pinned: {name}",
+        )
+        artifact_files = artifact.get("files")
+        require(isinstance(artifact_files, dict) and artifact_files, f"artifact files are required: {name}")
+        require(
+            not set(source_files).intersection(artifact_files),
+            f"presentation artifacts must not be classified as source files: {name}",
+        )
+        for relative, expected_hash in artifact_files.items():
+            require(isinstance(relative, str), f"artifact path must be text: {name}")
+            require(isinstance(expected_hash, str), f"artifact hash for {relative} must be text: {name}")
+            path = ROOT / relative
+            require(path.is_file(), f"presentation artifact is missing: {relative}")
+            require(sha256(path) == expected_hash, f"presentation artifact changed: {relative}")
     require(
-        hertz_artifact.get("derivedFromRun") == "hertzContact",
+        presentation["hertzContactFigure"].get("derivedFromRun") == "hertzContact",
         "Hertz artifact must name its source run",
     )
-    renderer = hertz_artifact.get("renderer")
-    renderer_hash = hertz_artifact.get("rendererSha256")
-    require(isinstance(renderer, str), "Hertz renderer path must be text")
-    require(isinstance(renderer_hash, str), "Hertz renderer hash must be text")
-    require((ROOT / renderer).is_file(), "Hertz renderer is missing")
-    require(sha256(ROOT / renderer) == renderer_hash, "Hertz renderer changed")
-    require(source_files.get(renderer) == renderer_hash, "renderer must be source-pinned")
-    artifact_files = hertz_artifact.get("files")
-    require(isinstance(artifact_files, dict) and artifact_files, "Hertz artifact files are required")
-    require(
-        not set(source_files).intersection(artifact_files),
-        "presentation artifacts must not be classified as source files",
-    )
-    for relative, expected_hash in artifact_files.items():
-        require(isinstance(relative, str), "artifact path must be text")
-        require(isinstance(expected_hash, str), f"artifact hash for {relative} must be text")
-        path = ROOT / relative
-        require(path.is_file(), f"presentation artifact is missing: {relative}")
-        require(sha256(path) == expected_hash, f"presentation artifact changed: {relative}")
 
     runs = payload.get("runs")
     require(isinstance(runs, dict), "runs mapping is required")
@@ -255,8 +270,9 @@ def check_evidence(payload: dict[str, object]) -> None:
         and (ROOT / site_figure).is_file(),
         "Hertz website figure is missing",
     )
+    hertz_figure_files = presentation["hertzContactFigure"]["files"]
     require(
-        figure in artifact_files and site_figure in artifact_files,
+        figure in hertz_figure_files and site_figure in hertz_figure_files,
         "Hertz figures must be presentation artifacts",
     )
     require(hertz.get("status") == "OK", "Hertz rerun did not pass")
@@ -339,10 +355,26 @@ def main() -> None:
     for previous, current in zip(parser.headings, parser.headings[1:]):
         require(current[0] <= previous[0] + 1, f"heading level jumps from {previous} to {current}")
     require(parser.script_count == 0, "the static Core site must not require JavaScript")
-    require(parser.image_count == 1, "site must contain one representative result figure")
-    require(parser.svg_image_count == 0, "do not duplicate the representative figure inline")
-    require(parser.image_sources == [HERTZ_SITE_FIGURE], "unexpected representative figure")
-    require(parser.image_alts and parser.image_alts[0].strip(), "representative figure needs alt text")
+    allowed_figures = {
+        HERTZ_SITE_FIGURE,
+        LINEAR_BAR_SITE_FIGURE,
+        NEO_HOOKEAN_BLOCK_SITE_FIGURE,
+        CONTACT_3D_BLOCKS_SITE_FIGURE,
+    }
+    require(
+        parser.image_count == len(allowed_figures),
+        "site figure count must match the declared presentation artifacts",
+    )
+    require(parser.svg_image_count == 0, "do not duplicate figures inline as svg")
+    require(
+        parser.image_sources[0] == HERTZ_SITE_FIGURE,
+        "the Hertz hero must be the first figure",
+    )
+    require(
+        set(parser.image_sources) == allowed_figures,
+        "every figure must be a declared presentation artifact",
+    )
+    require(parser.image_alts and parser.image_alts[0].strip(), "hero figure needs alt text")
     require((SITE_ROOT / HERTZ_SITE_FIGURE).is_file(), "representative figure file is missing")
 
     require('class="skip-link" href="#main"' in html, "skip link is missing")
@@ -363,7 +395,10 @@ def main() -> None:
         "tangent",
         "commit",
         "U = Pq + U0",
-        "parallel backends",
+        "CoupFE executes its own element interface",
+        "Primary CoupFE path",
+        "Optional external export",
+        "Abaqus owns that external procedure",
         "not independent physical validation",
         "No general mesh-software adapter",
         "worked examples, not launch checks",
@@ -394,6 +429,9 @@ def main() -> None:
         "production-ready",
         "validated finite-element framework",
         "general MPI qualification",
+        "two parallel backends",
+        "build-time UEL, UMAT, and native-kernel generation",
+        "UMAT",
         "scales to",
         "speedup",
     ):

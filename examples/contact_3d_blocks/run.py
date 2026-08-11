@@ -114,7 +114,15 @@ def _min_signed_interface_gap(U, nodes, secondary, faces):
     return float(min_gap)
 
 
-def main():
+def run_collision_snapshot():
+    """Solve the retained collision and return its checked minimum-gap frame.
+
+    The snapshot is copied immediately after the accepted dynamics step that
+    attains the smallest positive signed interface gap.  Renderers therefore
+    consume the same displacement field used by the public trajectory gate;
+    they do not reconstruct or interpolate a contact field.
+    """
+
     nb, eb = _hex8_block(NE, 0.0)                        # bottom block z∈[0,1]
     Nb = len(nb)
     nt, et = _hex8_block(NE, 1.0 + GAP0)                 # top block, just above
@@ -138,18 +146,77 @@ def main():
     dirich = {int(n) * 3 + c: 0.0 for n in base for c in (0, 1, 2)}
     ops = [grp, inertia, contact]
 
-    U = np.zeros(ndof); min_gap = np.inf
-    for _ in range(N_STEPS):                              # step-by-step → track the min gap over time
+    U = np.zeros(ndof)
+    min_gap = np.inf
+    min_gap_step = 0
+    min_gap_displacement = None
+    for step in range(1, N_STEPS + 1):                    # step-by-step → track the min gap over time
         U, _info = solve_dynamics(ops, U, ndof, dirich, dt=DT, n_steps=1)
-        min_gap = min(min_gap, _min_signed_interface_gap(U, nodes, secondary, faces))
+        accepted_gap = _min_signed_interface_gap(U, nodes, secondary, faces)
+        if accepted_gap < min_gap:
+            min_gap = accepted_gap
+            min_gap_step = step
+            min_gap_displacement = U.copy()
 
     max_u = float(np.max(np.abs(U)))
     collided = min_gap < DHAT
     penetration_free = min_gap > 0.0
     ok = collided and penetration_free and max_u < 0.2
-    print(f"nodes={len(nodes)} hexes={len(elems)} ndof={ndof}  max|U|={max_u:.4f}")
-    print(f"min signed interface gap over trajectory = {min_gap:.3e}  (d̂={DHAT})  "
-          f"collided={collided} penetration_free={penetration_free}  -> {'OK' if ok else 'FAIL'}")
+    if min_gap_displacement is None:                      # N_STEPS is a positive retained constant
+        raise RuntimeError("collision solve produced no accepted snapshot")
+
+    nodal_displacement = min_gap_displacement.reshape(len(nodes), 3)
+    return {
+        "configuration": {
+            "mesh_shape_per_block": (NE, NE, NE),
+            "nodes": len(nodes),
+            "elements": len(elems),
+            "degrees_of_freedom": ndof,
+            "time_step": DT,
+            "accepted_steps": N_STEPS,
+            "activation_distance": DHAT,
+        },
+        "snapshot": {
+            "accepted_step": min_gap_step,
+            "time": min_gap_step * DT,
+            "nodes_reference": nodes.copy(),
+            "nodes_deformed": nodes + nodal_displacement,
+            "displacement": nodal_displacement.copy(),
+            "elements": elems.copy(),
+            "secondary_nodes": secondary.copy(),
+            "primary_faces": faces.copy(),
+            "fixed_nodes": base.copy(),
+            "minimum_signed_gap": float(min_gap),
+        },
+        "results": {
+            "minimum_signed_gap": float(min_gap),
+            "final_max_abs_displacement": max_u,
+            "collided": bool(collided),
+            "penetration_free": bool(penetration_free),
+            "ok": bool(ok),
+        },
+    }
+
+
+def main(evidence=None):
+    """Run the example (or report supplied evidence) and print its public gate."""
+
+    evidence = run_collision_snapshot() if evidence is None else evidence
+    config = evidence["configuration"]
+    results = evidence["results"]
+    ok = bool(results["ok"])
+    print(
+        f"nodes={config['nodes']} hexes={config['elements']} "
+        f"ndof={config['degrees_of_freedom']}  "
+        f"max|U|={results['final_max_abs_displacement']:.4f}"
+    )
+    print(
+        "min signed interface gap over trajectory = "
+        f"{results['minimum_signed_gap']:.3e}  (d̂={DHAT})  "
+        f"collided={results['collided']} "
+        f"penetration_free={results['penetration_free']}  "
+        f"-> {'OK' if ok else 'FAIL'}"
+    )
     return ok
 
 

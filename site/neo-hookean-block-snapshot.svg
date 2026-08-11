@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" role="img" aria-labelledby="title description">
+<title id="title">Finite-strain uniaxial block solution</title>
+<desc id="description">The actual true-scale deformed six-by-six Quad4 mesh, colored by solved lateral displacement and compared with its traction-free analytic outline.</desc>
+<rect width="720" height="480" fill="#FFFFFF"/>
+<text x="42" y="45" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="650">Finite-strain block · lateral contraction</text>
+<text x="42" y="72" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">6 × 6 Quad4 · axial stretch λₓ = 1.20 · true deformation scale</text>
+<line x1="42" y1="91" x2="678" y2="91" stroke="#D9E1E4"/>
+<text x="57" y="121" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="600">Solved mesh · color is actual uᵧ</text>
+<polyline points="72,401 362,401 362,111 72,111 72,401" fill="none" stroke="#9AA8AE" stroke-width="2" stroke-dasharray="7 6"/>
+<polygon points="72,401 130,401 130,359.56 72,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,401 188,401 188,359.56 130,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,401 246,401 246,359.56 188,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,401 304,401 304,359.56 246,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,401 362,401 362,359.56 304,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,401 420,401 420,359.56 362,359.56" fill="#EDF3F3" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="72,359.56 130,359.56 130,318.12 72,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,359.56 188,359.56 188,318.12 130,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,359.56 246,359.56 246,318.12 188,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,359.56 304,359.56 304,318.12 246,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,359.56 362,359.56 362,318.12 304,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,359.56 420,359.56 420,318.12 362,318.12" fill="#D5E7E8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="72,318.12 130,318.12 130,276.69 72,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,318.12 188,318.12 188,276.69 130,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,318.12 246,318.12 246,276.69 188,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,318.12 304,318.12 304,276.69 246,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,318.12 362,318.12 362,276.69 304,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,318.12 420,318.12 420,276.69 362,276.69" fill="#B5D6D8" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="72,276.69 130,276.69 130,235.25 72,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,276.69 188,276.69 188,235.25 130,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,276.69 246,276.69 246,235.25 188,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,276.69 304,276.69 304,235.25 246,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,276.69 362,276.69 362,235.25 304,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,276.69 420,276.69 420,235.25 362,235.25" fill="#55A0A7" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="72,235.25 130,235.25 130,193.81 72,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,235.25 188,235.25 188,193.81 130,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,235.25 246,235.25 246,193.81 188,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,235.25 304,235.25 304,193.81 246,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,235.25 362,235.25 362,193.81 304,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,235.25 420,235.25 420,193.81 362,193.81" fill="#287E87" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="72,193.81 130,193.81 130,152.37 72,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="130,193.81 188,193.81 188,152.37 130,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="188,193.81 246,193.81 246,152.37 188,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="246,193.81 304,193.81 304,152.37 246,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="304,193.81 362,193.81 362,152.37 304,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polygon points="362,193.81 420,193.81 420,152.37 362,152.37" fill="#176B74" stroke="#6E858B" stroke-width="0.8" stroke-linejoin="round"/>
+<polyline points="72,401 420,401 420,152.37 72,152.37 72,401" fill="none" stroke="#A86432" stroke-width="2.5" stroke-dasharray="8 6"/>
+<line x1="72.0" y1="419.0" x2="420.0" y2="419.0" stroke="#0E4C55" stroke-width="1.8"/>
+<path d="M 420.0 419.0 l -10 -6 v 12 z" fill="#0E4C55"/>
+<text x="246.0" y="443.0" text-anchor="middle" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">20% prescribed extension</text>
+<text x="472" y="132" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">LATERAL STRETCH</text>
+<text x="472" y="171" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28" font-weight="700">0.857332</text>
+<text x="472" y="195" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">finite-element mean</text>
+<text x="472" y="235" fill="#A86432" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="650">0.857332</text>
+<text x="472" y="258" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">traction-free oracle</text>
+<line x1="472" y1="282" x2="661" y2="282" stroke="#D9E1E4"/>
+<line x1="472" y1="307" x2="503" y2="307" stroke="#9AA8AE" stroke-width="2" stroke-dasharray="7 6"/>
+<text x="513" y="313" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">reference block</text>
+<line x1="472" y1="343" x2="503" y2="343" stroke="#A86432" stroke-width="2.5" stroke-dasharray="8 6"/>
+<text x="513" y="349" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">analytic outline</text>
+<text x="472" y="384" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">FE outline coincides with</text>
+<text x="472" y="404" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">the analytic outline.</text>
+<rect x="472" y="431.0" width="25.0" height="10" fill="#EDF3F3" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="497" y="431.0" width="25.0" height="10" fill="#D5E7E8" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="522" y="431.0" width="25.0" height="10" fill="#B5D6D8" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="547" y="431.0" width="25.0" height="10" fill="#88BEC2" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="572" y="431.0" width="25.0" height="10" fill="#55A0A7" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="597" y="431.0" width="25.0" height="10" fill="#287E87" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="622" y="431.0" width="25.0" height="10" fill="#176B74" stroke="#FFFFFF" stroke-width="0.5"/>
+<text x="472.0" y="464" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">uᵧ: -0.1427 to 0 · no stress reconstruction</text>
+</svg>

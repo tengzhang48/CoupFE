@@ -1,9 +1,9 @@
 # CoupFE status
 
 CoupFE is active alpha research software. The current public tree contains a
-working operator-based finite-element core, build-time code generation, a
-compiled-element runtime, serial and PETSc/MPI solve paths, contact building
-blocks, regular-mesh utilities, and a curated example and test suite.
+working operator-based finite-element core, a native compiled-element runtime,
+optional source-generation utilities, serial and PETSc/MPI solve paths, contact
+building blocks, regular-mesh utilities, and a curated example and test suite.
 
 ## Available now
 
@@ -11,12 +11,18 @@ blocks, regular-mesh utilities, and a curated example and test suite.
 - load-stepped Newton solves and implicit backward-Euler dynamics;
 - separate evaluation and commit interfaces for compiled element state;
 - serial quasistatic affine-constraint reduction;
-- native and Abaqus UEL element generation, plus Abaqus UMAT generation;
+- native compiled-element source generation and execution, plus selected
+  Abaqus/Standard UEL and UMAT source-export utilities;
 - Quad4-oriented native mesh/refinement utilities and compact mesh views;
 - deterministic regular-mesh partitioning and MPI assembly/solve entry points;
 - two- and three-dimensional contact, search, friction, and focused exact-stick
   studies; and
 - examples with explicit evidence and provenance categories.
+
+Native compiled elements are CoupFE's solve path. Abaqus owns the full UEL and
+UMAT procedure contexts. CoupFE retains a narrow normal-static UEL adapter for
+focused implementation-parity checks, but it is not a general Abaqus host;
+CoupFE does not host or call UMATs.
 
 The precise serial, distributed, contact, code-generation, and mesh boundary is
 maintained in [`capabilities.md`](capabilities.md). Public calls are listed in
@@ -48,7 +54,8 @@ evidence boundary.
   driver calls operator commit, and `solve_increments` is history-free;
 - distributed coupled-field and contact coverage is narrower than serial
   coverage;
-- native kernel geometry support is narrower than the compiled UEL path;
+- native source-generation geometry support is narrower than the
+  Abaqus/Standard UEL source-export generator;
 - no GPU backend; and
 - no claim of broad real-device or production engineering validation.
 

@@ -45,7 +45,10 @@ def lateral_stretch_analytic(lam, props):
     return lt
 
 
-def main(nx=6, ny=6, Lx=1.0, Ly=1.0, stretch=0.20, props=DEFAULT_PROPS):
+def solve_block(nx=6, ny=6, Lx=1.0, Ly=1.0, stretch=0.20,
+                props=DEFAULT_PROPS):
+    """Solve the retained block and return its nodal finite-element snapshot."""
+
     nodes, elems, group, dirichlet = uniaxial_problem(
         nx=nx, ny=ny, Lx=Lx, Ly=Ly, stretch=stretch, props=props)
     ndof = len(nodes) * 2
@@ -59,14 +62,40 @@ def main(nx=6, ny=6, Lx=1.0, Ly=1.0, stretch=0.20, props=DEFAULT_PROPS):
     lam_t_fe = 1.0 + uy[top].mean() / Ly
     lam_t_ref = lateral_stretch_analytic(lam, props)
 
+    nodal_displacement = U.reshape(-1, 2)
+    return {
+        "configuration": {
+            "mesh_shape": (int(nx), int(ny)),
+            "block_size": (float(Lx), float(Ly)),
+            "axial_stretch": float(lam),
+            "prescribed_extension": float(stretch),
+            "material_props_g_k": tuple(float(value) for value in props),
+        },
+        "nodes_reference": nodes.copy(),
+        "nodes_deformed": nodes + nodal_displacement,
+        "elements": elems.copy(),
+        "displacement": nodal_displacement.copy(),
+        "newton_iterations": int(nit),
+        "lateral_stretch_fe": float(lam_t_fe),
+        "lateral_stretch_analytic": float(lam_t_ref),
+        "relative_difference": float(abs(lam_t_fe - lam_t_ref) / lam_t_ref),
+    }
+
+
+def main(nx=6, ny=6, Lx=1.0, Ly=1.0, stretch=0.20, props=DEFAULT_PROPS):
+    evidence = solve_block(nx, ny, Lx, Ly, stretch, props)
+    config = evidence["configuration"]
+
     print(f"=== neo-Hookean block {nx}x{ny}, props (G,K)={props}, stretch={stretch} ===")
-    print(f"  Newton iterations         : {nit}")
-    print(f"  axial stretch  lam        : {lam:.6f}")
-    print(f"  lateral stretch (FE mean) : {lam_t_fe:.6f}")
-    print(f"  lateral stretch (analytic): {lam_t_ref:.6f}")
-    print(f"  relative error            : {abs(lam_t_fe - lam_t_ref) / lam_t_ref:.2e}")
-    print(f"  max |u_x|, |u_y|          : {np.abs(ux).max():.4f}, {np.abs(uy).max():.4f}")
-    return U
+    print(f"  Newton iterations         : {evidence['newton_iterations']}")
+    print(f"  axial stretch  lam        : {config['axial_stretch']:.6f}")
+    print(f"  lateral stretch (FE mean) : {evidence['lateral_stretch_fe']:.6f}")
+    print(f"  lateral stretch (analytic): {evidence['lateral_stretch_analytic']:.6f}")
+    print(f"  relative error            : {evidence['relative_difference']:.2e}")
+    displacement = evidence["displacement"]
+    print(f"  max |u_x|, |u_y|          : {np.abs(displacement[:, 0]).max():.4f}, "
+          f"{np.abs(displacement[:, 1]).max():.4f}")
+    return displacement.ravel()
 
 
 if __name__ == "__main__":
