@@ -48,27 +48,34 @@ penalty, barrier, return-map, or semismooth example does not qualify the other
 families. Exact-stick studies are intentionally separate from the smoothed
 barrier/dynamics path.
 
-## Code generation and elements
+## Native elements and external source export
+
+Native compiled elements are the element path used by CoupFE solves. The UEL
+and UMAT entries below describe source emitted for external Abaqus/Standard
+interfaces. CoupFE retains a narrow in-process UEL adapter for focused
+normal-static implementation-parity checks; it does not provide a general
+Abaqus procedure host and does not host or call UMATs.
 
 | Capability | Status |
 |---|---|
-| Python declaration to Abaqus UEL | **yes** for the element/formulation combinations exposed by `coupfe.codegen` |
-| Abaqus UEL procedure coverage | **normal implicit/static scope**; mass, damping, perturbation, and general dynamic request handling is not qualified |
-| Python declaration to native element kernel | **yes**, with narrower geometry coverage than the Abaqus UEL generator |
+| Python declaration to native compiled-element source | **yes**, with narrower geometry coverage than the Abaqus/Standard UEL source-export generator |
+| Native compiled-element execution | **yes** through the documented f2py ABI used by serial and scoped distributed callers |
 | Native residual-only evaluation | **yes** — standard and F-bar generators emit an R-only twin; runtime and serial/distributed callers expose explicit joint/split selection |
-| Abaqus UMAT generation | **yes**; four public material-point/codegen examples cover Neo-Hookean, Ogden, small-strain J2, and standard-linear-solid viscoelasticity |
-| Hosting an arbitrary compiled UMAT inside CoupFE | **no** |
+| Abaqus/Standard UEL source export | **yes** for the element/formulation combinations exposed by `coupfe.codegen` |
+| In-process UEL compatibility adapter | **partial** — one normal-static joint-call path for focused parity checks; it does not emulate Abaqus procedure sequencing |
+| Abaqus/Standard UMAT source export | **yes**; four public material-point/source-generation examples cover Neo-Hookean, Ogden, small-strain J2, and standard-linear-solid viscoelasticity |
+| CoupFE UMAT hosting or invocation | **no** |
 | Deterministic regeneration and generated-source compilation | **yes** for the examples whose tests state that scope |
 | Named state schema and tensor history | **yes** in the compiled-element/codegen path |
-| F-bar generation | **partial** — implemented for the supported backends; no general no-locking or inversion-robustness claim |
+| F-bar generation | **partial** — implemented for supported native and external source targets; no general no-locking or inversion-robustness claim |
 | Element-local condensed pressure | **partial**, shipped as research examples rather than a default formulation |
 | Mixed and coupled paper-form declarations | **partial**, with example-specific implementation checks rather than broad model validation |
 | Native geometry families | **partial** — the native standalone ABI is primarily Quad4-oriented |
-| Compiled UEL geometry families | **partial** — public examples exercise Quad4, Quad8/Quad8R, Tet4, Hex8, and selected mixed layouts; coverage differs by formulation |
+| Abaqus/Standard UEL source-export geometry families | **partial** — public examples exercise Quad4, Quad8/Quad8R, Tet4, Hex8, and selected mixed layouts; coverage differs by formulation |
 
-Native/UEL parity, reference assembly, and tangent consistency establish
-implementation properties. They do not independently validate a constitutive
-model, benchmark interpretation, or parameter set.
+Native/Abaqus-interface export parity, reference assembly, and tangent
+consistency establish implementation properties. They do not independently
+validate a constitutive model, benchmark interpretation, or parameter set.
 
 ## Mesh and interoperability
 
@@ -85,8 +92,9 @@ model, benchmark interpretation, or parameter set.
 | Mixed cell blocks and facet topology in `KernelMeshView` | **no** |
 
 Applications own authoritative geometry, mesh-tool integration, physical
-labels, periodic matching, and file-format semantics. Core consumes the compact
-array contracts after that translation.
+labels, periodic matching, file-format semantics, and external-solver job
+integration and execution. Core consumes the compact array contracts after that
+translation.
 
 ## Evidence and maturity limits
 

@@ -170,18 +170,86 @@ def _run(mu, nodes, elems, secondary, faces, base, top_face, top_block):
     return U, float(min_signed_gap)
 
 
-def main():
+def run_friction_snapshots():
+    """Solve the retained friction pair and return matched accepted final states.
+
+    Both cases use the same mesh, load history, time step, and final accepted
+    step.  The only changed model input is ``mu``.  Returned fields are direct
+    nodal solver displacements; no contact traction or stress field is inferred.
+    """
+
     mesh = _build()
-    nodes, _, secondary, faces = mesh[0], mesh[1], mesh[2], mesh[3]
+    nodes, elems, secondary, faces, base, top_face, _top_block = mesh
     U_fric, min_gap = _run(MU, *mesh)
-    U_free, _ = _run(0.0, *mesh)
+    U_free, min_gap_free = _run(0.0, *mesh)
     slip_fric = float(np.abs(np.mean(U_fric[secondary * 3 + 0])))
     slip_free = float(np.abs(np.mean(U_free[secondary * 3 + 0])))
     held = slip_fric < 0.7 * slip_free
     penetration_free = min_gap > 0.0
     ok = held and penetration_free and slip_free > 1e-3
-    print(f"interface slip: μ={MU} -> {slip_fric:.4e},  μ=0 -> {slip_free:.4e}  (ratio {slip_fric/max(slip_free,1e-30):.2f})")
-    print(f"min signed interface gap over trajectory (μ>0) = {min_gap:.3e} (d̂={DHAT})  held={held} penetration_free={penetration_free}  -> {'OK' if ok else 'FAIL'}")
+
+    def snapshot(mu, displacement, accepted_min_gap, interface_slip):
+        nodal_displacement = displacement.reshape(len(nodes), 3)
+        return {
+            "mu": float(mu),
+            "accepted_step": N_STEPS,
+            "time": N_STEPS * DT,
+            "nodes_reference": nodes.copy(),
+            "nodes_deformed": nodes + nodal_displacement,
+            "displacement": nodal_displacement.copy(),
+            "elements": elems.copy(),
+            "secondary_nodes": secondary.copy(),
+            "primary_faces": faces.copy(),
+            "fixed_nodes": base.copy(),
+            "driven_nodes": top_face.copy(),
+            "interface_slip": float(interface_slip),
+            "minimum_signed_gap": float(accepted_min_gap),
+        }
+
+    return {
+        "configuration": {
+            "mesh_shape_per_block": (NE, NE, NE),
+            "nodes": len(nodes),
+            "elements": len(elems),
+            "degrees_of_freedom": nodes.size,
+            "time_step": DT,
+            "accepted_steps": N_STEPS,
+            "activation_distance": DHAT,
+            "prescribed_shear": SHEAR,
+            "friction_regularization": FRICTION_EPS,
+        },
+        "friction": snapshot(MU, U_fric, min_gap, slip_fric),
+        "frictionless": snapshot(0.0, U_free, min_gap_free, slip_free),
+        "results": {
+            "friction_slip": slip_fric,
+            "frictionless_slip": slip_free,
+            "slip_ratio": slip_fric / max(slip_free, 1.0e-30),
+            "minimum_signed_gap": float(min_gap),
+            "held": bool(held),
+            "penetration_free": bool(penetration_free),
+            "ok": bool(ok),
+        },
+    }
+
+
+def main(evidence=None):
+    """Run the example (or report supplied evidence) and print its public gate."""
+
+    evidence = run_friction_snapshots() if evidence is None else evidence
+    results = evidence["results"]
+    ok = bool(results["ok"])
+    print(
+        f"interface slip: μ={MU} -> {results['friction_slip']:.4e},  "
+        f"μ=0 -> {results['frictionless_slip']:.4e}  "
+        f"(ratio {results['slip_ratio']:.2f})"
+    )
+    print(
+        "min signed interface gap over trajectory (μ>0) = "
+        f"{results['minimum_signed_gap']:.3e} (d̂={DHAT})  "
+        f"held={results['held']} "
+        f"penetration_free={results['penetration_free']}  "
+        f"-> {'OK' if ok else 'FAIL'}"
+    )
     return ok
 
 

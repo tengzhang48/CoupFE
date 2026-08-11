@@ -20,14 +20,15 @@ systematic; they do not make generated code correct automatically.
 
 ## The idea
 
-> **One element definition, two homes.** A supported residual definition can
-> generate a complex-step kernel for both an Abaqus UEL and the standalone
-> CoupFE runtime, preserving the same numerical formulation across two ABIs.
+> **One operator contract, one native execution path.** Supported element
+> formulations run through CoupFE's compiled-element ABI. Selected definitions
+> can also be exported as Abaqus/Standard UEL source for external
+> interoperability; Abaqus owns and executes that procedure.
 
-This lets a custom element remain usable in an existing Abaqus workflow while
-also running through an open Python/PETSc path. Backend parity is valuable for
-detecting code-generation and ABI drift, but it is not independent validation
-of the physical model.
+CoupFE's serial and PETSc/MPI paths call native compiled elements. A narrow
+in-process UEL adapter supports focused implementation-parity checks, not a
+general Abaqus analysis. Such parity can detect generation and ABI drift, but
+it is not independent validation of the physical model.
 
 ## Architecture
 
@@ -57,9 +58,8 @@ The current alpha release includes:
 
 - operator composition, nonlinear increments, implicit dynamics, and reusable
   linear-solver policy;
-- native-element and Abaqus UEL/UMAT build-time code generation, plus a
-  compiled f2py element runtime with explicit joint or residual-only native
-  evaluation;
+- compiled f2py native-element execution with explicit joint residual/tangent
+  or residual-only evaluation, plus selected Abaqus/Standard UEL source export;
 - explicit compiled-element state/commit interfaces and compositional element
   groups;
 - serial and PETSc/MPI assembly and solve paths, with the exact support boundary
@@ -70,6 +70,10 @@ The current alpha release includes:
   collision/friction examples; and
 - a public test and validation approach built around analytic checks, independent oracles,
   broken controls, and clearly labeled implementation-parity tests.
+
+Abaqus UEL and UMAT are external-solver interfaces. CoupFE does not host or call
+UMATs in standalone solves; the retained UMAT examples are source-export and
+material-point verification records, not CoupFE simulations.
 
 The examples deliberately include both small introductory cases and scoped
 research demonstrations. They cover nonlinear elasticity, coupled forms,
@@ -153,12 +157,13 @@ The current, claim-bounded inventory is
 [`docs/capabilities.md`](docs/capabilities.md); the design and public API are in
 [`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/api.md`](docs/api.md).
 
-CoupFE's build-time `coupfe.codegen` subsystem was mechanically ported from the
-maintainer's [`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) project
-and subsequently extended for native CoupFE execution. Its declaration style
-inherits conceptual inspiration from UFL, but CoupFE neither depends on nor
-implements UFL. The public tree keeps a curated set whose provenance and tests
-are documented. The broader research direction is summarized in
+CoupFE's declarative source-generation code in `coupfe.codegen` was mechanically
+ported from the maintainer's
+[`abaqus_ufl`](https://github.com/tengzhang48/abaqus_ufl) project and subsequently
+extended with CoupFE's native element ABI. Its declaration style inherits
+conceptual inspiration from UFL, but CoupFE neither depends on nor implements
+UFL. The public tree keeps a curated set whose provenance and tests are
+documented. The broader research direction is summarized in
 [`docs/porting.md`](docs/porting.md) and [`docs/roadmap.md`](docs/roadmap.md);
 detailed dated plans remain available in Git history without being presented
 as current capability.

@@ -547,46 +547,67 @@ h3 {
   font-size: 0.88rem;
 }
 
-.branch-lines {
+.path-connectors {
   position: relative;
-  display: flex;
-  width: 51%;
-  height: 48px;
-  justify-content: space-between;
+  width: 72%;
+  height: 66px;
   margin-inline: auto;
-  border-top: 1px solid rgba(161, 222, 214, 0.48);
-  transform: translateY(47px);
 }
 
-.branch-lines::before {
+.path-connectors::before {
   position: absolute;
-  top: -48px;
+  top: 0;
   left: 50%;
-  width: 1px;
-  height: 48px;
-  background: rgba(161, 222, 214, 0.48);
+  width: 2px;
+  height: 28px;
+  background: #8ed2ca;
   content: "";
 }
 
-.branch-lines span {
-  width: 1px;
-  height: 48px;
-  background: rgba(161, 222, 214, 0.48);
+.primary-connector,
+.export-connector {
+  position: absolute;
+  top: 27px;
+  height: 39px;
+}
+
+.primary-connector {
+  right: 50%;
+  left: 17%;
+  border-top: 2px solid #8ed2ca;
+  border-left: 2px solid #8ed2ca;
+}
+
+.export-connector {
+  right: 7%;
+  left: 50%;
+  border-top: 2px dashed rgba(189, 208, 212, 0.66);
+  border-right: 2px dashed rgba(189, 208, 212, 0.66);
 }
 
 .backend-cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1.15fr 0.85fr;
   gap: 32px;
-  margin-top: 46px;
 }
 
 .backend-cards article {
-  min-height: 245px;
+  min-height: 238px;
   padding: 30px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius);
   background: rgba(8, 35, 42, 0.54);
+}
+
+.backend-cards .native-path {
+  border-color: rgba(142, 210, 202, 0.72);
+  background: linear-gradient(145deg, rgba(23, 123, 120, 0.28), rgba(8, 35, 42, 0.62));
+  box-shadow: inset 0 3px 0 #8ed2ca;
+}
+
+.backend-cards .export-path {
+  border-style: dashed;
+  background: rgba(8, 35, 42, 0.34);
 }
 
 .backend-label {
@@ -1338,7 +1359,7 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .branch-lines {
+  .path-connectors {
     display: none;
   }
 
@@ -1505,4 +1526,89 @@ h3 {
   .public-record-panel .record-list div {
     border-color: #aaa;
   }
+}
+
+/* Solver snapshots gallery — deterministic figures from checked solves. */
+.snapshots-section { background: var(--paper-deep); }
+.snapshots-section .section-heading.centered {
+  max-width: 760px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+.snapshots-section .section-heading.centered .eyebrow {
+  color: var(--teal);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.snapshots-section .section-heading.centered h2 {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.snapshots-section .section-lede {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.snapshots-section .section-lede a { color: var(--teal); font-weight: 600; }
+.snapshots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.snapshot-card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.snapshot-link { display: block; background: var(--paper-deep); }
+.snapshot-link img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: contain;
+  padding: 14px;
+  box-sizing: border-box;
+}
+.snapshot-card figcaption {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--line);
+}
+.snapshot-eyebrow {
+  margin: 0;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.snapshot-card figcaption strong {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.25;
+}
+.snapshot-card figcaption span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+@media (max-width: 900px) {
+  .snapshots-grid { grid-template-columns: 1fr; }
+  .snapshots-section .section-heading.centered { margin-bottom: 28px; }
+}
+@media print {
+  .snapshot-link img { padding: 0; }
 }

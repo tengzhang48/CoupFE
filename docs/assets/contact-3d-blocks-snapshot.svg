@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" role="img" aria-labelledby="title description">
+<title id="title">Deformable Hex8 block collision at the accepted minimum-gap frame</title>
+<desc id="description">Two deformable Hex8 blocks at the accepted trajectory frame with the smallest positive signed gap. Exterior faces are colored by actual displacement magnitude and interface nodes are marked in copper.</desc>
+<rect width="720" height="480" fill="#FFFFFF"/>
+<text x="34" y="38" fill="#17222B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="650">Deformable block collision</text>
+<text x="34" y="65" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16">Accepted step 16 of 25 · t = 0.32 · deformation ×1</text>
+<line x1="34" y1="82" x2="686" y2="82" stroke="#D8E0E5"/>
+<rect x="30" y="94" width="430" height="296" rx="4" fill="#F8FAFA" stroke="#D8E0E5"/>
+<polygon points="244.5,289.22 315.99,310.66 316.13,264.98 244.5,243.5" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="173.01,310.66 244.5,289.22 244.5,243.5 172.87,264.98" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,289.22 315.99,310.66 244.5,332.11 173.01,310.66" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.87,264.98 244.5,243.5 244.5,198.46 172.72,219.74" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,243.5 316.13,264.98 316.28,219.74 244.5,198.46" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="315.99,310.66 387.47,332.11 387.75,286.47 316.13,264.98" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="101.53,332.11 173.01,310.66 172.87,264.98 101.25,286.47" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="315.99,310.66 387.47,332.11 315.99,353.55 244.5,332.11" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="173.01,310.66 244.5,332.11 173.01,353.55 101.53,332.11" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,198.46 316.28,219.74 244.5,241 172.72,219.74" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.72,217.21 244.5,195.43 244.5,150.57 172.88,172.06" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,195.43 316.28,217.21 316.12,172.06 244.5,150.57" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="101.25,286.47 172.87,264.98 172.72,219.74 100.96,241.52" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.13,264.98 387.75,286.47 388.04,241.52 316.28,219.74" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,195.43 316.28,217.21 244.5,239.01 172.72,217.21" fill="#2F8194" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="387.47,332.11 315.99,353.55 316.13,307.96 387.75,286.47" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="173.01,353.55 101.53,332.11 101.25,286.47 172.87,307.96" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,332.11 315.99,353.55 244.5,375 173.01,353.55" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,150.57 316.12,172.06 315.99,126.45 244.5,105" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.88,172.06 244.5,150.57 244.5,105 173.01,126.45" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.72,219.74 244.5,241 172.72,262.81 100.96,241.52" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.28,219.74 388.04,241.52 316.28,262.81 244.5,241" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="100.94,238.49 172.72,217.21 172.88,172.06 101.26,193.54" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.28,217.21 388.06,238.49 387.74,193.54 316.12,172.06" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="387.75,286.47 316.13,307.96 316.28,262.81 388.04,241.52" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.87,307.96 101.25,286.47 100.96,241.52 172.72,262.81" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.28,217.21 388.06,238.49 316.28,260.28 244.5,239.01" fill="#2F8194" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.72,217.21 244.5,239.01 172.72,260.28 100.94,238.49" fill="#2F8194" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="315.99,353.55 244.5,375 244.5,329.45 316.13,307.96" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,375 173.01,353.55 172.87,307.96 244.5,329.45" fill="#F2F6F7" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,105 315.99,126.45 244.5,147.9 173.01,126.45" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.12,172.06 387.74,193.54 387.49,147.9 315.99,126.45" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="101.26,193.54 172.88,172.06 173.01,126.45 101.51,147.9" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,241 316.28,262.81 244.5,284.59 172.72,262.81" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="388.06,238.49 316.28,260.28 316.12,215.03 387.74,193.54" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.72,260.28 100.94,238.49 101.26,193.54 172.88,215.03" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.13,307.96 244.5,329.45 244.5,284.59 316.28,262.81" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,329.45 172.87,307.96 172.72,262.81 244.5,284.59" fill="#DCEAED" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,239.01 316.28,260.28 244.5,281.56 172.72,260.28" fill="#2F8194" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="315.99,126.45 387.49,147.9 315.99,169.35 244.5,147.9" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="173.01,126.45 244.5,147.9 173.01,169.35 101.51,147.9" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="387.74,193.54 316.12,215.03 315.99,169.35 387.49,147.9" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="172.88,215.03 101.26,193.54 101.51,147.9 173.01,169.35" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.28,260.28 244.5,281.56 244.5,236.51 316.12,215.03" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,281.56 172.72,260.28 172.88,215.03 244.5,236.51" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,147.9 315.99,169.35 244.5,190.79 173.01,169.35" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="316.12,215.03 244.5,236.51 244.5,190.79 315.99,169.35" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<polygon points="244.5,236.51 172.88,215.03 173.01,169.35 244.5,190.79" fill="#155E75" stroke="#71858C" stroke-width="0.75" stroke-linejoin="round"/>
+<circle cx="244.5" cy="195.43" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="172.72" cy="217.21" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="316.28" cy="217.21" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="100.94" cy="238.49" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="388.06" cy="238.49" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="244.5" cy="239.01" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="172.72" cy="260.28" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="316.28" cy="260.28" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<circle cx="244.5" cy="281.56" r="2.8" fill="#CF6945" stroke="#7B3F2A" stroke-width="0.8"/>
+<text x="482" y="122" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="1">TRAJECTORY CHECK</text>
+<text x="482" y="157" fill="#17222B" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="24" font-weight="700">2.175e-02</text>
+<text x="482" y="180" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">minimum signed gap</text>
+<line x1="482" y1="202" x2="682" y2="202" stroke="#D8E0E5"/>
+<text x="482" y="230" fill="#17222B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="650">d̂ = 0.040</text>
+<text x="482" y="252" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">barrier activation distance</text>
+<text x="482" y="294" fill="#17222B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="650">16 Hex8</text>
+<text x="482" y="316" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">two deformable blocks</text>
+<circle cx="489" cy="353" r="4" fill="#CF6945" stroke="#7B3F2A"/>
+<text x="502" y="358" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">secondary interface nodes</text>
+<rect x="42" y="415.0" width="30.0" height="11" fill="#F2F6F7" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="72" y="415.0" width="30.0" height="11" fill="#DCEAED" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="102" y="415.0" width="30.0" height="11" fill="#BFDADF" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="132" y="415.0" width="30.0" height="11" fill="#91C2CC" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="162" y="415.0" width="30.0" height="11" fill="#5EA5B5" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="192" y="415.0" width="30.0" height="11" fill="#2F8194" stroke="#FFFFFF" stroke-width="0.5"/>
+<rect x="222" y="415.0" width="30.0" height="11" fill="#155E75" stroke="#FFFFFF" stroke-width="0.5"/>
+<text x="42" y="405" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">face color: displacement magnitude |u| · 0 to 0.0349</text>
+<line x1="34" y1="444" x2="686" y2="444" stroke="#D8E0E5"/>
+<text x="34" y="468" fill="#5C6B76" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">Checked nodal displacement field · positive-gap accepted frame · no smoothed interface field</text>
+</svg>

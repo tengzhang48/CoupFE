@@ -24,12 +24,13 @@ Core includes:
 
 - the `Operator` contract and compositional assembly;
 - nonlinear increments and implicit dynamics;
-- explicit compiled-element evaluation and commit interfaces;
+- the native compiled-element ABI, loading, evaluation, and commit interfaces;
 - exact affine-constraint reduction;
 - compact array-level mesh contracts and regular-mesh utilities;
 - serial and PETSc/MPI solve paths;
 - contact operators and search primitives; and
-- build-time UEL/UMAT and native-kernel generation.
+- declaration verification and source generation for supported native elements
+  and explicitly scoped external-solver exports.
 
 Core does not provide a general Gmsh, CAD, DMPlex, Abaqus-input, or results-file
 adapter. Application packages translate their own geometry, labels, material
@@ -78,36 +79,40 @@ mesh and boundary semantics. The current qualified path is serial quasistatic
 solve; fixed and adaptive dynamics reject affine constraints explicitly, and
 the MPI drivers do not consume the transform.
 
-## One formulation, two backends
+## Native execution and external source export
 
-A supported element declaration can generate Fortran for two execution
-environments:
+A supported element declaration can generate Fortran for CoupFE's native
+compiled-element ABI. This is the element path used by CoupFE's serial and
+PETSc/MPI solves: the standalone runtime loads the kernel and calls CoupFE's
+residual/tangent interfaces without Abaqus procedure flags.
 
-- an Abaqus UEL, called by Abaqus with Abaqus-owned procedure data such as
-  ``LFLAGS``; and
-- a native kernel loaded by the standalone CoupFE runtime, called through
-  CoupFE's residual/tangent interfaces without Abaqus procedure flags.
+Selected declarations can separately emit Abaqus/Standard UEL source for an
+external Abaqus workflow. Abaqus owns and executes the full procedure context,
+including its call sequence and data such as ``LFLAGS``. CoupFE's in-process UEL
+adapter makes only a narrow normal-static joint call for focused
+implementation-parity tests and selected research examples; it is not a
+general Abaqus procedure host or a supported general CoupFE solve path.
 
-These are parallel backends, not a call chain. The native ABI exposes the
-quantities CoupFE needs directly: a joint residual/tangent entry and, where
-generated, an optional residual-only entry. The in-process UEL wrapper is a
-narrow normal-static compatibility path for focused implementation-parity
-tests and selected research examples; it does not emulate general Abaqus
-procedure sequencing.
+The native ABI exposes the quantities CoupFE needs directly: a joint
+residual/tangent entry and, where generated, an optional residual-only entry.
+Comparing that native implementation with the corresponding Abaqus-interface
+export can detect code-generation, sign, ordering, state-transfer, and ABI
+drift. Because both share a formulation, the comparison is an implementation
+check, not an independent physical oracle.
 
-Supported material declarations can also generate Abaqus UMAT source.
+Supported material declarations can also emit Abaqus/Standard UMAT source as
+an external export artifact. CoupFE does not host or call UMATs in its native
+runtime.
 
-Using one formulation helps detect code-generation, sign, ordering,
-state-transfer, and ABI drift across backends. Backend agreement is an
-implementation check, not an independent physical oracle. Each model still
-needs evidence appropriate to its claims, such as an analytic limit, a
-separately implemented invariant, a convergence study, or a properly sourced
-reference result.
+Each model still needs evidence appropriate to its claims, such as an analytic
+limit, a separately implemented invariant, a convergence study, or a properly
+sourced reference result.
 
-Code generation is a build-time facility. The runtime consumes generated
-kernels and does not require SymPy during a normal solve. A generated Abaqus
-UMAT is an output target; CoupFE does not currently host arbitrary compiled
-UMATs as its material runtime.
+Source generation is an optional preparation step. The runtime consumes native
+compiled-element kernels and does not require SymPy during a normal solve.
+Abaqus UEL and UMAT files remain external export targets. The limited UEL
+parity adapter described above is the sole in-process exception; UMAT has no
+CoupFE runtime adapter.
 
 ## Mesh and application integration
 
@@ -131,7 +136,7 @@ The public test suite combines several evidence types:
 - discretization and convergence checks;
 - finite-difference or complex-step consistency checks;
 - generated-source compilation and deterministic regeneration;
-- native/UEL implementation parity; and
+- native/Abaqus-interface export parity; and
 - deliberately broken controls for selected failure modes.
 
 These categories answer different questions and must not be conflated.

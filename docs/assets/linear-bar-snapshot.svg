@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480" role="img" aria-labelledby="title description">
+<title id="title">Nonlinear axial bar displacement</title>
+<desc id="description">The actual solved ten-element bar at true axial scale, with nodal displacement plotted against the reference coordinate.</desc>
+<rect width="720" height="480" fill="#FFFFFF"/>
+<text x="42" y="45" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="650">Nonlinear bar · solved displacement</text>
+<text x="42" y="72" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">10 elements · fixed left end · tip force 8</text>
+<line x1="42" y1="91" x2="678" y2="91" stroke="#D9E1E4"/>
+<text x="42" y="121" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="600">True-scale axial geometry</text>
+<line x1="76" y1="179.0" x2="529.93" y2="179.0" stroke="#9AA8AE" stroke-width="3" stroke-dasharray="7 6"/>
+<line x1="529.93" y1="145" x2="529.93" y2="210" stroke="#9AA8AE" stroke-width="1.2" stroke-dasharray="4 4"/>
+<text x="529.93" y="137" text-anchor="middle" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">reference tip</text>
+<line x1="76" y1="179.0" x2="124.91" y2="179.0" stroke="#E7EFF0" stroke-width="10" stroke-linecap="round"/>
+<line x1="124.91" y1="179.0" x2="173.83" y2="179.0" stroke="#E7EFF0" stroke-width="10" stroke-linecap="round"/>
+<line x1="173.83" y1="179.0" x2="222.74" y2="179.0" stroke="#C9DFE1" stroke-width="10" stroke-linecap="round"/>
+<line x1="222.74" y1="179.0" x2="271.66" y2="179.0" stroke="#9EC8CB" stroke-width="10" stroke-linecap="round"/>
+<line x1="271.66" y1="179.0" x2="320.57" y2="179.0" stroke="#9EC8CB" stroke-width="10" stroke-linecap="round"/>
+<line x1="320.57" y1="179.0" x2="369.49" y2="179.0" stroke="#6AACB2" stroke-width="10" stroke-linecap="round"/>
+<line x1="369.49" y1="179.0" x2="418.4" y2="179.0" stroke="#6AACB2" stroke-width="10" stroke-linecap="round"/>
+<line x1="418.4" y1="179.0" x2="467.32" y2="179.0" stroke="#3A8B94" stroke-width="10" stroke-linecap="round"/>
+<line x1="467.32" y1="179.0" x2="516.23" y2="179.0" stroke="#176B74" stroke-width="10" stroke-linecap="round"/>
+<line x1="516.23" y1="179.0" x2="565.15" y2="179.0" stroke="#176B74" stroke-width="10" stroke-linecap="round"/>
+<circle cx="76" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#E7EFF0" stroke-width="2"/>
+<circle cx="124.91" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#E7EFF0" stroke-width="2"/>
+<circle cx="173.83" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#C9DFE1" stroke-width="2"/>
+<circle cx="222.74" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#C9DFE1" stroke-width="2"/>
+<circle cx="271.66" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#9EC8CB" stroke-width="2"/>
+<circle cx="320.57" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#6AACB2" stroke-width="2"/>
+<circle cx="369.49" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#6AACB2" stroke-width="2"/>
+<circle cx="418.4" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#3A8B94" stroke-width="2"/>
+<circle cx="467.32" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#3A8B94" stroke-width="2"/>
+<circle cx="516.23" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#176B74" stroke-width="2"/>
+<circle cx="565.15" cy="179.0" r="4.2" fill="#FFFFFF" stroke="#176B74" stroke-width="2"/>
+<line x1="76" y1="151" x2="76" y2="207" stroke="#17252C" stroke-width="3"/>
+<line x1="64" y1="158" x2="76" y2="150" stroke="#17252C" stroke-width="1.4"/>
+<line x1="64" y1="169" x2="76" y2="161" stroke="#17252C" stroke-width="1.4"/>
+<line x1="64" y1="180" x2="76" y2="172" stroke="#17252C" stroke-width="1.4"/>
+<line x1="64" y1="191" x2="76" y2="183" stroke="#17252C" stroke-width="1.4"/>
+<line x1="64" y1="202" x2="76" y2="194" stroke="#17252C" stroke-width="1.4"/>
+<line x1="64" y1="213" x2="76" y2="205" stroke="#17252C" stroke-width="1.4"/>
+<line x1="574.15" y1="179.0" x2="616.15" y2="179.0" stroke="#A86432" stroke-width="2.5"/>
+<path d="M 616.15 179.0 l -12 -7 v 14 z" fill="#A86432"/>
+<text x="595.15" y="164" text-anchor="middle" fill="#A86432" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="650">F</text>
+<text x="42" y="255" fill="#17252C" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="600">Nodal displacement u(X)</text>
+<line x1="82.0" y1="408.0" x2="626.0" y2="408.0" stroke="#17252C" stroke-width="1.2"/>
+<line x1="82.0" y1="304.0" x2="82.0" y2="408.0" stroke="#17252C" stroke-width="1.2"/>
+<polyline points="82,408 136.4,398.55 190.8,389.09 245.2,379.64 299.6,370.18 354,360.73 408.4,351.27 462.8,341.82 517.2,332.36 571.6,322.91 626,313.45" fill="none" stroke="#9AA8AE" stroke-width="2" stroke-dasharray="7 6"/>
+<polyline points="82,408 136.4,398.83 190.8,389.66 245.2,380.49 299.6,371.32 354,362.15 408.4,352.98 462.8,343.81 517.2,334.64 571.6,325.47 626,316.3" fill="none" stroke="#176B74" stroke-width="3"/>
+<circle cx="82" cy="408" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="136.4" cy="398.83" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="190.8" cy="389.66" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="245.2" cy="380.49" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="299.6" cy="371.32" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="354" cy="362.15" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="408.4" cy="352.98" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="462.8" cy="343.81" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="517.2" cy="334.64" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="571.6" cy="325.47" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<circle cx="626" cy="316.3" r="3.4" fill="#FFFFFF" stroke="#0E4C55" stroke-width="1.8"/>
+<text x="82.0" y="431" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">X = 0</text>
+<text x="626.0" y="431" text-anchor="end" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">X = 2</text>
+<text x="100.0" y="288" fill="#9AA8AE" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">-- linear H = 0</text>
+<text x="250.0" y="288" fill="#0E4C55" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13">— nonlinear solve</text>
+<text x="42" y="462" fill="#607078" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">u_tip = 0.155184 · 4 Newton iterations · nodal displacement only</text>
+</svg>
