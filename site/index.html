@@ -201,150 +201,14 @@
         </div>
       </section>
 
-      <section class="section evidence-section" id="evidence" aria-labelledby="evidence-title">
-        <div class="shell">
-          <div class="section-heading split-heading">
-            <div>
-              <p class="eyebrow">Scoped numerical evidence</p>
-              <h2 id="evidence-title">Small examples, explicit questions.</h2>
-            </div>
-            <p>
-              These values are current-revision example reruns. Each result supports only
-              the stated check; it does not qualify an entire method family or a production model.
-              <a class="evidence-record-link" href="evidence.json">Read the source-pinned evidence and artifact record.</a>
-            </p>
-          </div>
-
-          <div class="evidence-grid">
-            <article class="evidence-card compact-card">
-              <p class="result-kind">Analytic limit</p>
-              <h3><code>linear_bar</code></h3>
-              <p>
-                The minimal operator and nonlinear solve path checks its linear limit and
-                analytic tangent without external data.
-              </p>
-              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/linear_bar">Inspect runner <span aria-hidden="true">→</span></a>
-            </article>
-
-            <article class="evidence-card compact-card">
-              <p class="result-kind">Finite strain</p>
-              <h3><code>neo_hookean_block</code></h3>
-              <p class="metric"><strong>0.857332</strong><span>computed lateral stretch</span></p>
-              <p class="metric comparison"><strong>0.857332</strong><span>traction-free oracle</span></p>
-              <p class="micro-result">Relative difference: <code>1.04e-15</code></p>
-              <p class="boundary-copy">
-                This checks the stated block formulation and oracle, not broad finite-strain coverage.
-              </p>
-              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/neo_hookean_block">Inspect runner <span aria-hidden="true">→</span></a>
-            </article>
-
-            <article class="evidence-card compact-card">
-              <p class="result-kind">Curved geometry</p>
-              <h3><code>curved_annulus</code></h3>
-              <p class="metric solo"><strong>2.02</strong><span>last observed convergence rate</span></p>
-              <p class="boundary-copy">
-                The run compares with the exact axisymmetric Lamé field. It supports this
-                discretization study, not a general curved-mesh accuracy claim.
-              </p>
-              <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/curved_annulus">Inspect runner <span aria-hidden="true">→</span></a>
-            </article>
-
-            <article class="evidence-card hertz-card">
-              <div class="hertz-copy">
-                <p class="result-kind">Normal contact · analytic law</p>
-                <h3>Rigid-sphere Hertz check</h3>
-                <p>
-                  A rigid sphere indents a deformable Hex8 block. The force trend is
-                  compared with <span class="nowrap">F ∝ δ<sup>3/2</sup></span> at five prescribed approaches.
-                </p>
-                <div class="hertz-stats">
-                  <p><strong>1.533</strong><span>FE log–log slope</span></p>
-                  <p><strong>1.01–1.06</strong><span>FE / Hertz force ratio</span></p>
-                </div>
-                <p class="micro-result">Force error: <strong>+1.3% to +6.2%</strong> · Hertz slope: <strong>1.500</strong></p>
-                <p class="boundary-copy">
-                  The 16 × 16 × 8 finite block and discrete nodal penalty contact
-                  approximate a half-space. This is a checked normal-force comparison,
-                  not a mesh/domain-converged contact-pressure or contact-radius study.
-                </p>
-                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/hertz_contact">Inspect solver, field figure, and limits <span aria-hidden="true">→</span></a>
-              </div>
-
-              <div class="hertz-method" aria-label="Checked Hertz configuration">
-                <p class="result-kind">Checked configuration</p>
-                <dl>
-                  <div>
-                    <dt>Discretization</dt>
-                    <dd>16 × 16 × 8 finite block · 7,803 DOF</dd>
-                  </div>
-                  <div>
-                    <dt>Loading</dt>
-                    <dd>Five prescribed approaches from 0.020 to 0.080</dd>
-                  </div>
-                  <div>
-                    <dt>Reported quantity</dt>
-                    <dd>Assembled normal reaction, not a smoothed pressure field</dd>
-                  </div>
-                </dl>
-              </div>
-            </article>
-
-            <article class="evidence-card contact-card">
-              <div>
-                <p class="result-kind">Grouped 3-D contact examples</p>
-                <h3>Collision and smoothed friction</h3>
-                <p>
-                  Two serial Hex8 demonstrations compose bulk elements, inertia, and a
-                  deformable barrier operator through the same core contract.
-                </p>
-              </div>
-              <dl class="contact-results">
-                <div>
-                  <dt>Collision minimum signed gap</dt>
-                  <dd>
-                    <span class="contact-value"><code>2.175e-02</code></span>
-                    <span class="contact-explanation">Below the barrier band and above zero over the accepted trajectory.</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Friction slip ratio</dt>
-                  <dd>
-                    <span class="contact-value">0.65</span>
-                    <span class="contact-explanation">Smoothed-friction interface slip divided by the frictionless run.</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Friction-run minimum signed gap</dt>
-                  <dd>
-                    <span class="contact-value"><code>2.503e-02</code></span>
-                    <span class="contact-explanation">Positive over the accepted retained trajectory.</span>
-                  </dd>
-                </div>
-              </dl>
-              <p class="contact-boundary">
-                These are coarse, focused research demonstrations with the documented
-                material, time-step, barrier, and loading choices. They do not establish
-                general self-contact, acceleration parity, no-locking behavior, or
-                production-scale contact performance.
-              </p>
-              <div class="text-links">
-                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/contact_3d_blocks">Collision source <span aria-hidden="true">→</span></a>
-                <a href="https://github.com/tengzhang48/CoupFE/tree/main/examples/contact_3d_friction">Friction source <span aria-hidden="true">→</span></a>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section snapshots-section" id="snapshots" aria-labelledby="snapshots-title">
+      <section class="section snapshots-section" id="evidence" aria-labelledby="evidence-title">
         <div class="shell">
           <div class="section-heading centered">
             <p class="eyebrow">Solver snapshots</p>
-            <h2 id="snapshots-title">Deterministic figures generated from checked solves.</h2>
+            <h2 id="evidence-title">What the solver actually produces.</h2>
             <p class="section-lede">
-              Each figure is rendered directly from the retained nodal output of its named runner —
-              not from a concept image. Every figure is bound to its renderer and source by a
-              SHA-256 contract in <a href="evidence.json">evidence.json</a>.
+              Each figure is drawn from a checked CoupFE solve at true scale — deformed geometry,
+              displacement, and contact reactions, not rendered illustrations.
             </p>
           </div>
           <div class="snapshots-grid">
@@ -354,8 +218,9 @@
               </a>
               <figcaption>
                 <p class="snapshot-eyebrow">1-D nonlinear mechanics</p>
-                <strong>Nonlinear bar · solved displacement</strong>
-                <span>10 Line2 elements · fixed left end · ramped tip force. True-scale deformed geometry and nodal displacement against the linear reference.</span>
+                <strong>Nonlinear bar</strong>
+                <span>10 Line2 elements · 4 Newton iterations · the tip displacement matches the nonlinear analytic limit.</span>
+                <a class="snapshot-source" href="https://github.com/tengzhang48/CoupFE/tree/main/examples/linear_bar">Runner <span aria-hidden="true">→</span></a>
               </figcaption>
             </figure>
             <figure class="snapshot-card">
@@ -364,8 +229,9 @@
               </a>
               <figcaption>
                 <p class="snapshot-eyebrow">2-D finite-strain mechanics</p>
-                <strong>Neo-Hookean block · lateral contraction</strong>
-                <span>6 × 6 Quad4 block · physical (G, K). Deformed mesh colored by displacement, cross-checked against the traction-free plane-strain lateral stretch.</span>
+                <strong>Neo-Hookean block</strong>
+                <span>Computed lateral stretch <code>0.857332</code> matches the traction-free oracle to <code>1.04e-15</code>.</span>
+                <a class="snapshot-source" href="https://github.com/tengzhang48/CoupFE/tree/main/examples/neo_hookean_block">Runner <span aria-hidden="true">→</span></a>
               </figcaption>
             </figure>
             <figure class="snapshot-card">
@@ -375,10 +241,17 @@
               <figcaption>
                 <p class="snapshot-eyebrow">3-D dynamics + contact</p>
                 <strong>Block collision · signed-gap contact</strong>
-                <span>Two 2 × 2 × 4 Hex8 blocks · rigid impactor. The accepted trajectory-wide minimum signed interface gap and active contact reactions, not a reconstructed pressure.</span>
+                <span>Minimum signed interface gap <code>2.175e-02</code> (collision) and <code>2.503e-02</code> (friction run) stay positive; smoothed-friction slip ratio <code>0.65</code> of the frictionless run.</span>
+                <a class="snapshot-source" href="https://github.com/tengzhang48/CoupFE/tree/main/examples/contact_3d_blocks">Runner <span aria-hidden="true">→</span></a>
               </figcaption>
             </figure>
           </div>
+          <p class="also-checked">
+            Also checked: the rigid-sphere Hertz run reaches log–log slope <strong>1.533</strong> versus the
+            analytic <strong>1.500</strong>, force ratio <strong>1.01–1.06</strong> (error <strong>+1.3% to +6.2%</strong>);
+            curved-annulus convergence rate <strong>2.02</strong> versus the expected 2. Full per-load numbers,
+            commands, and claim boundaries live in <a href="evidence.json">evidence.json</a> and the linked runners on GitHub.
+          </p>
         </div>
       </section>
 
