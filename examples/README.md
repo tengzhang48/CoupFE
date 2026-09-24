@@ -1,6 +1,6 @@
 # CoupFE examples
 
-This index covers all and only the 35 example directories shipped in the public
+This index covers all and only the 36 example directories shipped in the public
 tree. Examples have different purposes: runnable boundary-value problems,
 external-interface source exports, analytic checks, distributed PETSc/MPI
 examples, and research workflows.
@@ -34,6 +34,7 @@ physical validation. See
 | `linear_bar` | **READY** | `run.py`; minimal nonlinear operator and analytic linear-limit checks. |
 | `neo_hookean_block` | **READY** | `run.py`; compiled finite-strain block with a traction-free lateral-stretch oracle. |
 | `neo_hookean_mixed` | **READY — SOURCE CHECK** | `build.py`; mixed Quad8/pressure declaration, verification-state tangent check, and generated Abaqus/Standard UEL source; no boundary-value patch solve. |
+| `axisymmetric_locking` | **READY — study** | `run.py`; generated axisymmetric Quad4/Quad8/Quad8R/Tri3/Tri6 standard, F-bar and mixed u–p kernels in thick-shell inflation against spherically symmetric and incompressible references; shows volumetric locking. |
 | `curved_annulus` | **READY** | `run.py`; curved-boundary convergence against the Lamé field. |
 | `model_pipeline` | **READY** | `run.py`; declarative `Model` construction and solve path. |
 

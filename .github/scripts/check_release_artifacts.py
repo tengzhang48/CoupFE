@@ -38,6 +38,9 @@ TEMPLATE_ASSETS = {
         "shape_quad4.for",
         "shape_quad8.for",
         "shape_tet4.for",
+        "shape_tri3.for",
+        "shape_tri6.for",
+        "gauss_tri.for",
         "tangent_identities.for",
         "tensor_ops.for",
     }
@@ -123,6 +126,7 @@ PUBLIC_PACKAGE_FILES = PACKAGE_ASSETS | {
     f"coupfe/operators/{name}"
     for name in {
         "__init__.py",
+        "axisymmetric.py",
         "base.py",
         "bvh_numba.py",
         "contact.py",
@@ -155,6 +159,7 @@ PUBLIC_BASE_TEST_FILES = {
     for name in {
         "test_affine_constraints.py",
         "test_all_primitive_barrier_2d.py",
+        "test_axisymmetric.py",
         "test_contact_3d_persistent_friction.py",
         "test_contact_finite_sliding_repairing.py",
         "test_contact_persistent_friction.py",
@@ -250,6 +255,10 @@ UMAT_EXAMPLE_FILES = {
 PUBLIC_EXAMPLE_FILES = {
     "examples/README.md",
     "examples/REFERENCES.md",
+    "examples/axisymmetric_locking/README.md",
+    "examples/axisymmetric_locking/kernels.py",
+    "examples/axisymmetric_locking/run.py",
+    "examples/axisymmetric_locking/shell.py",
     "examples/compression_cylinders/README.md",
     "examples/compression_cylinders/build_model.py",
     "examples/compression_cylinders/dirichlet_lid.py",
@@ -449,6 +458,7 @@ RESEARCH_EXAMPLE_DIRS = {
     "tire_contact",
 }
 READY_EXAMPLE_DIRS = {
+    "axisymmetric_locking",
     "curved_annulus",
     "exact_stick_friction",
     "finite_sliding_capstan",

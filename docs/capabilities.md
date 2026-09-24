@@ -70,12 +70,24 @@ Abaqus procedure host and does not host or call UMATs.
 | F-bar generation | **partial** — implemented for supported native and external source targets; no general no-locking or inversion-robustness claim |
 | Element-local condensed pressure | **partial**, shipped as research examples rather than a default formulation |
 | Mixed and coupled paper-form declarations | **partial**, with example-specific implementation checks rather than broad model validation |
-| Native geometry families | **partial** — the native standalone ABI is primarily Quad4-oriented |
+| Native geometry families | **partial** — the native standalone ABI is primarily Quad4-oriented; the axisymmetric configurations add Quad8/Quad8R/Tri3/Tri6 native kernels |
 | Abaqus/Standard UEL source-export geometry families | **partial** — public examples exercise Quad4, Quad8/Quad8R, Tet4, Hex8, and selected mixed layouts; coverage differs by formulation |
 
 Native/Abaqus-interface export parity, reference assembly, and tangent
 consistency establish implementation properties. They do not independently
 validate a constitutive model, benchmark interpretation, or parameter set.
+
+## Axisymmetric elements and boundary operators
+
+| Capability | Serial | Distributed (MPI) |
+|---|---|---|
+| Generated axisymmetric elements (`coupfe.codegen`, native backend) | **yes** — `quad4_axi`, `quad8_axi`, `quad8r_axi`, `tri3_axi`, `tri6_axi` configurations: hoop stretch `F_tt = 1 + u_r/r`, ring weight `2 pi r` and hoop residual/tangent terms for the `standard` route (including mixed u–p WeakForms with continuous corner pressure, e.g. Quad8/Quad4 and Tri6/Tri3) and `fbar_mechanics` on `quad4_axi`. Gated by patch, tangent, uniaxial, thick-shell inflation and broken-control tests; see `examples/axisymmetric_locking` | **partial** — the generated kernels are ordinary native elements; no retained distributed axisymmetric run |
+| Axisymmetric Abaqus UEL export and `local_pressure` | **no** — rejected explicitly | **no** |
+| Plane Tri3/Tri6 configurations (`tri3`, `tri6`) | **partial** — generated from the same templates; exercised only through the axisymmetric tests | **no** |
+| Mixed per-node DOF layouts in `ElementGroup` | **yes** — explicit `dof_map` (`mixed_dof_map` builds the corner/mid-side layout) | **no** |
+| Axisymmetric cavity pressure (`AxisymmetricCavity`) | **yes** — one global pressure unknown acting as a consistent follower load; prescribed (pressure control) or closed by a barotropic fluid law (`FluidLaw`, volume control) | **no** |
+| Axisymmetric frictionless contact (`AxisymmetricContact`) | **partial** — node-to-segment with ring-area-weighted penalty and augmented-Lagrangian (Uzawa) multipliers updated by the caller; optional frozen pairing with hysteretic re-pairing; one pass per operator. It passes the contact patch test for conforming interfaces only; no friction | **no** |
+| Newton globalization for nearly incompressible solids | **yes** — opt-in `line_search="admissible"` and `predictor="tangent"` on `newton_solve` (and `tangent_predictor`); defaults are unchanged | **no** |
 
 ## Mesh and interoperability
 

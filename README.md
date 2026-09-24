@@ -65,6 +65,9 @@ The current alpha release includes:
 - serial and PETSc/MPI assembly and solve paths, with the exact support boundary
   recorded in [`docs/capabilities.md`](docs/capabilities.md);
 - mesh refinement and distribution primitives over compact array contracts;
+- generated axisymmetric (r, z) elements (Quad4/Quad8/Quad8R/Tri3/Tri6;
+  standard, F-bar and mixed u–p) with cavity pressure/fluid-fill and
+  frictionless axisymmetric contact operators;
 - two- and three-dimensional contact building blocks, including barrier search,
   finite-sliding friction, semismooth exact-stick studies, and passing 3-D
   collision/friction examples; and

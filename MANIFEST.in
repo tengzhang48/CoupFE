@@ -30,6 +30,7 @@ include tests/test_abaqus_ufl_hyperelastic_umats.py
 include tests/test_abaqus_ufl_inelastic_umats.py
 include tests/test_abaqus_ufl_paper_examples.py
 include tests/test_all_primitive_barrier_2d.py
+include tests/test_axisymmetric.py
 include tests/test_chester_anand_upmu_quad8.py
 include tests/test_compiled_element_boundary.py
 include tests/test_codegen_native_residual_entry.py

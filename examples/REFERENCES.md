@@ -1,6 +1,6 @@
 # Example evidence and references
 
-This ledger covers all and only the 35 top-level example directories shipped in
+This ledger covers all and only the 36 top-level example directories shipped in
 the public tree. It records the role each example can support and the boundary
 between implementation evidence and physical validation.
 
@@ -38,6 +38,7 @@ specific to each example.
 
 | Example | Status | Evidence and reference boundary |
 |---|---|---|
+| `axisymmetric_locking` | **READY — study** | Thick neo-Hookean spherical-shell inflation with generated `*_axi` codegen kernels (`kernels.py`) and a prescribed `AxisymmetricCavity` pressure, compared with a spherically symmetric `scipy.integrate.solve_bvp` solve of the same law (`K/G = 100`) and the closed-form incompressible neo-Hookean relation (`K/G = 10 000`). Gated by `tests/test_axisymmetric.py`, which also carries patch, complex-step/finite-difference tangent, uniaxial, contact patch, cavity and broken-control checks. The study shows volumetric locking of standard linear elements; it is not an inf-sup, inversion-robustness or contact-accuracy claim. Formulation references: E. A. de Souza Neto, D. Perić, M. Dutko and D. R. J. Owen, *International Journal of Solids and Structures* 33 (1996), 3277–3296, DOI `10.1016/0020-7683(95)00259-6` (F-bar); J. C. Simo, R. L. Taylor and K. S. Pister, *Computer Methods in Applied Mechanics and Engineering* 51 (1985), 177–208, DOI `10.1016/0045-7825(85)90033-7` (mixed u–p). |
 | `compression_cylinders` | **RESEARCH** | Qualitative many-body contact workflow based on geometry from the Abaqus/Explicit `xpl_2dgencont_compression` example. The copyrighted deck is not redistributed and no bundled quantitative Abaqus comparison is claimed. |
 | `contact_3d_blocks` | **RESEARCH** | Self-contained 3-D deformable collision path covered by `tests/test_examples_contact_3d.py`, including an oriented signed-gap check and a synthetic through-face broken control. [`NOTICE`](../NOTICE) records the Apache-2.0 ppf-contact-solver lineage used by contact primitives. |
 | `contact_3d_friction` | **RESEARCH** | Self-contained 3-D smoothed-friction path covered by `tests/test_examples_contact_3d.py`, including an oriented signed-gap check and a synthetic through-face broken control; no external result data. ppf-contact-solver attribution is in [`NOTICE`](../NOTICE). |

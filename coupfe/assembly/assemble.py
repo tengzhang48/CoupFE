@@ -71,11 +71,40 @@ def assemble_tangent(operators: Iterable[Operator], U, state, t, dt, ndof):
 
 def _apply_dirichlet(K, R, con):
     """Identity-row Dirichlet: constrained rows become e_g, R already zeroed."""
-    K = K.tolil()
-    for g in con:
-        K.rows[g] = [g]
-        K.data[g] = [1.0]
-    return K.tocsr(), R
+    K = K.tocsr()
+    if len(con) == 0:
+        return K, R
+    keep = np.ones(K.shape[0])
+    keep[con] = 0.0
+    unit = np.zeros(K.shape[0])
+    unit[con] = 1.0
+    K = (sp.diags(keep) @ K + sp.diags(unit)).tocsr()
+    K.eliminate_zeros()
+    return K, R
+
+
+def tangent_predictor(operators, U, state, ndof, dirichlet, *, t=1.0, dt=1.0):
+    """Linearize a prescribed-value increment about the accepted state ``U``.
+
+    Returns ``U + dU`` where ``dU`` carries the Dirichlet increment on the
+    constrained DOFs and solves ``K(U) dU = -R(U)`` on the free DOFs. Starting
+    Newton here avoids evaluating the residual at a state where only the
+    prescribed nodes have moved; for quadratic elements that "jumped" state
+    curves element edges next to the loaded boundary and can put the first
+    iterate outside Newton's basin even for small increments.
+    """
+    U = np.asarray(U, dtype=float)
+    con = np.array(sorted(dirichlet), dtype=int)
+    delta = np.zeros(ndof)
+    delta[con] = np.array([dirichlet[g] for g in con], dtype=float) - U[con]
+    R, _ = assemble_residual(operators, U, state, t, dt, ndof)
+    K = assemble_tangent(operators, U, state, t, dt, ndof)
+    rhs = -(R + K @ delta)
+    rhs[con] = 0.0
+    K, rhs = _apply_dirichlet(K, rhs, con)
+    dU = np.asarray(linear_solve(K, rhs)).reshape(-1)
+    dU[con] = delta[con]
+    return U + dU
 
 
 def _newton_solve_affine(
@@ -90,6 +119,8 @@ def _newton_solve_affine(
     dt,
     rtol,
     maxit,
+    atol=1e-14,
+    line_search="residual",
 ):
     """Newton-solve in the exact affine space ``U = P q + offset``.
 
@@ -115,7 +146,7 @@ def _newton_solve_affine(
         rn = float(np.linalg.norm(R))
         if R0 is None:
             R0 = max(rn, 1e-300)
-        if rn < rtol * R0 or rn < 1e-14:
+        if rn < rtol * R0 or rn < atol:
             break
 
         K_full = assemble_tangent(operators, U, state, t, dt, ndof)
@@ -148,7 +179,7 @@ def _newton_solve_affine(
             rt = float(
                 np.linalg.norm(transform.restrict_residual(Rt_full))
             )
-            if np.isfinite(rt) and rt < rn:
+            if np.isfinite(rt) and (rt < rn or line_search == "admissible"):
                 break
             alpha *= 0.5
         q = q + alpha * dq
@@ -159,7 +190,8 @@ def _newton_solve_affine(
 
 
 def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
-                 rtol=1e-9, maxit=60, constraints=None):
+                 rtol=1e-9, maxit=60, constraints=None, atol=1e-14,
+                 line_search="residual", predictor=None):
     """Newton solve composing any operators, with Dirichlet elimination.
 
     Parameters
@@ -173,12 +205,34 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
         affine equations are compiled into ``U=Pq+offset`` and the nonlinear
         solve runs in ``q``.  Applications remain responsible for constructing
         relations from their mesh/domain semantics.
+    atol : float
+        Absolute residual-norm tolerance, used together with ``rtol * R0``.
+    line_search : {"residual", "admissible"}
+        ``"residual"`` (default) halves the step until the residual norm is
+        finite and decreases. ``"admissible"`` keeps the full (step-bounded)
+        Newton step unless the trial residual is non-finite, for example an
+        inverted element. Nearly incompressible solids often need it: their
+        first correction of an increment can raise the residual norm by orders
+        of magnitude before quadratic convergence, and a residual-decrease
+        search then stalls.
+    predictor : {None, "tangent"}
+        ``"tangent"`` starts from :func:`tangent_predictor` instead of
+        ``U0`` with the prescribed values inserted. Not available with
+        ``constraints``.
 
     Returns ``(U, new_state, n_iters)``. The iteration count is not a
     convergence flag, and this routine calls each operator's ``commit`` after
     the loop. Callers using path-dependent state must independently establish
     convergence before treating the returned state as accepted.
     """
+    if line_search not in ("residual", "admissible"):
+        raise ValueError("line_search must be 'residual' or 'admissible'")
+    if predictor not in (None, "tangent"):
+        raise ValueError("predictor must be None or 'tangent'")
+    if predictor is not None and constraints is not None:
+        raise ValueError("the tangent predictor is not available with affine constraints")
+    if predictor == "tangent":
+        U0 = tangent_predictor(operators, U0, state, ndof, dirichlet, t=t, dt=dt)
     if constraints is not None:
         return _newton_solve_affine(
             operators,
@@ -191,6 +245,8 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
             dt=dt,
             rtol=rtol,
             maxit=maxit,
+            atol=atol,
+            line_search=line_search,
         )
 
     U = np.asarray(U0, dtype=float).copy()
@@ -208,7 +264,7 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
         rn = float(np.linalg.norm(R))
         if R0 is None:
             R0 = max(rn, 1e-300)
-        if rn < rtol * R0 or rn < 1e-14:
+        if rn < rtol * R0 or rn < atol:
             break
         K = assemble_tangent(operators, U, state, t, dt, ndof)
         K, R = _apply_dirichlet(K, R, con)
@@ -222,12 +278,13 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
         # Backtracking line search: a full finite-strain Newton step from a
         # distorted state (e.g. a prescribed boundary displacement while the
         # interior is still zero) can overshoot into element inversion → ln(J) of
-        # J<0 → NaN. Damp alpha until the residual is finite and decreasing.
+        # J<0 → NaN. Damp alpha until the residual is finite and (for the
+        # default "residual" search) decreasing.
         for _ in range(25):
             Rt, _ = assemble_residual(operators, U + alpha * dU, state, t, dt, ndof)
             Rt[is_con] = 0.0
             rt = float(np.linalg.norm(Rt))
-            if np.isfinite(rt) and rt < rn:
+            if np.isfinite(rt) and (rt < rn or line_search == "admissible"):
                 break
             alpha *= 0.5
         U = U + alpha * dU

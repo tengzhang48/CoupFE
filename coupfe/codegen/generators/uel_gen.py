@@ -1534,6 +1534,13 @@ def _emit_rhs_assembly(lines, weakform, fields, field_names, equations,
             lines.append(f'            END DO')
             lines.append(f'          END DO')
             lines.append(f'        END DO')
+            if getattr(cfg, 'axisymmetric', False):
+                # Hoop term: P(3,3) * delta F(3,3), delta F(3,3) = N_a / r
+                lines.append(f'        DO ii_v = 1, {nn}')
+                lines.append(f'          row = edof_{test_field}(1, ii_v)')
+                lines.append(f'          {resid}(row{ridx}) = {resid}(row{ridx})')
+                lines.append(f'     &      {t_sign} P_real(3,3)*{sh}(ii_v)*rinv_gp*wdetJ')
+                lines.append(f'        END DO')
 
         elif eq_meta['return_type'] == 'scalar':
             # Constraint: R(row) += r_p * N_a * wdetJ (native)
@@ -1567,10 +1574,80 @@ def _emit_rhs_assembly(lines, weakform, fields, field_names, equations,
         lines.append('')
 
 
+def _emit_hoop_terms(lines, pattern, tname, sign_str, test_field, trial_field,
+                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col):
+    """Axisymmetric hoop contributions of one tangent block.
+
+    ``delta F(3,3) = N_a / r`` for a radial test DOF and
+    ``Delta F(3,3) = N_b / r`` for a radial trial DOF; ``pattern`` names the
+    block shape handled by :func:`_emit_amatrx_assembly`.
+    """
+    hr = f'{sh_row}(ii_v)*rinv_gp'
+    hc = f'{sh_col}(jj_v)*rinv_gp'
+    lines.append(f'C       {tname}: axisymmetric hoop terms')
+    lines.append(f'        DO ii_v = 1, {nn_row}')
+    lines.append(f'          DO jj_v = 1, {nn_col}')
+    if pattern == 'dP_dF':
+        lines.append(f'            row = edof_{test_field}(1, ii_v)')
+        lines.append(f'            DO k = 1, ndim')
+        lines.append(f'              col = edof_{trial_field}(k, jj_v)')
+        lines.append(f'              DO l = 1, ndim')
+        lines.append(f'                AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &            {sign_str} {tname}(3,3,k,l)*{hr}')
+        lines.append(f'     &            * {dsh_col}(jj_v,l) * wdetJ')
+        lines.append(f'              END DO')
+        lines.append(f'            END DO')
+        lines.append(f'            col = edof_{trial_field}(1, jj_v)')
+        lines.append(f'            DO i = 1, ndim')
+        lines.append(f'              row = edof_{test_field}(i, ii_v)')
+        lines.append(f'              DO j = 1, ndim')
+        lines.append(f'                AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &            {sign_str} {tname}(i,j,3,3)')
+        lines.append(f'     &            * {dsh_row}(ii_v,j)*{hc} * wdetJ')
+        lines.append(f'              END DO')
+        lines.append(f'            END DO')
+        lines.append(f'            row = edof_{test_field}(1, ii_v)')
+        lines.append(f'            AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &        {sign_str} {tname}(3,3,3,3)*{hr}*{hc}*wdetJ')
+    elif pattern == 'dP_dgrad':
+        lines.append(f'            row = edof_{test_field}(1, ii_v)')
+        lines.append(f'            col = edof_{trial_field}(jj_v)')
+        lines.append(f'            DO l = 1, ndim')
+        lines.append(f'              AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &          {sign_str} {tname}(3,3,l)*{hr}')
+        lines.append(f'     &          * {dsh_col}(jj_v,l) * wdetJ')
+        lines.append(f'            END DO')
+    elif pattern == 'dflux_dF':
+        lines.append(f'            row = edof_{test_field}(ii_v)')
+        lines.append(f'            col = edof_{trial_field}(1, jj_v)')
+        lines.append(f'            DO j = 1, ndim')
+        lines.append(f'              AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &          {sign_str} {tname}(j,3,3)')
+        lines.append(f'     &          * {dsh_row}(ii_v,j)*{hc} * wdetJ')
+        lines.append(f'            END DO')
+    elif pattern == 'dP_dvalue':
+        lines.append(f'            row = edof_{test_field}(1, ii_v)')
+        lines.append(f'            col = edof_{trial_field}(jj_v)')
+        lines.append(f'            AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &        {sign_str} {tname}(3,3)*{hr}')
+        lines.append(f'     &        * {sh_col}(jj_v) * wdetJ')
+    elif pattern == 'dvalue_dF':
+        lines.append(f'            row = edof_{test_field}(ii_v)')
+        lines.append(f'            col = edof_{trial_field}(1, jj_v)')
+        lines.append(f'            AMATRX(row,col) = AMATRX(row,col)')
+        lines.append(f'     &        {sign_str} {tname}(3,3)')
+        lines.append(f'     &        * {sh_row}(ii_v)*{hc} * wdetJ')
+    else:
+        raise ValueError(f'unknown hoop pattern {pattern!r}')
+    lines.append(f'          END DO')
+    lines.append(f'        END DO')
+
+
 def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                           tangent_specs, needs_grad, cfg, tangent_name='AMATRX'):
     """Emit tangent matrix assembly code for all tangent blocks."""
 
+    axi = getattr(cfg, 'axisymmetric', False)
     for spec in tangent_specs:
         tname = spec['tname']
         binfo = spec['binfo']
@@ -1626,6 +1703,9 @@ def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                 lines.append(f'            END DO')
                 lines.append(f'          END DO')
                 lines.append(f'        END DO')
+                if axi:
+                    _emit_hoop_terms(lines, 'dP_dF', tname, sign_str, test_field, trial_field,
+                                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col)
             elif isinstance(tf, VectorField) and wrt_kind == 'vector':
                 # dP/dgrad_scalar: (3,3,3), row=grad(vector),
                 # col=grad(scalar)
@@ -1646,6 +1726,9 @@ def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                 lines.append(f'            END DO')
                 lines.append(f'          END DO')
                 lines.append(f'        END DO')
+                if axi:
+                    _emit_hoop_terms(lines, 'dP_dgrad', tname, sign_str, test_field, trial_field,
+                                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col)
             elif isinstance(tf, ScalarField) and wrt_kind == 'matrix':
                 # djR/dF: (3,3,3) row=grad(scalar), col=grad(vector)
                 lines.append(f'        DO ii_v = 1, {nn_row}')
@@ -1665,6 +1748,9 @@ def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                 lines.append(f'            END DO')
                 lines.append(f'          END DO')
                 lines.append(f'        END DO')
+                if axi:
+                    _emit_hoop_terms(lines, 'dflux_dF', tname, sign_str, test_field, trial_field,
+                                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col)
             elif isinstance(tf, ScalarField) and wrt_kind == 'vector':
                 # djR/dgrad_mu: (3,3) row=grad, col=grad
                 lines.append(f'        DO ii_v = 1, {nn_row}')
@@ -1702,6 +1788,9 @@ def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                 lines.append(f'            END DO')
                 lines.append(f'          END DO')
                 lines.append(f'        END DO')
+                if axi:
+                    _emit_hoop_terms(lines, 'dP_dvalue', tname, sign_str, test_field, trial_field,
+                                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col)
             else:
                 # djR/dp or djR/dmu: (3) row=grad(scalar)
                 lines.append(f'        DO ii_v = 1, {nn_row}')
@@ -1752,6 +1841,9 @@ def _emit_amatrx_assembly(lines, weakform, fields, field_names, blocks,
                 lines.append(f'            END DO')
                 lines.append(f'          END DO')
                 lines.append(f'        END DO')
+                if axi:
+                    _emit_hoop_terms(lines, 'dvalue_dF', tname, sign_str, test_field, trial_field,
+                                     sh_row, dsh_row, nn_row, sh_col, dsh_col, nn_col)
 
         elif row_asm == 'value' and col_asm == 'value':
             # T * N_a * N_b
@@ -2412,6 +2504,9 @@ C     --- Shape functions and mapping ---""")
 
 C     --- Gauss point field values ---
       DOUBLE PRECISION :: F(3,3), F_old(3,3)""")
+    axi = getattr(cfg, 'axisymmetric', False)
+    if axi:
+        lines.append('      DOUBLE PRECISION :: r_gp, rinv_gp, ur_gp, ur_old_gp')
     if cs_needs_X:
         lines.append('      DOUBLE PRECISION :: X_gp(3)')
 
@@ -2610,7 +2705,22 @@ C     --- Gauss point field values ---
         lines.append(f'        CALL {jinv_sub}({cfg.dshxi_linear_name}, Jinv, {cfg.n_corner_nodes}, {cfg.dsh_linear_name})')
         lines.append('')
 
-    lines.append('        wdetJ = detJ * w_gp(kk)')
+    if axi:
+        # (r, z) coordinates: the ring weight makes residuals total forces.
+        # An element with r <= 0 at a Gauss point is degenerate (all nodes on
+        # the axis) and is trapped like a degenerate Jacobian.
+        lines.append('C       Axisymmetric reference radius and ring weight 2*pi*r')
+        lines.append('        r_gp = 0.0d0')
+        lines.append(f'        DO ii_v = 1, {cfg.n_nodes}')
+        lines.append(f'          r_gp = r_gp + {cfg.sh_name}(ii_v)*{cfg.coords_name}(1, ii_v)')
+        lines.append('        END DO')
+        lines.append('        IF (r_gp .LE. 0.0d0) THEN')
+        lines.append('          RETURN')
+        lines.append('        END IF')
+        lines.append('        rinv_gp = 1.0d0 / r_gp')
+        lines.append('        wdetJ = detJ * w_gp(kk) * 6.283185307179586d0 * r_gp')
+    else:
+        lines.append('        wdetJ = detJ * w_gp(kk)')
     lines.append('')
 
     # Reference position at the Gauss point
@@ -2647,6 +2757,17 @@ C     --- Gauss point field values ---
             lines.append(f'            END DO')
             lines.append(f'          END DO')
             lines.append(f'        END DO')
+            if axi:
+                sh_u, _, nn_u = cfg.sh_for_degree(f.degree)
+                lines.append('C       Hoop stretch F(3,3) = 1 + u_r / r')
+                lines.append('        ur_gp = 0.0d0')
+                lines.append('        ur_old_gp = 0.0d0')
+                lines.append(f'        DO ii_v = 1, {nn_u}')
+                lines.append(f'          ur_gp = ur_gp + {fname}_node(1,ii_v)*{sh_u}(ii_v)')
+                lines.append(f'          ur_old_gp = ur_old_gp + {fname}_old(1,ii_v)*{sh_u}(ii_v)')
+                lines.append('        END DO')
+                lines.append('        F(3,3) = 1.0d0 + ur_gp*rinv_gp')
+                lines.append('        F_old(3,3) = 1.0d0 + ur_old_gp*rinv_gp')
             lines.append('')
 
     # Scalar fields
@@ -2866,6 +2987,16 @@ def _generate_native_rk_fbar(weakform, mat_prefix, cfg, entry='rk'):
 
     u_field = field_names[0]
     ndofel = n_nodes * ndim
+    axi = getattr(cfg, 'axisymmetric', False)
+    axi_r_decls = ('\n      DOUBLE PRECISION :: sh_all(NGP, NNODE_E), r_all(NGP)'
+                   '\n      DOUBLE PRECISION :: rinv_gp, ur_gp') if axi else ''
+    axi_decls = ('\n      DOUBLE PRECISION :: sh_all(NGP, NNODE_E), r_all(NGP), Q33_all(NGP)'
+                 '\n      DOUBLE PRECISION :: rinv_gp, ur_gp') if axi else ''
+    # Volumetric scaling acts on the in-plane block (plane strain) or on the
+    # full 3-D gradient including the hoop stretch (axisymmetric).
+    alpha_root = '3.0d0' if axi else 'DBLE(ndim)'
+    ring = ' * 6.283185307179586d0 * r_all(kk)' if axi else ''
+    ring_gg = ' * 6.283185307179586d0 * r_all(gg)' if axi else ''
 
     _sh = cfg.sh_linear_name
     _dshxi = cfg.dshxi_linear_name
@@ -2944,7 +3075,7 @@ C     --- F-bar quantities ---
       DOUBLE PRECISION :: Fbar(3,3), P_bar(3,3)
       DOUBLE PRECISION :: dJbar_du(ndim, NNODE_E)
       DOUBLE PRECISION :: Q_all(ndim, ndim, NGP)
-      DOUBLE PRECISION :: g_ai, h_bk, wdetJ, dt_safe
+      DOUBLE PRECISION :: g_ai, h_bk, wdetJ, dt_safe{axi_decls}
 
 C     --- CS tangent ---
       DOUBLE PRECISION :: Atang(3,3,3,3)
@@ -2994,7 +3125,7 @@ C     --- Per-GP stored data ---
 C     --- F-bar quantities ---
       DOUBLE PRECISION :: V0, Jbar_num, Jbar, alpha
       DOUBLE PRECISION :: Fbar(3,3), P_bar(3,3)
-      DOUBLE PRECISION :: wdetJ, dt_safe
+      DOUBLE PRECISION :: wdetJ, dt_safe{axi_r_decls}
 
 C     --- Complex temps for material evaluation ---
       DOUBLE COMPLEX :: Fbar_z(3,3), Pz_eval(3,3)
@@ -3079,9 +3210,21 @@ C     --- Complex temps for material evaluation ---
     lines.append('        DO ii_v = 1, NNODE_E')
     for idim in range(1, _d + 1):
         lines.append(f'          {_dsh}_all(kk, ii_v, {idim}) = {_dsh}(ii_v, {idim})')
+    if axi:
+        lines.append(f'          sh_all(kk, ii_v) = {_sh}(ii_v)')
     lines.append('        END DO')
+    if axi:
+        lines.append('C       Axisymmetric reference radius')
+        lines.append('        r_all(kk) = 0.0d0')
+        lines.append('        DO ii_v = 1, NNODE_E')
+        lines.append(f'          r_all(kk) = r_all(kk) + {_sh}(ii_v)*{cfg.coords_name}(1, ii_v)')
+        lines.append('        END DO')
+        lines.append('        IF (r_all(kk) .LE. 0.0d0) THEN')
+        lines.append('          RETURN')
+        lines.append('        END IF')
     lines.append('')
-    lines.append('C       Compute F (eye33d for F33=1)')
+    lines.append('C       Compute F (eye33d for F33=1)' if not axi else
+                 'C       Compute F; hoop stretch F33 = 1 + u_r/r')
     lines.append('        CALL eye33d(F_all(1,1,kk))')
     lines.append('        DO ii_v = 1, NNODE_E')
     lines.append('          DO i = 1, ndim')
@@ -3091,6 +3234,12 @@ C     --- Complex temps for material evaluation ---
     lines.append('            END DO')
     lines.append('          END DO')
     lines.append('        END DO')
+    if axi:
+        lines.append('        ur_gp = 0.0d0')
+        lines.append('        DO ii_v = 1, NNODE_E')
+        lines.append(f'          ur_gp = ur_gp + u_node(1,ii_v)*{_sh}(ii_v)')
+        lines.append('        END DO')
+        lines.append('        F_all(3,3,kk) = 1.0d0 + ur_gp / r_all(kk)')
     lines.append('')
     if emit_k:
         lines.append('C       J and Finv')
@@ -3102,9 +3251,9 @@ C     --- Complex temps for material evaluation ---
         lines.append('        J_all(kk) = det33d(F_all(1,1,kk))')
     lines.append('')
     lines.append('C       Accumulate Jbar')
-    lines.append('        V0 = V0 + detJxi * w_gp(kk)')
+    lines.append(f'        V0 = V0 + detJxi * w_gp(kk){ring}')
     lines.append('        Jbar_num = Jbar_num')
-    lines.append('     &    + J_all(kk) * detJxi * w_gp(kk)')
+    lines.append(f'     &    + J_all(kk) * detJxi * w_gp(kk){ring}')
     lines.append('      END DO')
     lines.append('')
     lines.append('      Jbar = Jbar_num / V0')
@@ -3123,8 +3272,15 @@ C     --- Complex temps for material evaluation ---
         lines.append('     &          * Finv_all(N,k,gg)')
         lines.append(f'     &          * {_dsh}_all(gg,jj_v,N)')
         lines.append('     &          * detJxi_all(gg)')
-        lines.append('     &          * w_gp(gg) / V0')
+        lines.append(f'     &          * w_gp(gg){ring_gg} / V0')
         lines.append('            END DO')
+        if axi:
+            lines.append('            IF (k .EQ. 1) THEN')
+            lines.append('              dJbar_du(k,jj_v) = dJbar_du(k,jj_v)')
+            lines.append('     &          + J_all(gg) * Finv_all(3,3,gg)')
+            lines.append('     &          * sh_all(gg,jj_v) * detJxi_all(gg)')
+            lines.append('     &          * w_gp(gg) * 6.283185307179586d0 / V0')
+            lines.append('            END IF')
         lines.append('          END DO')
         lines.append('        END DO')
         lines.append('      END DO')
@@ -3140,16 +3296,21 @@ C     --- Complex temps for material evaluation ---
     lines.append('C     =============================================')
     lines.append('      DO kk = 1, NGP')
     lines.append('        alpha = (Jbar / J_all(kk))')
-    lines.append('     &    ** (1.0d0 / DBLE(ndim))')
-    lines.append('        wdetJ = detJxi_all(kk) * w_gp(kk)')
+    lines.append(f'     &    ** (1.0d0 / {alpha_root})')
+    lines.append(f'        wdetJ = detJxi_all(kk) * w_gp(kk){ring}')
+    if axi:
+        lines.append('        rinv_gp = 1.0d0 / r_all(kk)')
     lines.append('')
-    lines.append('C       Compute Fbar (in-plane only)')
+    lines.append('C       Compute Fbar (in-plane only)' if not axi else
+                 'C       Compute Fbar = alpha F, including the hoop stretch')
     lines.append('        CALL eye33d(Fbar)')
     lines.append('        DO i = 1, ndim')
     lines.append('          DO j = 1, ndim')
     lines.append('            Fbar(i,j) = alpha * F_all(i,j,kk)')
     lines.append('          END DO')
     lines.append('        END DO')
+    if axi:
+        lines.append('        Fbar(3,3) = alpha * F_all(3,3,kk)')
     lines.append('')
 
     # Material evaluation (real, for R)
@@ -3199,6 +3360,10 @@ C     --- Complex temps for material evaluation ---
     lines.append(f'     &          * {_dsh}_all(kk,ii_v,j) * wdetJ')
     lines.append('            END DO')
     lines.append('          END DO')
+    if axi:
+        lines.append('          row = edof_u(1, ii_v)')
+        lines.append('          R(row) = R(row)')
+        lines.append('     &      + P_bar(3,3) * sh_all(kk,ii_v) * rinv_gp * wdetJ')
     lines.append('        END DO')
     lines.append('')
 
@@ -3237,6 +3402,30 @@ C     --- Complex temps for material evaluation ---
         lines.append('                END DO')
         lines.append('              END DO')
         lines.append('            END DO')
+        if axi:
+            lines.append('C             hoop row / column / hoop-hoop (alpha-scaled)')
+            lines.append('            row = edof_u(1, ii_v)')
+            lines.append('            DO k = 1, ndim')
+            lines.append('              col = edof_u(k, jj_v)')
+            lines.append('              DO l = 1, ndim')
+            lines.append('                K(row,col) = K(row,col) + alpha')
+            lines.append('     &            * Atang(3,3,k,l) * sh_all(kk,ii_v) * rinv_gp')
+            lines.append(f'     &            * {_dsh}_all(kk,jj_v,l) * wdetJ')
+            lines.append('              END DO')
+            lines.append('            END DO')
+            lines.append('            col = edof_u(1, jj_v)')
+            lines.append('            DO i = 1, ndim')
+            lines.append('              row = edof_u(i, ii_v)')
+            lines.append('              DO j = 1, ndim')
+            lines.append('                K(row,col) = K(row,col) + alpha')
+            lines.append(f'     &            * Atang(i,j,3,3) * {_dsh}_all(kk,ii_v,j)')
+            lines.append('     &            * sh_all(kk,jj_v) * rinv_gp * wdetJ')
+            lines.append('              END DO')
+            lines.append('            END DO')
+            lines.append('            row = edof_u(1, ii_v)')
+            lines.append('            K(row,col) = K(row,col) + alpha')
+            lines.append('     &        * Atang(3,3,3,3) * sh_all(kk,ii_v) * rinv_gp')
+            lines.append('     &        * sh_all(kk,jj_v) * rinv_gp * wdetJ')
         lines.append('          END DO')
         lines.append('        END DO')
         lines.append('')
@@ -3254,8 +3443,19 @@ C     --- Complex temps for material evaluation ---
         lines.append('     &            * Fbar(m,N)')
         lines.append('              END DO')
         lines.append('            END DO')
+        if axi:
+            lines.append('            Q_all(i,j,kk) = Q_all(i,j,kk)')
+            lines.append('     &        + Atang(i,j,3,3) * Fbar(3,3)')
         lines.append('          END DO')
         lines.append('        END DO')
+        if axi:
+            lines.append('        Q33_all(kk) = Atang(3,3,3,3) * Fbar(3,3)')
+            lines.append('        DO m = 1, ndim')
+            lines.append('          DO N = 1, ndim')
+            lines.append('            Q33_all(kk) = Q33_all(kk)')
+            lines.append('     &        + Atang(3,3,m,N) * Fbar(m,N)')
+            lines.append('          END DO')
+            lines.append('        END DO')
         lines.append('')
 
     lines.append('      END DO')
@@ -3268,7 +3468,9 @@ C     --- Complex temps for material evaluation ---
         lines.append('C     Pass 3: F-bar correction (rank-1 update)')
         lines.append('C     =============================================')
         lines.append('      DO kk = 1, NGP')
-        lines.append('        wdetJ = detJxi_all(kk) * w_gp(kk)')
+        lines.append(f'        wdetJ = detJxi_all(kk) * w_gp(kk){ring}')
+        if axi:
+            lines.append('        rinv_gp = 1.0d0 / r_all(kk)')
         lines.append('')
         lines.append('        DO ii_v = 1, NNODE_E')
         lines.append('          DO jj_v = 1, NNODE_E')
@@ -3282,6 +3484,11 @@ C     --- Complex temps for material evaluation ---
         lines.append('     &            + Q_all(i,j,kk)')
         lines.append(f'     &            * {_dsh}_all(kk,ii_v,j) * wdetJ')
         lines.append('              END DO')
+        if axi:
+            lines.append('              IF (i .EQ. 1) THEN')
+            lines.append('                g_ai = g_ai + Q33_all(kk)')
+            lines.append('     &            * sh_all(kk,ii_v) * rinv_gp * wdetJ')
+            lines.append('              END IF')
         lines.append('')
         lines.append('              DO k = 1, ndim')
         lines.append('                col = edof_u(k, jj_v)')
@@ -3294,8 +3501,13 @@ C     --- Complex temps for material evaluation ---
         lines.append('     &              - Finv_all(N,k,kk)')
         lines.append(f'     &              * {_dsh}_all(kk,jj_v,N)')
         lines.append('                END DO')
+        if axi:
+            lines.append('                IF (k .EQ. 1) THEN')
+            lines.append('                  h_bk = h_bk - Finv_all(3,3,kk)')
+            lines.append('     &              * sh_all(kk,jj_v) * rinv_gp')
+            lines.append('                END IF')
         lines.append('                h_bk = h_bk')
-        lines.append('     &            / DBLE(ndim)')
+        lines.append(f'     &            / {alpha_root}')
         lines.append('')
         lines.append('                K(row,col) =')
         lines.append('     &            K(row,col)')
@@ -3374,6 +3586,17 @@ def generate_element(weakform, output_path, element='Quad8', mat_prefix=None,
             if fbar != requested_fbar and formulation != 'local_pressure':
                 raise ValueError(
                     "Conflicting options: formulation and fbar disagree")
+
+    if getattr(cfg, 'axisymmetric', False):
+        if backend != 'native':
+            raise NotImplementedError(
+                "axisymmetric elements are generated for the native CoupFE "
+                "backend only; the Abaqus UEL export is not implemented")
+        if formulation == 'local_pressure':
+            raise NotImplementedError(
+                "local_pressure is not implemented for axisymmetric elements; "
+                "use 'standard' (optionally with a mixed u-p WeakForm) or "
+                "'fbar_mechanics' (quad4_axi)")
 
     if formulation == 'local_pressure':
         if cfg.name not in ('quad4', 'hex8'):
