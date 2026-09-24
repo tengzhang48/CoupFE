@@ -24,6 +24,12 @@ from coupfe.assembly.assemble import (
     solve_increments,
     solve_dynamics,
     solve_dynamics_adaptive,
+    tangent_predictor,
+)
+from coupfe.operators.axisymmetric import (
+    AxisymmetricCavity,
+    AxisymmetricContact,
+    FluidLaw,
 )
 from coupfe.mesh import (
     Circle,
@@ -72,7 +78,11 @@ __all__ = [
     "solve_increments",
     "solve_dynamics",
     "solve_dynamics_adaptive",
+    "tangent_predictor",
     "InertiaOperator",
+    "AxisymmetricCavity",
+    "AxisymmetricContact",
+    "FluidLaw",
     "KernelMeshView",
     "Circle",
     "Sphere",

@@ -71,6 +71,19 @@ itself guarantee that a desired equilibrium branch was reached.
 
 The serial dynamics functions currently reject nonempty affine constraints.
 
+### Newton options for nearly incompressible solids
+
+`newton_solve(..., atol=1e-14, line_search="residual", predictor=None)`
+keeps its previous behavior by default. `line_search="admissible"` keeps the
+full (step-bounded) Newton step unless the trial residual is non-finite; the
+residual-decrease search can stall when the first correction of a nearly
+incompressible increment raises the residual before quadratic convergence.
+`predictor="tangent"` starts from
+`tangent_predictor(operators, U, state, ndof, dirichlet, t=1, dt=1)`, which
+linearizes the prescribed-value increment about the accepted state instead of
+evaluating the residual where only the prescribed nodes have moved. The
+predictor is not available together with affine `constraints`.
+
 ## Exact affine constraints
 
 One scalar relation has the form
@@ -139,6 +152,72 @@ Selectors may be named node sets, bounding-box names such as `left` and `top`,
 callables, or explicit node arrays. `Result` exposes `U`, `converged`, `iters`,
 `displacement()`, and `position(selector=None)`. This convenience layer does not
 replace application-specific model review.
+
+## Axisymmetric elements and boundary operators
+
+Axisymmetric elements are ordinary `coupfe.codegen` declarations generated for
+the native backend with an `*_axi` element configuration
+(`quad4_axi`, `quad8_axi`, `quad8r_axi`, `tri3_axi`, `tri6_axi`). Coordinates
+are `(r, z)` with `r >= 0`; the generated kernel uses the full 3-D
+deformation gradient with hoop stretch `F_tt = 1 + u_r/r`, integrates with
+`2 pi r` (residuals are total forces) and adds the hoop terms to the residual
+and to every displacement tangent block. Axis nodes need `u_r = 0` from the
+caller.
+
+```python
+from coupfe import ElementGroup
+from coupfe.codegen.generators.uel_gen import generate_element
+from coupfe.operators.element_group import mixed_dof_map
+from coupfe.runtime.compiled_element import CompiledElement, build_element_kernel
+
+generate_element(weak_form, "cax8.for", element="quad8_axi",
+                 formulation="standard", backend="native")      # or quad4_axi + "fbar_mechanics"
+module = build_element_kernel("cax8.for", "cax8")
+element = CompiledElement(module, props=props, dof_per_node=2, mcrd=2, n_elem=len(cells))
+group = ElementGroup(element, nodes, cells, 2, comps=(0, 1))
+```
+
+A mixed u–p weak form (`VectorField u` of degree 2 plus `ScalarField p` of
+degree 1) generates corner-pressure elements whose nodes carry different
+components; pass `dof_map=mixed_dof_map(cells, 3, n_corner, (0, 1, 2), (0, 1))`
+to `ElementGroup` and prescribe the unused pressure slot of mid-side nodes.
+The Abaqus UEL export and `local_pressure` are not implemented for the
+axisymmetric configurations and raise `NotImplementedError`.
+`examples/axisymmetric_locking/kernels.py` shows complete declarations.
+
+`coupfe.operators.axisymmetric` provides the boundary operators for these
+meshes:
+
+```python
+from coupfe import AxisymmetricCavity, AxisymmetricContact, FluidLaw
+from coupfe.operators.axisymmetric import boundary_edges, ring_areas
+
+cavity = AxisymmetricCavity(nodes, cavity_edges, pressure_dof, scale=1e6)
+contact = AxisymmetricContact(nodes, secondary_edges, primary_edges, penalty=eps)
+```
+
+- `boundary_edges(cells, element)` returns boundary edges `(start, end[, mid])`
+  counterclockwise around the block; `ring_areas(nodes, edges)` returns the
+  consistent ring areas `int 2 pi r N_i ds`.
+- `AxisymmetricCavity(nodes, edges, pressure_dof, fluid=None, scale=1.0,
+  dof_per_node=2)`: `edges` are the cavity walls ordered counterclockwise
+  around the cavity; `U[pressure_dof]` is the pressure. Prescribe it for
+  pressure control, or call `set_fluid(FluidLaw(V_ref, p_ref,
+  compressibility))` to close the cavity with mass conservation
+  `V(u) = V_ref exp(-beta (p - p_ref))`. `scale` converts that volume equation
+  to force-like units for residual norms.
+- `AxisymmetricContact(nodes, secondary_edges, primary_edges, penalty=eps,
+  switch_margin=0.05, smoothing=0.0)`: secondary nodes carry ring areas; the
+  primary polyline is oriented counterclockwise around its body. The force is
+  `A_s (lambda_s - eps g)` along the outward primary normal. With
+  `smoothing = delta > 0` the pressure ramp `eps r(lambda/eps - g)` is C1
+  (quadratic for `|lambda/eps - g| < delta`, exact beyond), which removes the
+  stiffness jump at the edge of the contact zone. `augment(U)`
+  applies the Uzawa update; `freeze(U)` fixes each node's segment (projection
+  without clamping) and, called again, re-pairs with hysteresis and returns
+  the number of switches; `release()` restores per-iterate pairing.
+  `gaps(U)` and `contact_pressure(U)` report the paired nodes. A rigid primary
+  surface is a set of fully prescribed primary nodes.
 
 ## Mesh contracts
 

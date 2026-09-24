@@ -72,11 +72,16 @@ class ElementGroup:
         residual/tangent iterate. ``"split"`` uses the native residual-only
         entry for residual callbacks and the joint entry for tangents.
         The default remains ``"joint"`` for backward-compatible solver cost.
+    dof_map : (Nelem, ndofel) int array, optional
+        Explicit element-to-global DOF map in the kernel's local DOF order.
+        Needed when element nodes carry different components, for example a
+        mixed u-p element with pressure only at corner nodes (see
+        :func:`mixed_dof_map`). ``comps`` is then ignored.
     """
 
     def __init__(self, element: CompiledElement, nodes, elems, dof_per_node,
                  comps: Optional[Sequence[int]] = None, *, fuse_rk=None,
-                 evaluation_mode="joint"):
+                 evaluation_mode="joint", dof_map=None):
         self.element = element
         self.nodes = np.asarray(nodes, dtype=float)
         self.elems = np.asarray(elems, dtype=int)
@@ -112,11 +117,18 @@ class ElementGroup:
         self.comps = (np.arange(self.dof_per_node, dtype=int) if comps is None
                       else np.asarray(comps, dtype=int))
         self.nelem, self.nne = self.elems.shape
-        self.ndofel = self.nne * len(self.comps)
-        # Global-DOF map (nelem, ndofel): node-major to match the element's
-        # [n0c0, n0c1, ..., n1c0, ...] ordering.  gdof = node*dof_per_node + comp.
-        self.gm = (self.elems[:, :, None] * self.dof_per_node
-                   + self.comps[None, None, :]).reshape(self.nelem, self.ndofel)
+        if dof_map is None:
+            self.ndofel = self.nne * len(self.comps)
+            # Global-DOF map (nelem, ndofel): node-major to match the element's
+            # [n0c0, n0c1, ..., n1c0, ...] ordering.  gdof = node*dof_per_node + comp.
+            self.gm = (self.elems[:, :, None] * self.dof_per_node
+                       + self.comps[None, None, :]).reshape(self.nelem, self.ndofel)
+        else:
+            gm = np.asarray(dof_map, dtype=int)
+            if gm.ndim != 2 or gm.shape[0] != self.nelem:
+                raise ValueError("dof_map must be an (n_elem, ndofel) integer array")
+            self.gm = np.ascontiguousarray(gm)
+            self.ndofel = gm.shape[1]
         # Precompute the COO index arrays for the local tangent blocks.
         self._rows = np.broadcast_to(
             self.gm[:, :, None], (self.nelem, self.ndofel, self.ndofel)).ravel()
@@ -237,3 +249,22 @@ class ElementGroup:
         self.element.commit()
         self._rk_cache = None          # committed state changed -> invalidate
         return GroupState(U_prev=np.asarray(U, dtype=float).copy())
+
+
+def mixed_dof_map(elems, dof_per_node, n_corner, corner_comps, midside_comps):
+    """Node-major DOF map for kernels whose corner and mid-side nodes differ.
+
+    Generated mixed elements order DOFs node by node; the first ``n_corner``
+    element nodes carry ``corner_comps`` (for example ``(0, 1, 2)`` for
+    ``u_r, u_z, p``) and the remaining nodes ``midside_comps`` (``(0, 1)``).
+    Global DOFs are ``node * dof_per_node + comp``; a global component that no
+    element writes (the pressure slot of a mid-side node) must be prescribed
+    by the caller.
+    """
+    elems = np.asarray(elems, dtype=int)
+    cols = []
+    for a in range(elems.shape[1]):
+        comps = corner_comps if a < n_corner else midside_comps
+        for c in comps:
+            cols.append(elems[:, a] * int(dof_per_node) + int(c))
+    return np.stack(cols, axis=1)

@@ -10,7 +10,7 @@ Built-in configs are in ELEMENT_CONFIGS.  Users may also construct
 their own and pass them directly to ``generate_uel``.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import List
 
 
@@ -71,6 +71,11 @@ class ElementConfig:
         Whether an F-bar formulation exists for this element.
     plane_strain : bool
         If True the generated code sets F(3,3)=1 (2-D plane strain).
+    axisymmetric : bool
+        If True (2-D only) coordinates are ``(r, z)``: the generated native
+        kernel sets the hoop stretch ``F(3,3) = 1 + u_r/r``, integrates with
+        the ring weight ``2*pi*r`` (residuals are total forces) and adds the
+        hoop terms ``P(3,3) N_a/r`` to the residual and tangent.
 
     template_files : list of str
         Filenames of shipped Fortran templates to include.
@@ -100,6 +105,9 @@ class ElementConfig:
 
     # Templates to include
     template_files: List[str] = field(default_factory=list)
+
+    # Axisymmetric (r, z) kinematics; see the class docstring.
+    axisymmetric: bool = False
 
     # -- Derived names used in generated Fortran ---------------------
 
@@ -230,6 +238,26 @@ class ElementConfig:
 # Built-in registry
 # =====================================================================
 
+def _triangle(name, n_nodes, gauss, n_gauss, axisymmetric=False):
+    return ElementConfig(
+        name=name,
+        ndim=2,
+        n_nodes=n_nodes,
+        n_corner_nodes=3,
+        gauss_subroutine=gauss,
+        n_gauss_points=n_gauss,
+        gauss_xi_args='xi_gp(kk,1), xi_gp(kk,2)',
+        shape_subroutine=f'shape_tri{n_nodes}',
+        shape_linear_subroutine='shape_tri3',
+        jac_subroutine='map_grad_2d',
+        jac_inv_size=2,
+        supports_fbar=False,
+        plane_strain=not axisymmetric,
+        template_files=[f'shape_tri{n_nodes}.for', 'gauss_tri.for'],
+        axisymmetric=axisymmetric,
+    )
+
+
 ELEMENT_CONFIGS = {
     'quad8': ElementConfig(
         name='quad8',
@@ -345,3 +373,15 @@ ELEMENT_CONFIGS = {
                         'face_hex.for'],
     ),
 }
+
+# Axisymmetric (r, z) variants. Triangles integrate u_r / r and the ring weight
+# with a higher rule than their plane-strain counterparts.
+for _name in ('quad4', 'quad8', 'quad8r'):
+    ELEMENT_CONFIGS[f'{_name}_axi'] = replace(
+        ELEMENT_CONFIGS[_name], name=f'{_name}_axi', plane_strain=False,
+        axisymmetric=True)
+ELEMENT_CONFIGS['tri3'] = _triangle('tri3', 3, 'gauss_tri1', 1)
+ELEMENT_CONFIGS['tri6'] = _triangle('tri6', 6, 'gauss_tri3', 3)
+ELEMENT_CONFIGS['tri3_axi'] = _triangle('tri3_axi', 3, 'gauss_tri3', 3, axisymmetric=True)
+ELEMENT_CONFIGS['tri6_axi'] = _triangle('tri6_axi', 6, 'gauss_tri6', 6, axisymmetric=True)
+del _name
