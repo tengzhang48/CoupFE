@@ -277,9 +277,10 @@ def newton_solve(operators, U0, state, ndof, dirichlet, *, t=1.0, dt=1.0,
             alpha = min(alpha, _call_max_step(op, U, dU, t))
         # Backtracking line search: a full finite-strain Newton step from a
         # distorted state (e.g. a prescribed boundary displacement while the
-        # interior is still zero) can overshoot into element inversion → ln(J) of
-        # J<0 → NaN. Damp alpha until the residual is finite and (for the
-        # default "residual" search) decreasing.
+        # interior is still zero) can overshoot into element inversion.
+        # Guarded neo-Hookean kernels return NaN for det(F) <= 0. Damp alpha
+        # until the residual is finite and (for the default "residual"
+        # search) decreasing.
         for _ in range(25):
             Rt, _ = assemble_residual(operators, U + alpha * dU, state, t, dt, ndof)
             Rt[is_con] = 0.0
@@ -307,7 +308,7 @@ def solve_increments(
 
     A finite-strain load applied in a single Newton solve from a zero interior
     usually falls outside Newton's basin (the first tangent can be indefinite → the
-    step overshoots → an element inverts → ``ln(J)`` of ``J<0`` → NaN). Incremental
+    step overshoots → an element inverts → a guarded kernel returns NaN). Incremental
     loading with warm-start is the standard remedy. Returns ``(U, total_iters)``.
 
     A static ``constraints`` iterable describes target relations: their affine

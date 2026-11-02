@@ -8,6 +8,7 @@ and ensure that Abaqus UEL generation remains separate.
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 import shutil
 
@@ -48,9 +49,10 @@ _RK_END = "      END SUBROUTINE coupfe_element_rk\n"
 _R_HEADER = "C     coupfe_element_r (residual-only twin)"
 _R_END = "      END SUBROUTINE coupfe_element_r\n"
 
-# SHA-256 of each reviewed joint-entry prefix. The standard Quad4 and F-bar
-# Hex8 values predate this feature; the F-bar Quad4 value locks the new native
-# counterpart of the retained Abaqus UEL formulation. Merely editing the
+# SHA-256 of each reviewed joint-entry prefix before the positive-J guard.
+# The standard Quad4 and F-bar Hex8 values predate this feature; the F-bar
+# Quad4 value locks the new native counterpart of the retained Abaqus UEL
+# formulation. Merely editing the
 # residual twin cannot mask joint-kernel drift.
 _RK_PREFIX_SHA256 = {
     "hex8_fbar": "25a6106cd983fb96da5252be99e29faa02df4372f261e34e700eb42444812dd0",
@@ -196,7 +198,14 @@ def test_native_generation_is_regenerable_and_rk_is_unchanged(
     assert generated == vendored.read_text()
 
     rk_source, _ = _entry_blocks(generated)
-    digest = hashlib.sha256(rk_source.encode()).hexdigest()
+    # Keep the reviewed arithmetic hash: only the marked guards and their
+    # determinant declaration may differ from the original joint entry.
+    control = re.sub(
+        r'^C     BEGIN positive-J guard\n.*?^C     END positive-J guard\n',
+        '', rk_source, flags=re.M | re.S)
+    if kind == 'standard':
+        control = control.replace('      DOUBLE PRECISION :: det33d\n', '')
+    digest = hashlib.sha256(control.encode()).hexdigest()
     assert digest == _RK_PREFIX_SHA256[kind]
 
 
@@ -206,8 +215,8 @@ def test_residual_twin_keeps_r_and_removes_tangent_work(tmp_path, kind):
     rk_source, r_source = _entry_blocks(generated)
 
     # R declarations, zeroing, and assembly statements remain in the same order.
-    assert [line for line in r_source.splitlines() if "R(" in line] == [
-        line for line in rk_source.splitlines() if "R(" in line
+    assert [line for line in r_source.splitlines() if re.search(r"\bR\(", line)] == [
+        line for line in rk_source.splitlines() if re.search(r"\bR\(", line)
     ]
     assert "SVARS_OUT(i) = SVARS_IN(i)" in r_source
 

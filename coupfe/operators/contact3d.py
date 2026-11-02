@@ -65,11 +65,12 @@ def point_triangle_coeff(p, t0, t1, t2):
     fallback to the longest edge. Port of ``point_triangle_distance_coeff``."""
     r0 = t1 - t0
     r1 = t2 - t0
-    a = np.column_stack([r0, r1])              # 3×2
-    at = a.T
-    c, det = _solve2(at @ a, at @ (p - t0))
-    if det != 0.0:
-        u, v = c[0] / det, c[1] / det
+    n = np.cross(r0, r1)
+    det = float(n @ n)
+    if det > 0.0:
+        q = p - t0
+        u = np.cross(q, r1) @ n / det
+        v = np.cross(r0, q) @ n / det
         return np.array([1.0 - u - v, u, v])
     e0, e1, e2 = t1 - t0, t2 - t1, t0 - t2     # degenerate → longest edge
     l0, l1, l2 = float(e0 @ e0), float(e1 @ e1), float(e2 @ e2)
@@ -80,26 +81,44 @@ def point_triangle_coeff(p, t0, t1, t2):
     w = point_edge_coeff(p, t2, t0); return np.array([w[1], 0.0, w[0]])
 
 
-def point_triangle_coeff_unclassified(p, t0, t1, t2):
-    """Robust barycentric weights — if the foot leaves the triangle, fall back to the closest edge
-    or vertex. Port of ``point_triangle_distance_coeff_unclassified``."""
+def _pt_closest_feature(p, t0, t1, t2):
+    """Weights and frozen branch of the exact closest feature.
+
+    Outside the face, minimize over ALL three closed segments.  Choosing the
+    edge opposite the first negative plane weight fails on obtuse triangles.
+    Strict comparisons give the same deterministic AB, BC, CA tie order in
+    numpy and numba.  Degenerate triangles use the boundary only.
+    """
+    r0, r1 = t1 - t0, t2 - t0
+    n = np.cross(r0, r1)
     c = point_triangle_coeff(p, t0, t1, t2)
-    if c.min() >= 0.0 and c.max() <= 1.0:
-        return c
-    if c[0] < 0.0:
-        w = point_edge_coeff(p, t1, t2)
-        if 0.0 <= w[0] <= 1.0:
-            return np.array([0.0, w[0], w[1]])
-        return np.array([0.0, 1.0, 0.0]) if w[0] > 1.0 else np.array([0.0, 0.0, 1.0])
-    if c[1] < 0.0:
-        w = point_edge_coeff(p, t0, t2)
-        if 0.0 <= w[0] <= 1.0:
-            return np.array([w[0], 0.0, w[1]])
-        return np.array([1.0, 0.0, 0.0]) if w[0] > 1.0 else np.array([0.0, 0.0, 1.0])
-    w = point_edge_coeff(p, t0, t1)
-    if 0.0 <= w[0] <= 1.0:
-        return np.array([w[0], w[1], 0.0])
-    return np.array([1.0, 0.0, 0.0]) if w[0] > 1.0 else np.array([0.0, 1.0, 0.0])
+    if n @ n > 0.0 and c.min() >= 0.0 and c.max() <= 1.0:
+        return c, 0, -1, -1
+    pts = (t0, t1, t2)
+    best_d = np.inf
+    best = None
+    for i, j in ((0, 1), (1, 2), (2, 0)):
+        e = pts[j] - pts[i]
+        l2 = float(e @ e)
+        t = min(1.0, max(0.0, float(e @ (p - pts[i])) / l2)) if l2 > 0.0 else 0.0
+        delta = (p - pts[i]) - t * e
+        d2 = float(delta @ delta)
+        if d2 < best_d:
+            w = np.zeros(3)
+            w[i], w[j] = 1.0 - t, t
+            if t <= 0.0:
+                best = (w, 2, i, -1)
+            elif t >= 1.0:
+                best = (w, 2, j, -1)
+            else:
+                best = (w, 1, i, j)
+            best_d = d2
+    return best
+
+
+def point_triangle_coeff_unclassified(p, t0, t1, t2):
+    """Exact closest-point barycentric weights, including edges and vertices."""
+    return _pt_closest_feature(p, t0, t1, t2)[0]
 
 
 # ---------------------------------------------------------------------------- point-triangle barrier

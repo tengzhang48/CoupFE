@@ -895,10 +895,16 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
     parts). Adaptive ``s = κ + M/d²`` (``mass`` = secondary node mass, dynamics only) gives the
     same gap-dependent capacity as the rigid kernel.
 
-    Active band: ``d < d̂`` **and** the foot is on the segment (``0 ≤ ξ ≤ 1``) — a node off the
-    end of the edge is a point-point case, not handled here (skip; the closest *other* edge or
-    the search catches it). Penetration (``d < 0``) stays active and finite (cubic), giving a
-    strong recovery force; non-penetration is the job of the CCD step bound, not this energy.
+    Active band: gap < d̂. With the foot on the segment (``0 ≤ ξ ≤ 1``) the gap is the signed
+    line gap ``d``; penetration (``d < 0``) stays active and finite (cubic), giving a strong
+    recovery force. With the foot off the segment the gap is the distance to the nearer end node
+    (point-point; normal from that node to ``xs``), which equals ``d`` at the end for a separated
+    node. Switching such a pair off instead would leave a dead zone at convex corners, switch a
+    frozen node's force off when it passes an edge end, and leave a ~1e-8 zero-force interval
+    just past a flat junction (a rounding tie keeps the old edge). The branch (on the edge, past
+    ``xa``, past ``xb``) is frozen from the real iterate; the complex-step tangent is consistent
+    within it.
+    Non-penetration is the job of the CCD step bound, not this energy.
 
     **Friction (``mu > 0``, ``Xs0/Xa0/Xb0`` given — ppf/IPC smoothed, semi-implicit).** Same model
     as :func:`rigid_barrier_eval`, but the slip is the **relative** tangential motion of the
@@ -921,19 +927,41 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
     R = np.zeros((n_pair, 6))
     K = np.zeros((n_pair, 6, 6))
     d, xi, n_all, _e, _r, _L, _L2 = _seg_kinematics(Xs, Xa, Xb)
-    active = (d < dhat) & (xi >= 0.0) & (xi <= 1.0)
+    branch = np.where(xi < 0.0, 1, np.where(xi > 1.0, 2, 0))  # 0 on the edge, 1 past xa, 2 past xb
+    rp = np.where((branch == 1)[:, None], Xs - Xa, Xs - Xb)   # end node → secondary
+    dp = np.sqrt(np.sum(rp * rp, axis=-1))
+    gap = np.where(branch == 0, d, dp)
+    active = (gap < dhat) & ((branch == 0) | (dp > 0.0))      # dp = 0: no normal (as 3D)
     if not active.any():
         return R, K, active
     X6 = np.concatenate([Xs, Xa, Xb], axis=-1)[active]        # (n_act, 6)
+    br = branch[active]
     mass_a = (None if mass is None
               else np.broadcast_to(np.asarray(mass, dtype=float), (n_pair,))[active])
 
-    def force(X):                                             # ∂B/∂X = −s(d̂−d)² ∂d/∂X
+    def force(X):                                             # ∂B/∂X = −s(d̂−gap)² ∂gap/∂X
         xs, xa, xb = X[..., 0:2], X[..., 2:4], X[..., 4:6]
-        dd, _xi, _nn, _ee, _rr, _LL, _LL2 = _seg_kinematics(xs, xa, xb)
-        gd = _seg_grad_d(xs, xa, xb)
+        dl, _xi, _nn, _ee, _rr, _LL, _LL2 = _seg_kinematics(xs, xa, xb)
+        gl = _seg_grad_d(xs, xa, xb)                          # line-gap gradient (branch 0)
+        past_a = (br == 1)[:, None]
+        rr = xs - np.where(past_a, xa, xb)                    # point-point (branches 1, 2)
+        dpp = np.sqrt(rr[..., 0] ** 2 + rr[..., 1] ** 2)
+        u = rr / np.where(np.real(dpp) > 0.0, dpp, 1.0)[..., None]
+        z = np.zeros_like(u)
+        gp = np.where(past_a, np.concatenate([u, -u, z], axis=-1),
+                      np.concatenate([u, z, -u], axis=-1))
+        dd = np.where(br == 0, dl, dpp)
+        gd = np.where((br == 0)[:, None], gl, gp)
         g = dhat - dd
-        s = kappa if mass_a is None else (kappa + mass_a / (dd * dd))
+        if mass_a is None:
+            s = kappa
+        else:
+            # Floor the squared gap as rigid_barrier_eval does: a node on
+            # the edge line (d = 0, e.g. parts that start touching) gave NaN in R and K. The
+            # floor acts only where real(d²) < 1e-24; elsewhere s′(d) is still differentiated.
+            dd2 = dd * dd
+            dd2 = np.where(np.real(dd2) < 1.0e-24, 1.0e-24, dd2)
+            s = kappa + mass_a / dd2
         return (-(s * g * g))[..., None] * gd
 
     R[active] = force(X6)
@@ -946,10 +974,11 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
 
     ft_commit = (np.zeros((np.asarray(Xs).shape[0], 2)) if return_ft else None)   # committed friction force
     if mu > 0.0 and Xs0 is not None:                          # ppf/IPC smoothed friction (analytic)
-        na = np.real(n_all[active])                          # frozen edge normal
-        xia = xi[active]
-        ga = dhat - d[active]
-        sa = kappa if mass_a is None else (kappa + mass_a / (d[active] ** 2))
+        un = rp / np.where(dp > 0.0, dp, 1.0)[:, None]       # point-point normal
+        na = np.real(np.where((branch == 0)[:, None], n_all, un)[active])   # frozen contact normal
+        xia = np.clip(xi[active], 0.0, 1.0)                  # foot clamped to the edge
+        ga = dhat - gap[active]
+        sa = kappa if mass_a is None else (kappa + mass_a / np.maximum(gap[active] ** 2, 1.0e-24))
         lam_n = sa * ga * ga                                 # |f_n| from the barrier (frozen)
         xsa, xaa, xba = Xs[active], Xa[active], Xb[active]
         xs0, xa0, xb0 = (np.asarray(Xs0)[active], np.asarray(Xa0)[active],
@@ -1022,9 +1051,10 @@ def edge_barrier_eval(P, A, B, *, dhat, kappa, mass=None, mu=0.0, eps=1.0e-4, X0
     choice to flip** — the all-primitive way to robustness.
 
     Residual ``−s(d̂−gap)²·[n, −w₀n, −w₁n]`` over ``X=[P,A,B]`` (action-reaction by ``Σ weights = 0``);
-    PSD tangent ``2s(d̂−gap)·gradᵀgrad`` (``n,w`` frozen); adaptive ``s = κ + M/gap²``. Frictionless
-    (the 2D smoothed-friction port follows). ``P,A,B`` ``(n_pair,2)``; returns ``(R (n,6), K (n,6,6),
-    active (n,))``. Penetration-free is the CCD's job, not a signed gap.
+    PSD rank-1 tangent ``(2s(d̂−gap) − s′(gap)(d̂−gap)²)·gradᵀgrad`` (``n,w`` frozen; the distance
+    curvature is dropped, as in 3D); adaptive ``s = κ + M/gap²``. Smoothed friction with ``mu > 0``
+    and ``X0``. ``P,A,B`` ``(n_pair,2)``; returns ``(R (n,6), K (n,6,6), active (n,))``.
+    Penetration-free is the CCD's job, not a signed gap.
     """
     from coupfe.operators.contact3d import point_edge_coeff_unclassified
     P = np.asarray(P, dtype=float); A = np.asarray(A, dtype=float); B = np.asarray(B, dtype=float)
@@ -1048,7 +1078,11 @@ def edge_barrier_eval(P, A, B, *, dhat, kappa, mass=None, mu=0.0, eps=1.0e-4, X0
         s = kappa if mass is None else (kappa + float(np.asarray(mass)[i]) / (gd2 * gd2))
         grad = np.concatenate([n, -w[0] * n, -w[1] * n])   # ∂gap/∂X (frozen w, n)
         R[i] = -(s * g * g) * grad
-        K[i] = (2.0 * s * g) * np.outer(grad, grad)        # PSD rank-1
+        # rank-1 part of ∂R/∂X including s′(gap) = −2M/gap³; s′ = 0 where the gap is floored
+        coef = 2.0 * s * g
+        if mass is not None and gap > 1.0e-6 * dhat:
+            coef += 2.0 * float(np.asarray(mass)[i]) * g * g / gap ** 3
+        K[i] = coef * np.outer(grad, grad)                 # PSD rank-1
         if mu > 0.0 and X0 is not None:                    # ppf/IPC smoothed friction (tangent line)
             c = np.array([1.0, -w[0], -w[1]])              # signed weights (Σc=0 ⇒ Σf=0)
             cur = np.array([P[i], A[i], B[i]])             # (3,2) current stencil
@@ -1079,9 +1113,9 @@ class DeformableBarrierContact2D:
     ``all_primitive=True``** (:func:`edge_barrier_eval`), the 2D analogue of
     :class:`~coupfe.operators.contact3d.DeformableBarrierContact3D` (ppf's vertex-face + edge-edge),
     reusing the ported ``point_edge_coeff_unclassified``. It removes the closest-edge fragility at the
-    source — **no freeze needed**. Currently **frictionless** (the 2D smoothed-friction port + numba
-    narrow-phase + ACCD follow); the default node-to-segment model (+ freeze for fine mesh) stays the
-    friction-capable path until then.
+    source — **no freeze needed**, at the price of summing every nearby edge (2× the force above a
+    node). Smoothed friction only (no
+    exact-stick return map); the default node-to-segment model is the full friction path.
 
     The deformable analogue of :class:`RigidBarrierContact`: secondary nodes vs primary linear
     edges, the cubic barrier on the signed gap, plus a **point-edge CCD** step bound
@@ -1124,9 +1158,12 @@ class DeformableBarrierContact2D:
         # PAIRING FREEZE (opt-in): fix each secondary's closest-edge assignment
         # for one step, re-pairing only at commit(). This avoids active-pair
         # chatter near shared vertices. Positions and the active gap mask still
-        # update with U, at the cost of a one-step pairing lag.
+        # update with U, at the cost of a one-step pairing lag. A node is paired
+        # at the first evaluation of the step that finds it in the band (or
+        # penetrating) and keeps that pairing until commit. Ignored with
+        # all_primitive (no closest-edge choice).
         self.freeze_pairing = bool(freeze_pairing)
-        self._frozen_topo = None
+        self._frozen_topo = None          # freeze: {sec index: [(i, v, a, b), ...]}, None at step start
         # ALL-PRIMITIVE mode (opt-in): the attributed 2D ppf-derived path. Each secondary node pairs with EVERY
         # nearby edge (not just the single closest), each via the unclassified-distance cubic barrier
         # (edge_barrier_eval). No closest-edge choice → no flip → no freeze needed. Default off keeps
@@ -1172,19 +1209,35 @@ class DeformableBarrierContact2D:
     def _pair_topology(self, U):
         """The active node→closest-edge assignment as a list of ``(sec_index, v, a, b)``.
 
-        Recomputed from the broad phase + closest-edge scan each call — UNLESS
-        ``freeze_pairing`` and a cached assignment from this step exists, in which case the
-        cached topology is reused (only the geometry, in :meth:`_pairs`, updates with ``U``).
-        ``commit`` clears the cache so the next step re-pairs."""
-        if self.freeze_pairing and self._frozen_topo is not None:
-            return self._frozen_topo
-        cands = candidate_pairs(self._positions_all(U), self.sec, self.edges, self.dhat)
+        Recomputed from the broad phase + closest-edge scan each call. With
+        ``freeze_pairing``, each node's pairing is fixed at its first evaluation of the step
+        that finds it in the band (:meth:`_in_band`; freeze on entry) and
+        reused until ``commit`` clears it; only the geometry, in :meth:`_pairs`, updates with
+        ``U``. A node not yet in the band is searched again at every evaluation, so a node
+        entering the band mid-step is paired then, with its closest edge at that moment.
+        The list is in secondary order, as without the freeze; a tie goes to the lower edge
+        index. A node never paired makes every evaluation rebuild the candidate search, as
+        without the freeze. With ``all_primitive`` the freeze is ignored: every nearby edge already acts,
+        so there is no closest-edge choice to freeze (freezing the candidate list would miss
+        edges reached later in the step)."""
+        frozen = None
+        if self.freeze_pairing and not self.all_primitive:   # all-primitive: no choice to freeze
+            if self._frozen_topo is None:
+                self._frozen_topo = {}
+            frozen = self._frozen_topo
+        todo = [i for i in range(len(self.sec)) if frozen is None or i not in frozen]
+        cands = (candidate_pairs(self._positions_all(U), self.sec[todo], self.edges, self.dhat)
+                 if todo else {})
         topo = []
         for i, v in enumerate(self.sec):
+            if frozen is not None and i in frozen:
+                topo.extend(frozen[i])
+                continue
             v = int(v)
             ce = cands.get(v)
             if ce is None:                                    # no edge within d̂ → inactive
                 continue
+            pairs = []
             if self.all_primitive:                            # ALL nearby edges (ppf-style), not the closest
                 same_body = (None if self.body is None else int(self.body[v]))
                 for ei in ce:
@@ -1193,24 +1246,38 @@ class DeformableBarrierContact2D:
                         continue
                     if same_body is not None and int(self.body[a]) == same_body:
                         continue
-                    topo.append((i, v, a, b))
-                continue
-            c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
-            if c is None:
-                continue
-            topo.append((i, v, int(c[0]), int(c[1])))
-        if self.freeze_pairing:
-            self._frozen_topo = topo
+                    pairs.append((i, v, a, b))
+            else:
+                c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
+                if c is not None:
+                    pairs.append((i, v, int(c[0]), int(c[1])))
+            if frozen is not None and any(self._in_band(U, *p[1:]) for p in pairs):
+                frozen[i] = pairs                             # freeze on entry into the band
+            topo.extend(pairs)
         return topo
+
+    def _in_band(self, U, v, a, b):
+        """Freeze-on-entry test: node ``v`` is within d̂ of the finite edge ``a-b`` (clamped
+        point-segment distance), or has penetrated it (signed line gap < 0, foot on the edge).
+        A node not yet in the band stays unpaired in the frozen map and is searched again at
+        the next evaluation; its pair is inactive meanwhile anyway."""
+        xs, xa, xb = self._x(U, v), self._x(U, a), self._x(U, b)
+        d, xi, *_ = _seg_kinematics(xs, xa, xb)
+        d, xi = float(d), float(xi)
+        foot = xa + min(1.0, max(0.0, xi)) * (xb - xa)
+        return float(np.linalg.norm(xs - foot)) < self.dhat or (d < 0.0 and 0.0 <= xi <= 1.0)
 
     def _pairs(self, U):
         """Per secondary node → (gdofs, Xs, Xa, Xb, mass_s, Xs0, Xa0, Xb0) for its closest edge.
         The ``*0`` arrays are the step-start positions (friction reference).
 
-        **Broad phase (band = d̂):** only edges within d̂ of a vertex can be active (point-segment
-        distance < d̂ ⇔ line gap < d̂ with the foot on the segment), and a vertex with no edge in
-        the band contributes no force; so restricting the closest-edge scan to the spatial-hash
-        candidates is *identical* to the brute-force active set — just O(N) instead of O(N²)."""
+        **Broad phase (band = d̂):** the spatial-hash candidates include every edge within d̂
+        (clamped point-segment distance) of a vertex, so for a node on the outside of the
+        surface the closest-edge scan over the candidates gives the brute-force active set, in
+        O(N) instead of O(N²). A pair is active when its gap is < d̂: the signed line gap with
+        the foot on the edge, the distance to the nearer end node otherwise
+        (:func:`deformable_barrier_eval`). A node penetrated deeper than d̂ is outside the
+        candidate guarantee (the CCD step bound is what keeps nodes from getting there)."""
         topo = self._pair_topology(U)
         gd, Xs, Xa, Xb, ms, Xs0, Xa0, Xb0, seci = [], [], [], [], [], [], [], [], []
         for (i, v, a, b) in topo:
@@ -1354,18 +1421,49 @@ class DeformableBarrierContact2D:
         return best
 
     def _any_penetration(self, U, cands):
-        """True if any secondary penetrates its closest candidate edge (d ≤ 0, foot on segment).
-        Reuses the broad-phase candidate set ``cands`` (the safety-net check, O(N))."""
+        """True if any secondary is behind the primary surface at its closest feature: behind
+        its closest edge when the closest point lies on that edge (d ≤ 0), or behind the summed
+        outward normals of the two edges meeting at the closest node. A free end of an open
+        surface (one edge) or a junction of three or more edges cannot be told inside from
+        outside this way and counts as not penetrated.
+        Reuses the broad-phase candidate set ``cands`` (the safety-net check, O(N)).
+        Checking only the closest edge's line gap with the foot on the edge would miss a node
+        inside a concave (L-shaped) corner, whose closest point is the corner node."""
         for v in self.sec:
             v = int(v)
             ce = cands.get(v)
             if ce is None:
                 continue
-            c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
+            xs = self._x(U, v)
+            c = self._closest_edge(U, xs, v, edge_idxs=ce)
             if c is None:
                 continue
             a, b = c
-            d, xi, *_ = _seg_kinematics(self._x(U, v), self._x(U, a), self._x(U, b))
-            if 0.0 <= xi <= 1.0 and d <= 0.0:
+            d, xi, *_ = _seg_kinematics(xs, self._x(U, a), self._x(U, b))
+            if 0.0 <= xi <= 1.0:
+                if d <= 0.0:
+                    return True
+                continue
+            corner = a if xi < 0.0 else b
+            nv = self._node_normal(U, corner)
+            if nv is not None and float((xs - self._x(U, corner)) @ nv) <= 0.0:
                 return True
         return False
+
+    def _node_normal(self, U, node):
+        """Sum of the outward unit normals of the two primary edges meeting at ``node``, or None
+        unless exactly two meet there (a free end, or a junction where the sum is no test)."""
+        if getattr(self, "_node_edges", None) is None:     # node → incident edges, built once
+            ne = {}
+            for ei, (a, b) in enumerate(self.edges):
+                ne.setdefault(int(a), []).append(ei)
+                ne.setdefault(int(b), []).append(ei)
+            self._node_edges = ne
+        inc = self._node_edges.get(int(node), [])
+        if len(inc) != 2:
+            return None
+        nsum = np.zeros(2)
+        for ei in inc:
+            e = self._x(U, int(self.edges[ei][1])) - self._x(U, int(self.edges[ei][0]))
+            nsum += np.array([-e[1], e[0]]) / np.linalg.norm(e)
+        return nsum

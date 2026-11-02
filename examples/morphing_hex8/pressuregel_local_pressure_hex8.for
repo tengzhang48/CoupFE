@@ -201,6 +201,17 @@ C     Local Newton for element pressure
               END DO
             END DO
           END DO
+C     BEGIN positive-J guard
+          IF (det33d(F) .LE. 0.0d0) THEN
+            DO i = 1, NDOFEL
+              RHS(i,1) = TRANSFER(9221120237041090560_8, 0.0d0)
+              DO j = 1, NDOFEL
+                AMATRX(i,j) = TRANSFER(9221120237041090560_8, 0.0d0)
+              END DO
+            END DO
+            RETURN
+          END IF
+C     END positive-J guard
           CALL localp_eval_tangents(F, p_elem, mu_gp,
      &      grad_mu, F_old, p_old, PROPS, dt_safe,
      &      P_real, rp_real, jR_real, cdot_real,

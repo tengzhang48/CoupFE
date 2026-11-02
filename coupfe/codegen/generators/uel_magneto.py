@@ -49,7 +49,8 @@ generated code loudly).
 
 import os
 
-from .uel_gen import (_generate_material_subroutine, _wrap_lines)
+from .uel_gen import (_generate_material_subroutine, _wrap_lines,
+                      _positive_j_guard)
 from .element_config import ELEMENT_CONFIGS
 
 _TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
@@ -148,9 +149,11 @@ def generate_uel_magneto(material, output_path=None, mat_prefix='mag',
     cs_src = _generate_cs_blocks(mat_prefix, nprops_mat)
     if sri_volumetric:
         cs_src += '\n\n' + _generate_cs_vol(mat_prefix, nprops_mat)
+    positive_j = any('det33z(' in src for src in mat_src) and any(
+        'LOG(' in src or ' ** ' in src for src in mat_src)
     uel_src = _generate_uel_body(mat_prefix, nprops_mat, imu0,
                                  xi_gauge, n_current_props,
-                                 jtype_comment, sri_volumetric)
+                                 jtype_comment, sri_volumetric, positive_j)
 
     templates = [
         _read_template('tensor_ops.for'),
@@ -311,7 +314,7 @@ def _generate_cs_vol(p, nprops):
 # =====================================================================
 
 def _generate_uel_body(p, nprops_mat, imu0, xi_gauge, n_current_props,
-                       jtype_comment, sri_volumetric=False):
+                       jtype_comment, sri_volumetric=False, positive_j=False):
     L = []
     L.append('      SUBROUTINE UEL(RHS, AMATRX, SVARS, ENERGY, NDOFEL,')
     L.append('     &  NRHS, NSVARS, PROPS, NPROPS, COORDS, MCRD, NNODE,')
@@ -427,6 +430,9 @@ def _generate_uel_body(p, nprops_mat, imu0, xi_gauge, n_current_props,
     L.append('')
     L.append('C       Cutback on inverted configuration')
     L.append('        detF = det33d(F)')
+    if positive_j:
+        L.extend(_positive_j_guard(
+            'detF', 'RHS(i,1)', 'AMATRX(i,j)', indent='        '))
     L.append('        IF (detF .LE. 0.0d0) THEN')
     L.append('          PNEWDT = 0.25d0')
     L.append('          RETURN')
@@ -605,6 +611,9 @@ def _generate_uel_body(p, nprops_mat, imu0, xi_gauge, n_current_props,
         L.append('          END DO')
         L.append('        END DO')
         L.append('      detF = det33d(F)')
+        if positive_j:
+            L.extend(_positive_j_guard(
+                'detF', 'RHS(i,1)', 'AMATRX(i,j)', indent='      '))
         L.append('      IF (detF .LE. 0.0d0) THEN')
         L.append('        PNEWDT = 0.25d0')
         L.append('        RETURN')

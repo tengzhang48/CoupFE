@@ -59,6 +59,7 @@ C     --- Shape functions and mapping ---
 
 C     --- Gauss point field values ---
       DOUBLE PRECISION :: F(3,3), F_old(3,3)
+      DOUBLE PRECISION :: det33d
       DOUBLE PRECISION :: thetat_gp, thetat_old_gp
       DOUBLE PRECISION :: grad_thetat(3)
 
@@ -187,6 +188,17 @@ C       Interpolate fields at Gauss point
         END DO
 
 
+C     BEGIN positive-J guard
+        IF (det33d(F) .LE. 0.0d0) THEN
+          DO i = 1, NDOFEL
+            RHS(i,1) = TRANSFER(9221120237041090560_8, 0.0d0)
+            DO j = 1, NDOFEL
+              AMATRX(i,j) = TRANSFER(9221120237041090560_8, 0.0d0)
+            END DO
+          END DO
+          RETURN
+        END IF
+C     END positive-J guard
 C       Real material evaluation (for RHS)
         CALL real2complex33(F, Fz_r)
         CALL real2complex33(F_old, Fold_r)

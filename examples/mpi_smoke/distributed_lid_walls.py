@@ -58,7 +58,7 @@ from coupfe.runtime.compiled_element import CompiledElement, build_element_kerne
 
 _FOR = os.path.join(os.path.dirname(__file__), "..", "compression_cylinders",
                     os.environ.get("FOR_KERNEL", "neo_up_native_q4.for"))  # DEFAULT = mixed u-p (volume
-#   average / mean-dilatation, robust); F-bar (neo_fbar_q4.for, NSVARS=0) NaNs at centroid J̄≤0 — see lessons.
+#   average / mean-dilatation); both neo-Hookean routes reject inverted Gauss points with NaNs.
 G = 17.95
 K_BULK = float(os.environ.get("KBULK", "89.7"))        # lower → more compressible (less F-bar stress)
 DHAT, KAPPA, FEPS = 0.6, 2.0e2, 5.0e-2

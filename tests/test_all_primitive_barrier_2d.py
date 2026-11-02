@@ -10,6 +10,7 @@ single-closest-edge choice, so there is nothing to flip at a vertex (no freeze n
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from coupfe.operators.contact import DeformableBarrierContact2D, edge_barrier_eval
 
@@ -71,3 +72,26 @@ def test_all_primitive_vertex_sees_both_edges():
     # _force returns the RESIDUAL (= −force), so the force is its negation.
     force = -_force(ap, nodes).reshape(4, 2)[3]
     assert np.all(np.isfinite(force)) and force[0] > 0 and force[1] > 0
+
+
+def test_adaptive_capacity_derivative_in_the_tangent():
+    """The all-primitive tangent must carry s′(gap) of s = κ + M/gap²
+    (it was dropped once: normal stiffness 5 against 9). One active edge, node above its middle,
+    normal displacement: K_yy must equal the derivative of R_y."""
+    from coupfe.operators.contact import edge_barrier_eval
+    A, B = np.array([[0.0, 0.0]]), np.array([[1.0, 0.0]])
+    kw = dict(dhat=0.1, kappa=1.0e3, mass=np.array([1.0e-3]))
+
+    def Ry(y):
+        return edge_barrier_eval(np.array([[0.5, y]]), A, B, **kw)[0][0, 1]
+
+    y, h = 0.04, 1e-8
+    _R, K, act = edge_barrier_eval(np.array([[0.5, y]]), A, B, **kw)
+    assert act[0]
+    fd = (Ry(y + h) - Ry(y - h)) / (2 * h)
+    assert K[0, 1, 1] == pytest.approx(fd, rel=1e-6)
+    # below the floor (gap < 1e-6 d̂) s is constant: K_yy = 2 s g with s = κ + M/(1e-6 d̂)²
+    yb = 1e-9
+    _R, Kb, _ = edge_barrier_eval(np.array([[0.5, yb]]), A, B, **kw)
+    sb = 1.0e3 + 1.0e-3 / (1.0e-7) ** 2
+    assert Kb[0, 1, 1] == pytest.approx(2.0 * sb * (0.1 - yb), rel=1e-12)
