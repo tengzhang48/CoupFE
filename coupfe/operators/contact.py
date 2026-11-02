@@ -1051,9 +1051,10 @@ def edge_barrier_eval(P, A, B, *, dhat, kappa, mass=None, mu=0.0, eps=1.0e-4, X0
     choice to flip** — the all-primitive way to robustness.
 
     Residual ``−s(d̂−gap)²·[n, −w₀n, −w₁n]`` over ``X=[P,A,B]`` (action-reaction by ``Σ weights = 0``);
-    PSD tangent ``2s(d̂−gap)·gradᵀgrad`` (``n,w`` frozen); adaptive ``s = κ + M/gap²``. Frictionless
-    (the 2D smoothed-friction port follows). ``P,A,B`` ``(n_pair,2)``; returns ``(R (n,6), K (n,6,6),
-    active (n,))``. Penetration-free is the CCD's job, not a signed gap.
+    PSD rank-1 tangent ``(2s(d̂−gap) − s′(gap)(d̂−gap)²)·gradᵀgrad`` (``n,w`` frozen; the distance
+    curvature is dropped, as in 3D); adaptive ``s = κ + M/gap²``. Smoothed friction with ``mu > 0``
+    and ``X0``. ``P,A,B`` ``(n_pair,2)``; returns ``(R (n,6), K (n,6,6), active (n,))``.
+    Penetration-free is the CCD's job, not a signed gap.
     """
     from coupfe.operators.contact3d import point_edge_coeff_unclassified
     P = np.asarray(P, dtype=float); A = np.asarray(A, dtype=float); B = np.asarray(B, dtype=float)
@@ -1077,7 +1078,11 @@ def edge_barrier_eval(P, A, B, *, dhat, kappa, mass=None, mu=0.0, eps=1.0e-4, X0
         s = kappa if mass is None else (kappa + float(np.asarray(mass)[i]) / (gd2 * gd2))
         grad = np.concatenate([n, -w[0] * n, -w[1] * n])   # ∂gap/∂X (frozen w, n)
         R[i] = -(s * g * g) * grad
-        K[i] = (2.0 * s * g) * np.outer(grad, grad)        # PSD rank-1
+        # rank-1 part of ∂R/∂X including s′(gap) = −2M/gap³; s′ = 0 where the gap is floored
+        coef = 2.0 * s * g
+        if mass is not None and gap > 1.0e-6 * dhat:
+            coef += 2.0 * float(np.asarray(mass)[i]) * g * g / gap ** 3
+        K[i] = coef * np.outer(grad, grad)                 # PSD rank-1
         if mu > 0.0 and X0 is not None:                    # ppf/IPC smoothed friction (tangent line)
             c = np.array([1.0, -w[0], -w[1]])              # signed weights (Σc=0 ⇒ Σf=0)
             cur = np.array([P[i], A[i], B[i]])             # (3,2) current stencil
@@ -1108,9 +1113,9 @@ class DeformableBarrierContact2D:
     ``all_primitive=True``** (:func:`edge_barrier_eval`), the 2D analogue of
     :class:`~coupfe.operators.contact3d.DeformableBarrierContact3D` (ppf's vertex-face + edge-edge),
     reusing the ported ``point_edge_coeff_unclassified``. It removes the closest-edge fragility at the
-    source — **no freeze needed**. Currently **frictionless** (the 2D smoothed-friction port + numba
-    narrow-phase + ACCD follow); the default node-to-segment model (+ freeze for fine mesh) stays the
-    friction-capable path until then.
+    source — **no freeze needed**, at the price of summing every nearby edge (2× the force above a
+    node). Smoothed friction only (no
+    exact-stick return map); the default node-to-segment model is the full friction path.
 
     The deformable analogue of :class:`RigidBarrierContact`: secondary nodes vs primary linear
     edges, the cubic barrier on the signed gap, plus a **point-edge CCD** step bound
