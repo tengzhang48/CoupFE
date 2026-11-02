@@ -895,10 +895,16 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
     parts). Adaptive ``s = κ + M/d²`` (``mass`` = secondary node mass, dynamics only) gives the
     same gap-dependent capacity as the rigid kernel.
 
-    Active band: ``d < d̂`` **and** the foot is on the segment (``0 ≤ ξ ≤ 1``) — a node off the
-    end of the edge is a point-point case, not handled here (skip; the closest *other* edge or
-    the search catches it). Penetration (``d < 0``) stays active and finite (cubic), giving a
-    strong recovery force; non-penetration is the job of the CCD step bound, not this energy.
+    Active band: gap < d̂. With the foot on the segment (``0 ≤ ξ ≤ 1``) the gap is the signed
+    line gap ``d``; penetration (``d < 0``) stays active and finite (cubic), giving a strong
+    recovery force. With the foot off the segment the gap is the distance to the nearer end node
+    (point-point; normal from that node to ``xs``), which equals ``d`` at the end for a separated
+    node. Switching such a pair off instead would leave a dead zone at convex corners, switch a
+    frozen node's force off when it passes an edge end, and leave a ~1e-8 zero-force interval
+    just past a flat junction (a rounding tie keeps the old edge). The branch (on the edge, past
+    ``xa``, past ``xb``) is frozen from the real iterate; the complex-step tangent is consistent
+    within it.
+    Non-penetration is the job of the CCD step bound, not this energy.
 
     **Friction (``mu > 0``, ``Xs0/Xa0/Xb0`` given — ppf/IPC smoothed, semi-implicit).** Same model
     as :func:`rigid_barrier_eval`, but the slip is the **relative** tangential motion of the
@@ -921,17 +927,31 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
     R = np.zeros((n_pair, 6))
     K = np.zeros((n_pair, 6, 6))
     d, xi, n_all, _e, _r, _L, _L2 = _seg_kinematics(Xs, Xa, Xb)
-    active = (d < dhat) & (xi >= 0.0) & (xi <= 1.0)
+    branch = np.where(xi < 0.0, 1, np.where(xi > 1.0, 2, 0))  # 0 on the edge, 1 past xa, 2 past xb
+    rp = np.where((branch == 1)[:, None], Xs - Xa, Xs - Xb)   # end node → secondary
+    dp = np.sqrt(np.sum(rp * rp, axis=-1))
+    gap = np.where(branch == 0, d, dp)
+    active = (gap < dhat) & ((branch == 0) | (dp > 0.0))      # dp = 0: no normal (as 3D)
     if not active.any():
         return R, K, active
     X6 = np.concatenate([Xs, Xa, Xb], axis=-1)[active]        # (n_act, 6)
+    br = branch[active]
     mass_a = (None if mass is None
               else np.broadcast_to(np.asarray(mass, dtype=float), (n_pair,))[active])
 
-    def force(X):                                             # ∂B/∂X = −s(d̂−d)² ∂d/∂X
+    def force(X):                                             # ∂B/∂X = −s(d̂−gap)² ∂gap/∂X
         xs, xa, xb = X[..., 0:2], X[..., 2:4], X[..., 4:6]
-        dd, _xi, _nn, _ee, _rr, _LL, _LL2 = _seg_kinematics(xs, xa, xb)
-        gd = _seg_grad_d(xs, xa, xb)
+        dl, _xi, _nn, _ee, _rr, _LL, _LL2 = _seg_kinematics(xs, xa, xb)
+        gl = _seg_grad_d(xs, xa, xb)                          # line-gap gradient (branch 0)
+        past_a = (br == 1)[:, None]
+        rr = xs - np.where(past_a, xa, xb)                    # point-point (branches 1, 2)
+        dpp = np.sqrt(rr[..., 0] ** 2 + rr[..., 1] ** 2)
+        u = rr / np.where(np.real(dpp) > 0.0, dpp, 1.0)[..., None]
+        z = np.zeros_like(u)
+        gp = np.where(past_a, np.concatenate([u, -u, z], axis=-1),
+                      np.concatenate([u, z, -u], axis=-1))
+        dd = np.where(br == 0, dl, dpp)
+        gd = np.where((br == 0)[:, None], gl, gp)
         g = dhat - dd
         if mass_a is None:
             s = kappa
@@ -954,10 +974,11 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
 
     ft_commit = (np.zeros((np.asarray(Xs).shape[0], 2)) if return_ft else None)   # committed friction force
     if mu > 0.0 and Xs0 is not None:                          # ppf/IPC smoothed friction (analytic)
-        na = np.real(n_all[active])                          # frozen edge normal
-        xia = xi[active]
-        ga = dhat - d[active]
-        sa = kappa if mass_a is None else (kappa + mass_a / np.maximum(d[active] ** 2, 1.0e-24))
+        un = rp / np.where(dp > 0.0, dp, 1.0)[:, None]       # point-point normal
+        na = np.real(np.where((branch == 0)[:, None], n_all, un)[active])   # frozen contact normal
+        xia = np.clip(xi[active], 0.0, 1.0)                  # foot clamped to the edge
+        ga = dhat - gap[active]
+        sa = kappa if mass_a is None else (kappa + mass_a / np.maximum(gap[active] ** 2, 1.0e-24))
         lam_n = sa * ga * ga                                 # |f_n| from the barrier (frozen)
         xsa, xaa, xba = Xs[active], Xa[active], Xb[active]
         xs0, xa0, xb0 = (np.asarray(Xs0)[active], np.asarray(Xa0)[active],
@@ -1248,9 +1269,10 @@ class DeformableBarrierContact2D:
         **Broad phase (band = d̂):** the spatial-hash candidates include every edge within d̂
         (clamped point-segment distance) of a vertex, so for a node on the outside of the
         surface the closest-edge scan over the candidates gives the brute-force active set, in
-        O(N) instead of O(N²). A pair is active when its signed line gap is < d̂ with the foot
-        on the edge; a node penetrated deeper than d̂ is outside the candidate guarantee (the
-        CCD step bound is what keeps nodes from getting there)."""
+        O(N) instead of O(N²). A pair is active when its gap is < d̂: the signed line gap with
+        the foot on the edge, the distance to the nearer end node otherwise
+        (:func:`deformable_barrier_eval`). A node penetrated deeper than d̂ is outside the
+        candidate guarantee (the CCD step bound is what keeps nodes from getting there)."""
         topo = self._pair_topology(U)
         gd, Xs, Xa, Xb, ms, Xs0, Xa0, Xb0, seci = [], [], [], [], [], [], [], [], []
         for (i, v, a, b) in topo:

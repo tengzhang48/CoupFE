@@ -36,6 +36,13 @@ def _dense(op, U):
     return out
 
 
+def _point_force_residual(x, xv):
+    """Residual of a node at x against the end node xv of its edge (point-point branch):
+    -κ(d̂-r)² u on the node, u = (x-xv)/r (past an edge end)."""
+    r = np.linalg.norm(x - xv)
+    return -KAPPA * (DHAT - r) ** 2 * (x - xv) / r
+
+
 def _moved(node, dx, dy, U=None):
     U = np.zeros(NDOF) if U is None else U.copy()
     U[2 * node] += dx
@@ -61,8 +68,8 @@ def test_a_node_is_frozen_to_the_edge_it_enters_the_band_at():
     b = slice(8, 10)
     R_fresh = _dense(_op(False), U1)
     assert np.linalg.norm(R_fresh[b]) > 0.0
-    # old code: B stayed frozen to P1-P2, where it is past the edge end (xi < 0), so the
-    # gate gave it no force; now it is paired to P0-P1 when it enters the band
+    # old code: B stayed frozen to P1-P2, its step-start closest edge; now it is paired to
+    # P0-P1, the edge it is closest to when it enters the band
     np.testing.assert_allclose(_dense(frozen, U1), R_fresh, rtol=0, atol=1e-14)
 
 
@@ -73,9 +80,12 @@ def test_a_paired_node_keeps_its_edge_until_commit():
     a = slice(6, 8)
     R_fresh = _dense(_op(False), U2)
     assert np.linalg.norm(R_fresh[a]) > 0.0
-    # frozen to P0-P1, A is past its end (xi > 1): the gate switches its force off (the
-    # edge-end jump recorded in the root-cause note, item (a) results)
-    assert np.linalg.norm(_dense(frozen, U2)[a]) == 0.0
+    # frozen to P0-P1, A is past its end (xi > 1): it is pushed from the end node P1 (the old
+    # 0 <= xi <= 1 gate switched its force off), not by the new closest edge P1-P2
+    R_frz = _dense(frozen, U2)[a]
+    np.testing.assert_allclose(R_frz, _point_force_residual(np.array([1.05, 0.05]), NODES[1]),
+                               rtol=1e-12, atol=0)
+    assert np.linalg.norm(R_frz - R_fresh[a]) > 1e-3
     frozen.commit(U2, None, 0.0, 1.0)                      # next step: re-paired
     np.testing.assert_allclose(_dense(frozen, U2), R_fresh, rtol=0, atol=1e-14)
 
@@ -94,7 +104,9 @@ def test_a_paired_node_keeps_its_edge_when_it_leaves_and_reenters():
     _dense(frozen, np.zeros(NDOF))                         # A frozen to P0-P1
     _dense(frozen, _moved(3, 0.0, 0.45))                   # A leaves the band
     U3 = _moved(3, 0.55, 0.0)                              # back in the band, above P1-P2
-    assert np.linalg.norm(_dense(frozen, U3)[6:8]) == 0.0  # still P0-P1 (past its end: off)
+    np.testing.assert_allclose(_dense(frozen, U3)[6:8],   # still P0-P1: pushed from its end P1
+                               _point_force_residual(np.array([1.05, 0.05]), NODES[1]),
+                               rtol=1e-12, atol=0)
 
 
 def test_a_deeply_penetrated_node_is_paired_and_pushed_out():
