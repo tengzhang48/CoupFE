@@ -160,6 +160,17 @@ C       Compute F (eye33d for F33=1)
 
 C       J and Finv
         J_all(kk) = det33d(F_all(1,1,kk))
+C     BEGIN positive-J guard
+        IF (J_all(kk) .LE. 0.0d0) THEN
+          DO i = 1, NDOFEL
+            RHS(i,1) = TRANSFER(9221120237041090560_8, 0.0d0)
+            DO j = 1, NDOFEL
+              AMATRX(i,j) = TRANSFER(9221120237041090560_8, 0.0d0)
+            END DO
+          END DO
+          RETURN
+        END IF
+C     END positive-J guard
         CALL inv33d(F_all(1,1,kk),
      &    Finv_all(1,1,kk))
 
@@ -170,6 +181,17 @@ C       Accumulate Jbar
       END DO
 
       Jbar = Jbar_num / V0
+C     BEGIN positive-J guard
+      IF (Jbar .LE. 0.0d0) THEN
+        DO i = 1, NDOFEL
+          RHS(i,1) = TRANSFER(9221120237041090560_8, 0.0d0)
+          DO j = 1, NDOFEL
+            AMATRX(i,j) = TRANSFER(9221120237041090560_8, 0.0d0)
+          END DO
+        END DO
+        RETURN
+      END IF
+C     END positive-J guard
 
 C     Compute dJbar/du (element-level sum)
       DO jj_v = 1, NNODE_E

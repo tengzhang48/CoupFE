@@ -73,6 +73,10 @@ Abaqus procedure host and does not host or call UMATs.
 | Native geometry families | **partial** — the native standalone ABI is primarily Quad4-oriented; the axisymmetric configurations add Quad8/Quad8R/Tri3/Tri6 native kernels |
 | Abaqus/Standard UEL source-export geometry families | **partial** — public examples exercise Quad4, Quad8/Quad8R, Tet4, Hex8, and selected mixed layouts; coverage differs by formulation |
 
+Neo-Hookean kernels return all-NaN residuals and tangents for `J <= 0`
+at any Gauss point (or `Jbar <= 0` for F-bar). Inverted elements are outside
+the material domain; Newton must backtrack or reduce the load increment.
+
 Native/Abaqus-interface export parity, reference assembly, and tangent
 consistency establish implementation properties. They do not independently
 validate a constitutive model, benchmark interpretation, or parameter set.

@@ -65,6 +65,36 @@ def _wrap_lines(lines):
     return result
 
 
+_QNAN = 'TRANSFER(9221120237041090560_8, 0.0d0)'
+
+
+def _uses_complex_j_domain(weakform):
+    """Keep the new guards on determinant/logarithmic or power responses.
+
+    Complex LOG and powers can hide negative determinants. Linear mechanics
+    and scalar-only forms keep their existing source.
+    """
+    if 'momentum_equation' not in weakform.equations:
+        return False
+    source = _generate_all_material_subs(weakform, 'domain_check')
+    return 'det33z(' in source and ('LOG(' in source or ' ** ' in source)
+
+
+def _positive_j_guard(condition, residual='R(i)', tangent='K(i,j)', indent='        '):
+    """Fail before complex LOG/fractional powers can hide an inverted state."""
+    lines = ['C     BEGIN positive-J guard',
+             f'{indent}IF ({condition} .LE. 0.0d0) THEN',
+             f'{indent}  DO i = 1, NDOFEL',
+             f'{indent}    {residual} = {_QNAN}']
+    if tangent:
+        lines += [f'{indent}    DO j = 1, NDOFEL',
+                  f'{indent}      {tangent} = {_QNAN}',
+                  f'{indent}    END DO']
+    lines += [f'{indent}  END DO', f'{indent}  RETURN',
+              f'{indent}END IF', 'C     END positive-J guard']
+    return lines
+
+
 # =====================================================================
 # Section 2: Material subroutine generation
 # =====================================================================
@@ -963,6 +993,7 @@ def _append_state_old_to_complex(lines, sv_info, indent='      '):
 
 def _generate_uel(weakform, mat_prefix, cfg):
     """Generate the UEL subroutine."""
+    positive_j = _uses_complex_j_domain(weakform)
     ndim = cfg.ndim
     fields = weakform.fields
     field_names = weakform.field_names
@@ -1080,6 +1111,8 @@ C     --- Shape functions and mapping ---""")
 
 C     --- Gauss point field values ---
       DOUBLE PRECISION :: F(3,3), F_old(3,3)""")
+    if positive_j:
+        lines.append('      DOUBLE PRECISION :: det33d')
     if cs_needs_X:
         lines.append('      DOUBLE PRECISION :: X_gp(3)')
 
@@ -1359,6 +1392,9 @@ C     --- Gauss point field values ---
 
     lines_real_eval = []
     lines_real_eval.append('')
+    if positive_j:
+        lines_real_eval.extend(_positive_j_guard(
+            'det33d(F)', 'RHS(i,1)', 'AMATRX(i,j)'))
     lines_real_eval.append('C       Real material evaluation (for RHS)')
     lines_real_eval.append('        CALL real2complex33(F, Fz_r)')
     lines_real_eval.append('        CALL real2complex33(F_old, Fold_r)')
@@ -1875,6 +1911,7 @@ def _generate_uel_fbar(weakform, mat_prefix, cfg):
               AMATRX, compute and store Q
       Pass 3: Compute dJbar/du, add F-bar correction to AMATRX
     """
+    positive_j = _uses_complex_j_domain(weakform)
     ndim = cfg.ndim
     fields = weakform.fields
     field_names = weakform.field_names
@@ -2071,6 +2108,9 @@ C     --- Complex temps for material evaluation ---
     lines.append('')
     lines.append('C       J and Finv')
     lines.append('        J_all(kk) = det33d(F_all(1,1,kk))')
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'J_all(kk)', 'RHS(i,1)', 'AMATRX(i,j)'))
     lines.append('        CALL inv33d(F_all(1,1,kk),')
     lines.append('     &    Finv_all(1,1,kk))')
     lines.append('')
@@ -2081,6 +2121,9 @@ C     --- Complex temps for material evaluation ---
     lines.append('      END DO')
     lines.append('')
     lines.append('      Jbar = Jbar_num / V0')
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'Jbar', 'RHS(i,1)', 'AMATRX(i,j)', indent='      '))
     lines.append('')
 
     # --- Compute dJbar/du ---
@@ -2382,6 +2425,7 @@ def _generate_native_rk(weakform, mat_prefix, cfg, entry='rk'):
     if entry not in ('rk', 'r'):
         raise ValueError("native entry must be 'rk' or 'r'")
     emit_k = (entry == 'rk')
+    positive_j = _uses_complex_j_domain(weakform)
     ndim = cfg.ndim
     fields = weakform.fields
     field_names = weakform.field_names
@@ -2504,6 +2548,8 @@ C     --- Shape functions and mapping ---""")
 
 C     --- Gauss point field values ---
       DOUBLE PRECISION :: F(3,3), F_old(3,3)""")
+    if positive_j:
+        lines.append('      DOUBLE PRECISION :: det33d')
     axi = getattr(cfg, 'axisymmetric', False)
     if axi:
         lines.append('      DOUBLE PRECISION :: r_gp, rinv_gp, ur_gp, ur_old_gp')
@@ -2806,6 +2852,9 @@ C     --- Gauss point field values ---
 
     lines_real_eval = []
     lines_real_eval.append('')
+    if positive_j:
+        lines_real_eval.extend(_positive_j_guard(
+            'det33d(F)', tangent='K(i,j)' if emit_k else None))
     lines_real_eval.append('C       Real material evaluation (for R)')
     lines_real_eval.append('        CALL real2complex33(F, Fz_r)')
     lines_real_eval.append('        CALL real2complex33(F_old, Fold_r)')
@@ -2968,6 +3017,7 @@ def _generate_native_rk_fbar(weakform, mat_prefix, cfg, entry='rk'):
     if entry not in ('rk', 'r'):
         raise ValueError("native entry must be 'rk' or 'r'")
     emit_k = (entry == 'rk')
+    positive_j = _uses_complex_j_domain(weakform)
     ndim = cfg.ndim
     fields = weakform.fields
     field_names = weakform.field_names
@@ -3244,11 +3294,17 @@ C     --- Complex temps for material evaluation ---
     if emit_k:
         lines.append('C       J and Finv')
         lines.append('        J_all(kk) = det33d(F_all(1,1,kk))')
+        if positive_j:
+            lines.extend(_positive_j_guard(
+                'J_all(kk)', tangent='K(i,j)' if emit_k else None))
         lines.append('        CALL inv33d(F_all(1,1,kk),')
         lines.append('     &    Finv_all(1,1,kk))')
     else:
         lines.append('C       J')
         lines.append('        J_all(kk) = det33d(F_all(1,1,kk))')
+        if positive_j:
+            lines.extend(_positive_j_guard(
+                'J_all(kk)', tangent='K(i,j)' if emit_k else None))
     lines.append('')
     lines.append('C       Accumulate Jbar')
     lines.append(f'        V0 = V0 + detJxi * w_gp(kk){ring}')
@@ -3257,6 +3313,9 @@ C     --- Complex temps for material evaluation ---
     lines.append('      END DO')
     lines.append('')
     lines.append('      Jbar = Jbar_num / V0')
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'Jbar', tangent='K(i,j)' if emit_k else None, indent='      '))
     lines.append('')
 
     # --- Compute dJbar/du (K-only; skipped in the R entry) ---

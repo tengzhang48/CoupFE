@@ -52,6 +52,7 @@ C     --- Shape functions and mapping ---
 
 C     --- Gauss point field values ---
       DOUBLE PRECISION :: F(3,3), F_old(3,3)
+      DOUBLE PRECISION :: det33d
 
 C     --- Material outputs (real) ---
       DOUBLE PRECISION :: P_real(3,3)
@@ -137,6 +138,17 @@ C       Interpolate fields at Gauss point
         END DO
 
 
+C     BEGIN positive-J guard
+        IF (det33d(F) .LE. 0.0d0) THEN
+          DO i = 1, NDOFEL
+            R(i) = TRANSFER(9221120237041090560_8, 0.0d0)
+            DO j = 1, NDOFEL
+              K(i,j) = TRANSFER(9221120237041090560_8, 0.0d0)
+            END DO
+          END DO
+          RETURN
+        END IF
+C     END positive-J guard
 C       Real material evaluation (for R)
         CALL real2complex33(F, Fz_r)
         CALL real2complex33(F_old, Fold_r)

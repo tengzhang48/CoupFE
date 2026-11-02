@@ -255,9 +255,10 @@ def _generate_uel_fbar_coupled(weakform, mat_prefix, cfg):
         _RETURN_SHAPE, _append_state_var_declarations,
         _append_svars_read, _append_svars_write,
         _append_state_old_to_complex,
-        _emit_rhs_assembly,
+        _emit_rhs_assembly, _uses_complex_j_domain, _positive_j_guard,
     )
 
+    positive_j = _uses_complex_j_domain(weakform)
     ndim = cfg.ndim
     fields = weakform.fields
     field_names = weakform.field_names
@@ -662,6 +663,9 @@ def _generate_uel_fbar_coupled(weakform, mat_prefix, cfg):
     lines.append('C       J and Finv')
     lines.append('        J_all(kk) = det33d(F_all(1,1,kk))')
     lines.append('        J_old_all(kk) = det33d(F_old_all(1,1,kk))')
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'J_all(kk)', 'RHS(i,1)', 'AMATRX(i,j)', indent='        '))
     lines.append('        IF (J_all(kk) .LE. 0.0d0) THEN')
     lines.append('          PNEWDT = 0.25d0')
     lines.append('          RETURN')
@@ -704,6 +708,9 @@ def _generate_uel_fbar_coupled(weakform, mat_prefix, cfg):
     lines.append('')
     lines.append('      J0 = det33d(F0)')
     lines.append('      J0_old = det33d(F0_old)')
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'J0', 'RHS(i,1)', 'AMATRX(i,j)', indent='      '))
     lines.append('      IF (J0 .LE. 0.0d0) THEN')
     lines.append('        PNEWDT = 0.25d0')
     lines.append('        RETURN')

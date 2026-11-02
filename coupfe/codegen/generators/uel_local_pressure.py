@@ -33,7 +33,7 @@ from .element_config import ELEMENT_CONFIGS
 from .uel_gen import (
     _generate_all_material_subs,
     _read_template,
-    _wrap_lines,
+    _wrap_lines, _uses_complex_j_domain, _positive_j_guard,
 )
 
 
@@ -280,6 +280,7 @@ def _generate_uel_local_pressure(weakform, mat_prefix, cfg):
     if cfg.name not in ('quad4', 'hex8'):
         raise ValueError("local_pressure formulation currently supports "
                          "Quad4 and Hex8")
+    positive_j = _uses_complex_j_domain(weakform)
     has_mu = _has_mu_transport(weakform)
     nprops = len(weakform._mat.props_names)
     ndofel = cfg.n_nodes * (cfg.ndim + 1) if has_mu else cfg.n_nodes * cfg.ndim
@@ -418,6 +419,9 @@ def _generate_uel_local_pressure(weakform, mat_prefix, cfg):
         lines.append('            END DO')
     lines.append('          END DO')
 
+    if positive_j:
+        lines.extend(_positive_j_guard(
+            'det33d(F)', 'RHS(i,1)', 'AMATRX(i,j)', indent='          '))
     if has_mu:
         lines.append('          CALL localp_eval_tangents(F, p_elem, mu_gp,')
         lines.append('     &      grad_mu, F_old, p_old, PROPS, dt_safe,')
