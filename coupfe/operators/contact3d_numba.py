@@ -31,19 +31,19 @@ def _pe_coeff(p, e0, e1):
 @njit(cache=True)
 def _pt_coeff(p, t0, t1, t2):
     """Barycentric weights of p's closest point on the triangle plane; degenerate → longest edge.
-    Matches point_triangle_coeff (incl. the _solve2 adj/det convention)."""
+    Matches point_triangle_coeff; cross products retain thin-triangle area."""
     r0x = t1[0] - t0[0]; r0y = t1[1] - t0[1]; r0z = t1[2] - t0[2]
     r1x = t2[0] - t0[0]; r1y = t2[1] - t0[1]; r1z = t2[2] - t0[2]
     px = p[0] - t0[0]; py = p[1] - t0[1]; pz = p[2] - t0[2]
-    a00 = r0x * r0x + r0y * r0y + r0z * r0z
-    a01 = r0x * r1x + r0y * r1y + r0z * r1z
-    a11 = r1x * r1x + r1y * r1y + r1z * r1z
-    b0 = r0x * px + r0y * py + r0z * pz
-    b1 = r1x * px + r1y * py + r1z * pz
-    det = a00 * a11 - a01 * a01
-    if det != 0.0:
-        u = (a11 * b0 - a01 * b1) / det
-        v = (a00 * b1 - a01 * b0) / det
+    nx = r0y * r1z - r0z * r1y
+    ny = r0z * r1x - r0x * r1z
+    nz = r0x * r1y - r0y * r1x
+    det = nx * nx + ny * ny + nz * nz
+    if det > 0.0:
+        u = ((py * r1z - pz * r1y) * nx + (pz * r1x - px * r1z) * ny
+             + (px * r1y - py * r1x) * nz) / det
+        v = ((r0y * pz - r0z * py) * nx + (r0z * px - r0x * pz) * ny
+             + (r0x * py - r0y * px) * nz) / det
         return 1.0 - u - v, u, v
     # degenerate triangle → longest edge
     e0l = (t1[0]-t0[0])**2 + (t1[1]-t0[1])**2 + (t1[2]-t0[2])**2
@@ -57,27 +57,48 @@ def _pt_coeff(p, t0, t1, t2):
 
 
 @njit(cache=True)
-def _pt_coeff_unclassified(p, t0, t1, t2):
-    """Robust barycentric weights — foot outside triangle → closest edge/vertex. Matches
-    point_triangle_coeff_unclassified."""
+def _pt_closest_feature_nb(p, t0, t1, t2):
+    """Exact face/boundary minimum; same tie order as numpy."""
+    r0x = t1[0]-t0[0]; r0y = t1[1]-t0[1]; r0z = t1[2]-t0[2]
+    r1x = t2[0]-t0[0]; r1y = t2[1]-t0[1]; r1z = t2[2]-t0[2]
+    nx = r0y*r1z-r0z*r1y; ny = r0z*r1x-r0x*r1z; nz = r0x*r1y-r0y*r1x
     c0, c1, c2 = _pt_coeff(p, t0, t1, t2)
-    cmin = min(c0, min(c1, c2)); cmax = max(c0, max(c1, c2))
-    if cmin >= 0.0 and cmax <= 1.0:
-        return c0, c1, c2
-    if c0 < 0.0:
-        w0, w1 = _pe_coeff(p, t1, t2)
-        if 0.0 <= w0 <= 1.0:
-            return 0.0, w0, w1
-        return (0.0, 1.0, 0.0) if w0 > 1.0 else (0.0, 0.0, 1.0)
-    if c1 < 0.0:
-        w0, w1 = _pe_coeff(p, t0, t2)
-        if 0.0 <= w0 <= 1.0:
-            return w0, 0.0, w1
-        return (1.0, 0.0, 0.0) if w0 > 1.0 else (0.0, 0.0, 1.0)
-    w0, w1 = _pe_coeff(p, t0, t1)
-    if 0.0 <= w0 <= 1.0:
-        return w0, w1, 0.0
-    return (1.0, 0.0, 0.0) if w0 > 1.0 else (0.0, 1.0, 0.0)
+    if nx*nx + ny*ny + nz*nz > 0.0 and min(c0, c1, c2) >= 0.0 and max(c0, c1, c2) <= 1.0:
+        return c0, c1, c2, 0, -1, -1
+    pts = (t0, t1, t2)
+    best_d = np.inf
+    w0, w1, w2 = 1.0, 0.0, 0.0
+    kind, i0, i1 = 2, 0, -1
+    for i in range(3):
+        j = (i + 1) % 3
+        a, b = pts[i], pts[j]
+        ex = b[0]-a[0]; ey = b[1]-a[1]; ez = b[2]-a[2]
+        px = p[0]-a[0]; py = p[1]-a[1]; pz = p[2]-a[2]
+        l2 = ex*ex + ey*ey + ez*ez
+        t = min(1.0, max(0.0, (ex*px + ey*py + ez*pz) / l2)) if l2 > 0.0 else 0.0
+        dx = px-t*ex; dy = py-t*ey; dz = pz-t*ez
+        d2 = dx*dx + dy*dy + dz*dz
+        if d2 < best_d:
+            if i == 0:
+                w0, w1, w2 = 1.0-t, t, 0.0
+            elif i == 1:
+                w0, w1, w2 = 0.0, 1.0-t, t
+            else:
+                w0, w1, w2 = t, 0.0, 1.0-t
+            if t <= 0.0:
+                kind, i0, i1 = 2, i, -1
+            elif t >= 1.0:
+                kind, i0, i1 = 2, j, -1
+            else:
+                kind, i0, i1 = 1, i, j
+            best_d = d2
+    return w0, w1, w2, kind, i0, i1
+
+
+@njit(cache=True)
+def _pt_coeff_unclassified(p, t0, t1, t2):
+    c0, c1, c2, _kind, _i0, _i1 = _pt_closest_feature_nb(p, t0, t1, t2)
+    return c0, c1, c2
 
 
 @njit(cache=True)
