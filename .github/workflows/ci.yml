@@ -15,7 +15,9 @@ jobs:
       # version-specific regression from a runner-wide failure.
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # 3.9 dropped: ubuntu-latest (Ubuntu 26.04, from October 2026) has no
+        # Python 3.9, so its setup step fails before any test runs.
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -29,8 +31,8 @@ jobs:
       # Install the `codegen` extra (sympy) too — without it every codegen/UEL test
       # `importorskip`s and silently skips, so the generator (and Phases 8-9) would go
       # untested in CI. The f2py build is forced onto the meson backend in
-      # build_element_kernel, so this works identically on 3.9 (legacy numpy.distutils
-      # is broken against modern setuptools) through 3.12.
+      # build_element_kernel (legacy numpy.distutils is broken against modern
+      # setuptools).
       # Include numba so CI exercises the accelerated 3D-contact path as well
       # as the always-available NumPy fallback.
       - run: pip install -e ".[dev,runtime,codegen,performance]"
