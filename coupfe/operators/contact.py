@@ -1416,18 +1416,49 @@ class DeformableBarrierContact2D:
         return best
 
     def _any_penetration(self, U, cands):
-        """True if any secondary penetrates its closest candidate edge (d ≤ 0, foot on segment).
-        Reuses the broad-phase candidate set ``cands`` (the safety-net check, O(N))."""
+        """True if any secondary is behind the primary surface at its closest feature: behind
+        its closest edge when the closest point lies on that edge (d ≤ 0), or behind the summed
+        outward normals of the two edges meeting at the closest node. A free end of an open
+        surface (one edge) or a junction of three or more edges cannot be told inside from
+        outside this way and counts as not penetrated.
+        Reuses the broad-phase candidate set ``cands`` (the safety-net check, O(N)).
+        Checking only the closest edge's line gap with the foot on the edge would miss a node
+        inside a concave (L-shaped) corner, whose closest point is the corner node."""
         for v in self.sec:
             v = int(v)
             ce = cands.get(v)
             if ce is None:
                 continue
-            c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
+            xs = self._x(U, v)
+            c = self._closest_edge(U, xs, v, edge_idxs=ce)
             if c is None:
                 continue
             a, b = c
-            d, xi, *_ = _seg_kinematics(self._x(U, v), self._x(U, a), self._x(U, b))
-            if 0.0 <= xi <= 1.0 and d <= 0.0:
+            d, xi, *_ = _seg_kinematics(xs, self._x(U, a), self._x(U, b))
+            if 0.0 <= xi <= 1.0:
+                if d <= 0.0:
+                    return True
+                continue
+            corner = a if xi < 0.0 else b
+            nv = self._node_normal(U, corner)
+            if nv is not None and float((xs - self._x(U, corner)) @ nv) <= 0.0:
                 return True
         return False
+
+    def _node_normal(self, U, node):
+        """Sum of the outward unit normals of the two primary edges meeting at ``node``, or None
+        unless exactly two meet there (a free end, or a junction where the sum is no test)."""
+        if getattr(self, "_node_edges", None) is None:     # node → incident edges, built once
+            ne = {}
+            for ei, (a, b) in enumerate(self.edges):
+                ne.setdefault(int(a), []).append(ei)
+                ne.setdefault(int(b), []).append(ei)
+            self._node_edges = ne
+        inc = self._node_edges.get(int(node), [])
+        if len(inc) != 2:
+            return None
+        nsum = np.zeros(2)
+        for ei in inc:
+            e = self._x(U, int(self.edges[ei][1])) - self._x(U, int(self.edges[ei][0]))
+            nsum += np.array([-e[1], e[0]]) / np.linalg.norm(e)
+        return nsum
