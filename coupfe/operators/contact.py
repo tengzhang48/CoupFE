@@ -1124,9 +1124,12 @@ class DeformableBarrierContact2D:
         # PAIRING FREEZE (opt-in): fix each secondary's closest-edge assignment
         # for one step, re-pairing only at commit(). This avoids active-pair
         # chatter near shared vertices. Positions and the active gap mask still
-        # update with U, at the cost of a one-step pairing lag.
+        # update with U, at the cost of a one-step pairing lag. A node is paired
+        # at the first evaluation of the step that finds it in the band (or
+        # penetrating) and keeps that pairing until commit. Ignored with
+        # all_primitive (no closest-edge choice).
         self.freeze_pairing = bool(freeze_pairing)
-        self._frozen_topo = None
+        self._frozen_topo = None          # freeze: {sec index: [(i, v, a, b), ...]}, None at step start
         # ALL-PRIMITIVE mode (opt-in): the attributed 2D ppf-derived path. Each secondary node pairs with EVERY
         # nearby edge (not just the single closest), each via the unclassified-distance cubic barrier
         # (edge_barrier_eval). No closest-edge choice → no flip → no freeze needed. Default off keeps
@@ -1172,19 +1175,35 @@ class DeformableBarrierContact2D:
     def _pair_topology(self, U):
         """The active node→closest-edge assignment as a list of ``(sec_index, v, a, b)``.
 
-        Recomputed from the broad phase + closest-edge scan each call — UNLESS
-        ``freeze_pairing`` and a cached assignment from this step exists, in which case the
-        cached topology is reused (only the geometry, in :meth:`_pairs`, updates with ``U``).
-        ``commit`` clears the cache so the next step re-pairs."""
-        if self.freeze_pairing and self._frozen_topo is not None:
-            return self._frozen_topo
-        cands = candidate_pairs(self._positions_all(U), self.sec, self.edges, self.dhat)
+        Recomputed from the broad phase + closest-edge scan each call. With
+        ``freeze_pairing``, each node's pairing is fixed at its first evaluation of the step
+        that finds it in the band (:meth:`_in_band`; freeze on entry) and
+        reused until ``commit`` clears it; only the geometry, in :meth:`_pairs`, updates with
+        ``U``. A node not yet in the band is searched again at every evaluation, so a node
+        entering the band mid-step is paired then, with its closest edge at that moment.
+        The list is in secondary order, as without the freeze; a tie goes to the lower edge
+        index. A node never paired makes every evaluation rebuild the candidate search, as
+        without the freeze. With ``all_primitive`` the freeze is ignored: every nearby edge already acts,
+        so there is no closest-edge choice to freeze (freezing the candidate list would miss
+        edges reached later in the step)."""
+        frozen = None
+        if self.freeze_pairing and not self.all_primitive:   # all-primitive: no choice to freeze
+            if self._frozen_topo is None:
+                self._frozen_topo = {}
+            frozen = self._frozen_topo
+        todo = [i for i in range(len(self.sec)) if frozen is None or i not in frozen]
+        cands = (candidate_pairs(self._positions_all(U), self.sec[todo], self.edges, self.dhat)
+                 if todo else {})
         topo = []
         for i, v in enumerate(self.sec):
+            if frozen is not None and i in frozen:
+                topo.extend(frozen[i])
+                continue
             v = int(v)
             ce = cands.get(v)
             if ce is None:                                    # no edge within d̂ → inactive
                 continue
+            pairs = []
             if self.all_primitive:                            # ALL nearby edges (ppf-style), not the closest
                 same_body = (None if self.body is None else int(self.body[v]))
                 for ei in ce:
@@ -1193,24 +1212,37 @@ class DeformableBarrierContact2D:
                         continue
                     if same_body is not None and int(self.body[a]) == same_body:
                         continue
-                    topo.append((i, v, a, b))
-                continue
-            c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
-            if c is None:
-                continue
-            topo.append((i, v, int(c[0]), int(c[1])))
-        if self.freeze_pairing:
-            self._frozen_topo = topo
+                    pairs.append((i, v, a, b))
+            else:
+                c = self._closest_edge(U, self._x(U, v), v, edge_idxs=ce)
+                if c is not None:
+                    pairs.append((i, v, int(c[0]), int(c[1])))
+            if frozen is not None and any(self._in_band(U, *p[1:]) for p in pairs):
+                frozen[i] = pairs                             # freeze on entry into the band
+            topo.extend(pairs)
         return topo
+
+    def _in_band(self, U, v, a, b):
+        """Freeze-on-entry test: node ``v`` is within d̂ of the finite edge ``a-b`` (clamped
+        point-segment distance), or has penetrated it (signed line gap < 0, foot on the edge).
+        A node not yet in the band stays unpaired in the frozen map and is searched again at
+        the next evaluation; its pair is inactive meanwhile anyway."""
+        xs, xa, xb = self._x(U, v), self._x(U, a), self._x(U, b)
+        d, xi, *_ = _seg_kinematics(xs, xa, xb)
+        d, xi = float(d), float(xi)
+        foot = xa + min(1.0, max(0.0, xi)) * (xb - xa)
+        return float(np.linalg.norm(xs - foot)) < self.dhat or (d < 0.0 and 0.0 <= xi <= 1.0)
 
     def _pairs(self, U):
         """Per secondary node → (gdofs, Xs, Xa, Xb, mass_s, Xs0, Xa0, Xb0) for its closest edge.
         The ``*0`` arrays are the step-start positions (friction reference).
 
-        **Broad phase (band = d̂):** only edges within d̂ of a vertex can be active (point-segment
-        distance < d̂ ⇔ line gap < d̂ with the foot on the segment), and a vertex with no edge in
-        the band contributes no force; so restricting the closest-edge scan to the spatial-hash
-        candidates is *identical* to the brute-force active set — just O(N) instead of O(N²)."""
+        **Broad phase (band = d̂):** the spatial-hash candidates include every edge within d̂
+        (clamped point-segment distance) of a vertex, so for a node on the outside of the
+        surface the closest-edge scan over the candidates gives the brute-force active set, in
+        O(N) instead of O(N²). A pair is active when its signed line gap is < d̂ with the foot
+        on the edge; a node penetrated deeper than d̂ is outside the candidate guarantee (the
+        CCD step bound is what keeps nodes from getting there)."""
         topo = self._pair_topology(U)
         gd, Xs, Xa, Xb, ms, Xs0, Xa0, Xb0, seci = [], [], [], [], [], [], [], [], []
         for (i, v, a, b) in topo:
