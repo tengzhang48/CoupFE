@@ -933,7 +933,15 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
         dd, _xi, _nn, _ee, _rr, _LL, _LL2 = _seg_kinematics(xs, xa, xb)
         gd = _seg_grad_d(xs, xa, xb)
         g = dhat - dd
-        s = kappa if mass_a is None else (kappa + mass_a / (dd * dd))
+        if mass_a is None:
+            s = kappa
+        else:
+            # Floor the squared gap as rigid_barrier_eval does: a node on
+            # the edge line (d = 0, e.g. parts that start touching) gave NaN in R and K. The
+            # floor acts only where real(d²) < 1e-24; elsewhere s′(d) is still differentiated.
+            dd2 = dd * dd
+            dd2 = np.where(np.real(dd2) < 1.0e-24, 1.0e-24, dd2)
+            s = kappa + mass_a / dd2
         return (-(s * g * g))[..., None] * gd
 
     R[active] = force(X6)
@@ -949,7 +957,7 @@ def deformable_barrier_eval(Xs, Xa, Xb, *, dhat, kappa, mass=None,
         na = np.real(n_all[active])                          # frozen edge normal
         xia = xi[active]
         ga = dhat - d[active]
-        sa = kappa if mass_a is None else (kappa + mass_a / (d[active] ** 2))
+        sa = kappa if mass_a is None else (kappa + mass_a / np.maximum(d[active] ** 2, 1.0e-24))
         lam_n = sa * ga * ga                                 # |f_n| from the barrier (frozen)
         xsa, xaa, xba = Xs[active], Xa[active], Xb[active]
         xs0, xa0, xb0 = (np.asarray(Xs0)[active], np.asarray(Xa0)[active],
