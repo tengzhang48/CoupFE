@@ -1,20 +1,20 @@
 {
   "schemaVersion": 2,
-  "recordedDate": "2026-08-10",
-  "sourceCommit": "118c3dd8799ba6542b0f7262bcfaa45425d3a2c5",
+  "recordedDate": "2026-11-02",
+  "sourceCommit": "d8dc8154ce021d93853ce5657d7b0aea133b743e",
   "sourceCommitScope": "sourceCommit pins sourceFiles and numerical runs. presentationArtifacts are deterministic renderings created after the source-pinned solves and are not simulation inputs.",
   "scope": "Source-pinned current-revision example reruns. These values support only the named example and its documented qualification boundary.",
   "environment": {
-    "python": "CPython 3.13.9",
+    "python": "CPython 3.11.15",
     "numpy": "2.4.3",
-    "scipy": "1.18.0",
-    "gfortran": "GNU Fortran 13.3.0",
-    "platform": "Linux x86_64, glibc 2.39"
+    "scipy": "1.17.1",
+    "gfortran": "GNU Fortran 11.4.0",
+    "platform": "Linux x86_64, glibc 2.35"
   },
   "sourceFiles": {
     "coupfe/materials.py": "9fb2536b3e58cd65f7799de850b37ca171a2b1b12a9640c857683144f2837719",
-    "coupfe/runtime/elements/neo_hookean_q4_native.for": "34092cb1e6b4f414e08b2b7f9e768b4884d1ee0aef0345301ca9ccd8cf27831f",
-    "coupfe/runtime/elements/neo_hookean_hex8_fbar.for": "f9d4ab2e67745976f79d99d847f5aafe7ffe1aab96505fd95c0e879014365b50",
+    "coupfe/runtime/elements/neo_hookean_q4_native.for": "c3ad886316f8f947913d87b316bad55d458d76551c666eb74c2a3d166212365f",
+    "coupfe/runtime/elements/neo_hookean_hex8_fbar.for": "93e5b4a576dc069ed8583e7812f60d278d69913f12b381aa053e9bc2f65a39e6",
     "examples/linear_bar/run.py": "cd2dd4f8da12b9773adedebea93e5abe22e74616fd8cdd8910ed9e83cd256b9e",
     "examples/linear_bar/bar.py": "1fea44e7754ff4b9a2add4d09ff9da8fd0eb059f04d4b3fbcbea5f857a363e77",
     "examples/linear_bar/render.py": "dc7afe2d60ba3a757a9067805808d3737fe7c871d95a3841a2dcdb6f0bb577bf",

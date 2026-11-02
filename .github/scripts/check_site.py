@@ -153,7 +153,7 @@ def check_pinned_source_files(
 
 def check_evidence(payload: dict[str, object]) -> None:
     require(payload.get("schemaVersion") == 2, "unexpected evidence schema")
-    require(payload.get("recordedDate") == "2026-08-10", "unexpected evidence date")
+    require(payload.get("recordedDate") == "2026-11-02", "unexpected evidence date")
     source_commit = payload.get("sourceCommit")
     require(
         isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
